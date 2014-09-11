@@ -9,4 +9,4 @@ waa:
 
 
 clean:
-	rm -rf *cm* *o *a *mli *.annot waa *.ini
+	rm -rf *cm* *.o *.a waa *mli *.annot *.ini
