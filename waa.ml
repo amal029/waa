@@ -30,11 +30,14 @@ let get_counts (class_path : class_path)
          | Native -> (0,0) 	(* Native method is not supported and assumed to not have any memory access instructions*)
 	 (* Increment memory access counter if memory access instruction happens, else increment instruction counter *)
          | Java code -> Array.fold_left (fun (i,m) op -> 
+					 let () = IFDEF DEBUG THEN 
+							if op <> OpInvalid then JPrint.jopcode op |> print_endline ELSE () ENDIF in
 					 (match op with
 					  | OpLoad _ | OpStore _ | OpGetField _ | OpPutField _ 
 					  | OpArrayLength | OpArrayStore _ | OpArrayLoad _ | OpInvoke _
 					  | OpReturn _ | OpGetStatic _ 
 					  | OpPutStatic _ ->  (i,m+1)
+					  | OpInvalid -> (i,m)
 					  | _ -> (i+1,m))
 					) (0,0)  (Lazy.force code).c_code)) methods
 
