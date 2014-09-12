@@ -1,7 +1,7 @@
 CCC ?= ocamlopt -annot -g
 OCAMLOPTS=-a
 BATDIR=`ocamlfind query batteries`
-SRC=waa.ml
+SRC=joplang.ml waa.ml
 all: waa
 
 waa:
