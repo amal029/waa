@@ -3,10 +3,15 @@ open Javalib
 open JBasics
 open JCode
 open Joplang
+open Sawja_pack
 module Array = BatArray
 module Enum = BatEnum
 
-let usage_msg = "Usage: waa class-path class-name [Note class-name should be given without the .class extension]";;
+let usage_msg = "Usage: waa class-path class-name
+[Note
+ 1.) Class-name should be given without the .class extension
+ 2.) Should be a fully qualified name, .e.g,: java.lang.Object
+ 3.) Should contain the main method]";;
 
 let (|>) x f = f x;;
 
@@ -15,6 +20,10 @@ exception Internal
 exception Opcode_Not_Implemented of string
 exception Opcode_Java_Implemented of string
 exception Opcode_Not_Bounded of string
+
+(* Classes that implement bytecodes in Java *)
+let bj1 = "com.jopdesign.sys.JVM";;
+let bj2 = "com.jopdesign.sys.GC";;
 
 let monitorexit = [|Pop;Ldm;Ldi;Sub;Dup;Stm;Bnz;Ldi;Stmwa;Ldi;Stmwd;Wait;Wait;Ldi;Stmwa;
 							       Ldi;Stmwd;Wait;Wait;Nop|];;
@@ -112,8 +121,260 @@ let lshr_le31 =
 
 let long_add = [|Stm;Stm;Stm;Stm;Ldm;Ldi;Ushr;Ldm;Ldi;Ushr;Add;Ldm;Ldm;And;Ldi;And;Add;Ldi;Ushr;Ldm;Add;Ldm;Add;Ldm;Ldm;Add|];;
 
+let rec get_microcode ((program,_) as ss) = function
+  | AbstractMethod _ -> None
+  | ConcreteMethod cm ->
+     (match cm.cm_implementation with
+      | Native -> None 	(* Native method is not supported and assumed to not have any memory access instructions*)
+      (* Increment memory access counter if memory access instruction happens, else increment instruction counter *)
+      | Java code -> Some (Array.map (fun op -> 
+				      let () = IFDEF DEBUG THEN if op <> OpInvalid then JPrint.jopcode op |> print_endline ELSE () ENDIF in
+				      (match op with
+				       | OpNew _ | OpNewArray _ (* OpNewArray == anewarray not newarray in jvm.asm *)
+				       | OpCheckCast _ 
+				       | OpInstanceOf _ -> 
+					  [|
+					    Ldjpc; Ldi;
+					    Stjpc; Nop; Nop; Ldm;
+					    Nop; Ld_opd_8u; Ldi; And; Dup; Add; Add; Stm; Ldm; Nop; Ld_opd_16u; Add; Stmrac; Wait; Wait; Ldmrd; Ldm; Jmp; Nop;Nop
+					   |]
+				       | OpPutField (_,x) -> (match (fs_type x) with
+							      | TBasic x -> (match x with
+									     | `Long -> [|Stm;Stm;Dup;Nop;Bz;Nop;Nop;Stmraf;
+											  Wait;Wait;Ldmrd;Nop;Nop;Ld_opd_16u;
+											  Add;Dup;Stmraf;Ldi;Add;Stm;Wait;Wait;Ldmrd;
+											  Ldm;Stmraf;Wait;Wait;Ldmrd|]
+									     | _ ->  [|
+										    Ldjpc; Ldi; Sub; Stjpc; Nop; Nop; Ldm; Nop;
+										    Ld_opd_8u; Ldi; And; Dup; Add; Add; Stm; Nop;
+										    Nop; Ld_opd_16u; Ldm; Jmp; Nop; Nop
+										   |])
+							      | _ -> 
+								 [|Ldjpc;
+								   Ldi;Sub;Stjpc;Nop;Nop;Ldm;Nop;Ld_opd_8u;Ldi;And;Dup;Add;Add;Stm;Nop;Nop;Ld_opd_16u;Ldm;Jmp;Nop;Nop
+								  |])
+				       | OpPutStatic (_,x) ->
+					  (match (fs_type x) with
+					   | TBasic x -> (match x with
+							  | `Long -> [|Stm;Stm;Ld_opd_16u;Dup;Stmwa;Ldm;Stmwd;Ldi;Add;Wait;Wait;
+								       Stmwa;Ldm;Stmwd;Wait;Wait;Nop|]
+							  | _ -> [|
+								 Ldjpc;Ldi;Sub;Stjpc;Nop;Nop;Ldm;Nop;Ld_opd_8u;Ldi;And;Dup;Add;Add;Stm;Nop;Nop;
+								 Ld_opd_16u;Ldm;Jmp;Nop;Nop
+								|])
+					   | _ -> [|Ldjpc;Ldi;Sub;
+						    Stjpc;Nop;Nop;Ldm;Nop;Ld_opd_8u;Ldi;And;Dup;Add;Add;Stm;Nop;Nop;	Ld_opd_16u;Ldm;Jmp;Nop;Nop
+						   |])
+				       | OpNop -> [|Nop|]
+				       | OpConst x -> (match x with | `Long _ | `Double _ -> [|Ldi; Ldi|] | _ -> [|Ldi|])
+				       | OpSwap -> [|Stm;Stm;Ldm;Ldm|]
+				       | OpLoad (x,_) -> (match x with 
+							  (* Just considers the worst possible scenario! *)
+							  | `Long | `Double -> [|Ldvp;Dup;Ld_opd_8u;Add;Stvp;Stm;Ld0;Ld1;Ldm;Stvp;Nop|]
+							  | _ -> [|Stald;Pop;Wait;Wait;Ldmrd|])
+				       | OpStore (x,_) ->(match x with 
+							  (* Just considers the worst possible scenario! *)
+							  | `Long | `Double -> [|Ldvp;Dup;Ld_opd_8u;Add;Stvp;Stm;St1;St0;Ldm;Stvp;Nop|]
+							  | _ -> [|Nop;St|])
+				       | OpIInc _ -> [|Ldvp;Ld_opd_8u;Add;Star;Ld_opd_8u;Ldmi;Stmi|]
+				       | OpPop -> [|Pop|]
+				       | OpPop2 -> [|Pop;Pop|]
+				       | OpDup -> [|Dup|]
+				       | OpDupX1 -> [|Stm;Stm;Ldm;Ldm;Ldm;|]
+				       | OpDupX2 -> [|Stm;Stm;Stm;Ldm;Ldm;Ldm;Ldm|]
+				       | OpDup2 -> [|Stm;Stm;Ldm;Ldm;Ldm;Ldm|]
+				       | OpDup2X1 -> [|Stm;Stm;Stm;Ldm;Ldm;Ldm;Ldm;Ldm|]
+				       | OpDup2X2 -> [|Stm;Stm;Stm;Stm;Ldm;Ldm;Ldm;Ldm;Ldm;Ldm|]
+				       | OpAdd x -> (match x with 
+						     | `Double -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
+						     | `Float -> raise (Opcode_Java_Implemented (JPrint.jopcode op))
+						     | `Long -> long_add
+						     | _ -> [|Add|])
+				       | OpSub x -> (match x with 
+						     | `Double -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
+						     | `Float -> raise (Opcode_Java_Implemented (JPrint.jopcode op))
+						     | `Long -> 
+							[|Ldi;Xor;Stm;Ldi;Xor;Stm;Stm;Stm;Ldm;Ldi;Ushr;Ldm;
+							  Ldi;Ushr;Add;Ldm;Ldi;And;Ldm;Ldi;And;Add;Ldi;Add;Ldi;Shr;Add;Ldi;Ushr;Ldm;Add;Ldm;Add;Ldm;Ldm;Add;Ldi;Add|]
+						     | _ -> [|Sub|])
+				       | OpMult x -> (match x with
+						      | `Double -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
+						      | `Float
+						      | _ -> [|Stmul;Pop;Ldi|])
+				       | OpDiv x -> (match x with
+						     | `Double -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
+						     | _ -> let mn = make_ms "f_idiv" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
+							    (* let cn = JProgram.get_node program (make_cn bj1) in *)
+							    let cn = try JProgram.get_node program (make_cn bj1) with 
+								     | Not_found -> print_endline (JPrint.jopcode op); raise Not_found in
+							    let m = JProgram.get_method cn mn in
+							    (* This is a crappy hack, and leads to significant over-approximation *)
+							    (* FIXME *)
+							    (* The value 32 comes from the fact that idiv has a loop bound of 32 *)
+							    let tt = lazy (get_microcode ss m) in
+							    let r = Array.init 32 (fun _ -> match Lazy.force tt with 
+											    | Some x -> Array.fold_left Array.append [||] x
+											    | None -> raise (Opcode_Not_Implemented (JPrint.jopcode op))) in
+							    Array.fold_left Array.append [||] r)
+				       | OpRem x -> (match x with
+						     | `Double -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
+						     | _ -> let mn = make_ms "f_idiv" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
+							    (* let cn = JProgram.get_node program (make_cn bj1) in *)
+							    let cn = try JProgram.get_node program (make_cn bj1) with 
+								     | Not_found -> print_endline (JPrint.jopcode op); raise Not_found in
+							    let m = JProgram.get_method cn mn in
+							    match (get_microcode ss m) with
+							    | Some x -> Array.fold_left Array.append [||] x
+							    | None -> raise (Opcode_Not_Implemented (JPrint.jopcode op)))
+				       | OpNeg x -> (match x with 
+						     | `Long -> Array.append [|Ldi;Xor;Stm;Ldi;Xor;Ldm;Ldi;Ldi|] long_add
+						     | `Double -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
+						     | `Float -> raise (Opcode_Java_Implemented (JPrint.jopcode op))
+						     | _ -> [|Ldi;Xor;Ldi;Add|])
+				       | OpIShl -> [|Shl|]
+				       | OpIShr -> [|Shr|]
+				       | OpIUShr -> [|Ushr|]
+				       | OpLShl -> Array.append (Array.append lshl lshl_not0) lshl_le31
+				       | OpLShr -> (Array.append lshr lshr_le31)
+				       | OpLUShr -> Array.append (Array.append lushr lushr_le31) lushr_not0
+				       | OpIAnd -> [|And|]
+				       | OpIOr -> [|Or|]
+				       | OpIXor -> [|Xor|]
+				       | OpLAnd -> [|Stm;Stm;Stm;Ldm;And;Ldm;Ldm;And|]
+				       | OpLOr -> [|Stm;Stm;Stm;Ldm;Or;Ldm;Ldm;Or|]
+				       | OpLXor -> [|Stm;Stm;Stm;Ldm;Xor;Ldm;Ldm;Xor|]
+				       | OpI2L -> [|Dup;Stm;Ldi;Shr;Ldm|]
+				       | OpI2C -> [|Ldi;And|]
+				       | OpL2I -> [|Stm;Pop;Ldm|]
+				       | OpGoto _ -> [|Nop;Jbr;Nop;Nop|]
+				       | OpL2F -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
+				       | OpL2D -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
+				       | OpF2I -> raise (Opcode_Java_Implemented (JPrint.jopcode op))
+				       | OpF2L -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
+				       | OpF2D -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
+				       | OpD2I -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
+				       | OpD2F -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
+				       | OpD2L -> raise (Opcode_Java_Implemented (JPrint.jopcode op))
+				       | OpI2B -> raise (Opcode_Java_Implemented (JPrint.jopcode op))
+				       | OpI2F -> raise (Opcode_Java_Implemented (JPrint.jopcode op))
+				       | OpI2S -> raise (Opcode_Java_Implemented (JPrint.jopcode op))
+				       | OpI2D -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
+				       | OpIf _ -> [|Nop;Jbr;Pop;Nop|]
+				       | OpIfCmp _ -> [|Nop;Jbr;Pop;Pop|]
+				       | OpCmp x -> (match x with
+						     | `DL | `DG -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
+						     | `FL | `FG -> raise (Opcode_Java_Implemented (JPrint.jopcode op))
+						     | `L -> long_lcmp
+						    )
+				       | OpJsr _ | OpRet _ -> [||]
+				       | OpTableSwitch _ -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
+				       | OpLookupSwitch _ -> let mn = make_ms "f_lookupswitch" [(TBasic `Int)] None in
+							     (* let cn = JProgram.get_node program (make_cn bj1) in *)
+							     let cn = try JProgram.get_node program (make_cn bj1) with 
+								      | Not_found -> print_endline (JPrint.jopcode op); 
+										     print_endline ("class: " ^ bj1 ^ " Not_found");
+										     raise Not_found in
+							     let m = JProgram.get_method cn mn in
+							     (match (get_microcode ss m) with
+							      | Some x -> Array.fold_left Array.append [||] x
+							      | None -> raise (Opcode_Not_Implemented (JPrint.jopcode op)))
+				       | OpGetField (_,x) -> (match (fs_type x) with
+							      | TBasic x -> (match x with
+									     | `Long ->
+										[|Dup;Nop;Bz;Nop;Nop;Stmraf;Wait;Wait;Ldmrd;Nop;
+										  Nop;Ld_opd_16u;Add;Dup;Stmraf;Ldi;Add;Stm;Wait;Wait;Ldmrd;Ldm;Stmraf;Wait;Wait;Ldmrd;
+										 |]
+									     | _ -> [|Stgf;Nop;Wait;Wait;Ldmrd;|])
+							      | _ -> [|Stgf;Nop;Wait;Wait;Ldmrd;|])
+							       
+				       | OpGetStatic (_,x) -> (match (fs_type x) with
+							       | TBasic x -> (match x with 
+									      | `Long -> [|Nop;Nop;Ld_opd_16u;Dup;
+											   Stmra;Ldi;Add;Stm;Wait;Wait;
+											   Ldmrd;Ldm;Stmra;Wait;Wait;Ldmrd|] 
+									      | _ -> [|Stgs;Nop;Wait;Wait;Ldmrd|])
+							       | _ -> [|Stgs;Nop;Wait;Wait;Ldmrd|])
+				       | OpArrayLength -> arraylength 
+				       | OpMonitorEnter -> monitorenter
+				       | OpMonitorExit -> monitorexit
+				       | OpReturn x -> (match x with
+							| `Double | `Long -> [|Stm;Stm;Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;
+									       Ldmrd; Stbcrd;Stm;Nop;Stsp;Pop;Pop;Ldbcstart;Ldm;Add;
+									       Stjpc;Ldm;Ldm;Wait;Wait;Nop|]
+							| `Void -> [|Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;Ldmrd;Stbcrd;Stm;Nop;
+								     Stsp;Ldbcstart;Ldm;Add;Stjpc;Pop;Pop;Wait;Wait;Nop|]
+							| _ -> [|Stm;Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;Ldmrd;Stbcrd;Stm;Nop;Stsp;
+								 Pop;Pop;Ldbcstart;Ldm;Add;Stjpc;Ldm;Wait;Wait;Nop|])
+				       | OpInvoke (x,y) -> (match x with
+							    | `Interface _ -> invokeinterface_mc
+							    | `Virtual _ -> invokevirtual_mc
+							    | `Special _ -> invokestatic_mc
+							    | `Static cn -> 
+							       let cn = cn_simple_name cn in
+							       let mn = ms_name y in
+							       let () = IFDEF DEBUG THEN print_endline cn ELSE () ENDIF in
+							       let () = IFDEF DEBUG THEN print_endline mn ELSE () ENDIF in
+							       if cn = "Native" then
+								 (match mn with
+								  | "rd" -> jopsys_rd
+								  | "wr" -> jopsys_wr
+								  | "wrMem" -> jopsys_wr
+								  | "rdMem" -> jopsys_rd
+								  | "rdIntMem" -> jopsys_rdint
+								  | "wrIntMem" -> jopsys_wrint
+								  | "getSP" -> jopsys_getsp
+								  | "getVP" -> jopsys_getvp
+								  | "setSP" -> jopsys_setsp
+								  | "setVP" -> jopsys_setvp
+								  | "int2extMem" -> jopsys_int2ext op
+								  | "ext2intMem" -> jopsys_ext2int op
+								  | "makeLong" -> jopsys_nop
+								  | "invoke" -> invoke_vpsave
+								  | "toInt" -> jopsys_nop
+								  | "toFloat" -> jopsys_nop
+								  | "toObject" -> jopsys_nop
+								  | "toIntArray" -> jopsys_nop
+								  | "toLong" -> jopsys_nop
+								  | "toDouble" -> jopsys_nop
+								  | "monitorExit" -> monitorexit
+								  | "monitorEnter" -> monitorenter
+								  | "condMove" -> jopsys_cond_move
+								  | "condMoreRef" -> jopsys_cond_move
+								  | "invalidate" -> jopsys_inval
+								  | "memCopy" -> jopsys_memcpy
+								  | "putStatic" -> jopsys_putstatic
+								  | "getStatic" -> jopsys_getstatic
+								  | "putField" -> jopsys_putfield
+								  | "getField" -> jopsys_getfield
+								  | "arrayLoad" -> iaload
+								  | "arrayStore" -> iastore
+								  | "arrayLength" -> arraylength
+								  | "count" -> jopsys_count
+								  | "hc" -> jopsys_hc
+								  | _ -> invokestatic_mc)
+							       else invokestatic_mc)
+				       | OpAMultiNewArray _ -> raise (Opcode_Java_Implemented (JPrint.jopcode op))
+				       | OpThrow -> 
+					    let mn = make_ms "f_athrow" [TObject (TClass (make_cn "java.lang.Throwable"))]
+							     (Some (TObject (TClass (make_cn "java.lang.Throwable")))) in
+					    let cn = try JProgram.get_node program (make_cn bj1) with 
+						     | Not_found -> print_endline (JPrint.jopcode op); raise Not_found in
+					    let m = JProgram.get_method cn mn in
+					    (match (get_microcode ss m) with
+					     | Some x -> Array.fold_left Array.append [||] x
+					     | None -> raise (Opcode_Not_Implemented (JPrint.jopcode op)))
+					    (* MethodMap.find mn (match jvm_map with | Some x -> x | None -> raise Internal) *)
+				       | OpBreakpoint -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
+				       | OpArrayLoad x -> (match x with
+							   | `Double | `Long -> [||] (* TODO *)
+							   | _ -> iaload)
+				       | OpArrayStore x -> (match x with
+							    | `Double | `Long -> [||] (* TODO *)
+							    | _ -> iastore)
+				       | OpInvalid -> [||])) (Lazy.force code).c_code))
+
 let generate_microcode (class_path : class_path)
-		       (cn : class_name) jvm_map enable_throw =
+		       (cn : class_name) program =
   (* We first recover the interface or class associated to the
     class name cn. *)
   let c = get_class class_path cn in
@@ -121,237 +382,7 @@ let generate_microcode (class_path : class_path)
   let methods = get_methods c in
   (* For each method of c, we associate a field set containing
     all the accessed fields. *)
-  MethodMap.map
-    (fun m ->
-     match m with
-     (* A method can be abstract or concrete. *)
-     | AbstractMethod _ -> None
-     | ConcreteMethod cm ->
-        (match cm.cm_implementation with
-         | Native -> None 	(* Native method is not supported and assumed to not have any memory access instructions*)
-	 (* Increment memory access counter if memory access instruction happens, else increment instruction counter *)
-         | Java code -> Some (Array.map (fun op -> 
-					 let () = IFDEF DEBUG THEN if op <> OpInvalid then JPrint.jopcode op |> print_endline ELSE () ENDIF in
-					 (match op with
-					  | OpNew _ | OpNewArray _ (* OpNewArray == anewarray not newarray in jvm.asm *)
-					  | OpCheckCast _ 
-					  | OpInstanceOf _ -> 
-					     [|
-					       Ldjpc; Ldi;
-					       Stjpc; Nop; Nop; Ldm;
-					       Nop; Ld_opd_8u; Ldi; And; Dup; Add; Add; Stm; Ldm; Nop; Ld_opd_16u; Add; Stmrac; Wait; Wait; Ldmrd; Ldm; Jmp; Nop;Nop
-					      |]
-					  | OpPutField (_,x) -> (match (fs_type x) with
-								 | TBasic x -> (match x with
-										| `Long -> [|Stm;Stm;Dup;Nop;Bz;Nop;Nop;Stmraf;
-											     Wait;Wait;Ldmrd;Nop;Nop;Ld_opd_16u;
-											     Add;Dup;Stmraf;Ldi;Add;Stm;Wait;Wait;Ldmrd;
-											     Ldm;Stmraf;Wait;Wait;Ldmrd|]
-										| _ ->  [|
-										       Ldjpc; Ldi; Sub; Stjpc; Nop; Nop; Ldm; Nop;
-										       Ld_opd_8u; Ldi; And; Dup; Add; Add; Stm; Nop;
-										       Nop; Ld_opd_16u; Ldm; Jmp; Nop; Nop
-										      |])
-								 | _ -> 
-								    [|Ldjpc;
-								      Ldi;Sub;Stjpc;Nop;Nop;Ldm;Nop;Ld_opd_8u;Ldi;And;Dup;Add;Add;Stm;Nop;Nop;Ld_opd_16u;Ldm;Jmp;Nop;Nop
-								     |])
-					  | OpPutStatic (_,x) ->
-					     (match (fs_type x) with
-					      | TBasic x -> (match x with
-							     | `Long -> [|Stm;Stm;Ld_opd_16u;Dup;Stmwa;Ldm;Stmwd;Ldi;Add;Wait;Wait;
-									  Stmwa;Ldm;Stmwd;Wait;Wait;Nop|]
-							     | _ -> [|
-								    Ldjpc;Ldi;Sub;Stjpc;Nop;Nop;Ldm;Nop;Ld_opd_8u;Ldi;And;Dup;Add;Add;Stm;Nop;Nop;
-								    Ld_opd_16u;Ldm;Jmp;Nop;Nop
-								   |])
-					      | _ -> [|Ldjpc;Ldi;Sub;
-						     Stjpc;Nop;Nop;Ldm;Nop;Ld_opd_8u;Ldi;And;Dup;Add;Add;Stm;Nop;Nop;	Ld_opd_16u;Ldm;Jmp;Nop;Nop
-						    |])
-					  | OpNop -> [|Nop|]
-					  | OpConst x -> (match x with | `Long _ | `Double _ -> [|Ldi; Ldi|] | _ -> [|Ldi|])
-					  | OpSwap -> [|Stm;Stm;Ldm;Ldm|]
-					  | OpLoad (x,_) -> (match x with 
-							     (* Just considers the worst possible scenario! *)
-							     | `Long | `Double -> [|Ldvp;Dup;Ld_opd_8u;Add;Stvp;Stm;Ld0;Ld1;Ldm;Stvp;Nop|]
-							     | _ -> [|Stald;Pop;Wait;Wait;Ldmrd|])
-					  | OpStore (x,_) ->(match x with 
-							     (* Just considers the worst possible scenario! *)
-							     | `Long | `Double -> [|Ldvp;Dup;Ld_opd_8u;Add;Stvp;Stm;St1;St0;Ldm;Stvp;Nop|]
-							     | _ -> [|Nop;St|])
-					  | OpIInc _ -> [|Ldvp;Ld_opd_8u;Add;Star;Ld_opd_8u;Ldmi;Stmi|]
-					  | OpPop -> [|Pop|]
-					  | OpPop2 -> [|Pop;Pop|]
-					  | OpDup -> [|Dup|]
-					  | OpDupX1 -> [|Stm;Stm;Ldm;Ldm;Ldm;|]
-					  | OpDupX2 -> [|Stm;Stm;Stm;Ldm;Ldm;Ldm;Ldm|]
-					  | OpDup2 -> [|Stm;Stm;Ldm;Ldm;Ldm;Ldm|]
-					  | OpDup2X1 -> [|Stm;Stm;Stm;Ldm;Ldm;Ldm;Ldm;Ldm|]
-					  | OpDup2X2 -> [|Stm;Stm;Stm;Stm;Ldm;Ldm;Ldm;Ldm;Ldm;Ldm|]
-					  | OpAdd x -> (match x with 
-							| `Double -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
-							| `Float -> raise (Opcode_Java_Implemented (JPrint.jopcode op))
-							| `Long -> long_add
-							| _ -> [|Add|])
-					  | OpSub x -> (match x with 
-							| `Double -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
-							| `Float -> raise (Opcode_Java_Implemented (JPrint.jopcode op))
-							| `Long -> 
-							   [|Ldi;Xor;Stm;Ldi;Xor;Stm;Stm;Stm;Ldm;Ldi;Ushr;Ldm;
-							     Ldi;Ushr;Add;Ldm;Ldi;And;Ldm;Ldi;And;Add;Ldi;Add;Ldi;Shr;Add;Ldi;Ushr;Ldm;Add;Ldm;Add;Ldm;Ldm;Add;Ldi;Add|]
-							| _ -> [|Sub|])
-					  | OpMult x -> (match x with
-							 | `Double -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
-							 | `Float
-							 | _ -> [|Stmul;Pop;Ldi|])
-					  | OpDiv x -> (match x with
-							| `Double -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
-							| _ -> let mn = make_ms "f_idiv" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
-							       (* This is a crappy hack, and leads to significant over-approximation *)
-							       (* FIXME *)
-							       (* The value 32 comes from the fact that idiv has a loop bound of 32 *)
-							       let r = Array.init 32 (fun _ -> 
-										      MethodMap.find mn (match jvm_map with 
-													 | Some x -> x | None -> raise Internal)) in
-							      Array.fold_left (fun t x -> Array.append t x) [||] r)
-					  | OpRem x -> (match x with
-							| `Double -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
-							| _ -> let mn = make_ms "f_idiv" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
-							       MethodMap.find mn (match jvm_map with | Some x -> x | None -> raise Internal))
-					  | OpNeg x -> (match x with 
-							| `Long -> Array.append [|Ldi;Xor;Stm;Ldi;Xor;Ldm;Ldi;Ldi|] long_add
-							| `Double -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
-							| `Float -> raise (Opcode_Java_Implemented (JPrint.jopcode op))
-							| _ -> [|Ldi;Xor;Ldi;Add|])
-					  | OpIShl -> [|Shl|]
-					  | OpIShr -> [|Shr|]
-					  | OpIUShr -> [|Ushr|]
-					  | OpLShl -> Array.append (Array.append lshl lshl_not0) lshl_le31
-					  | OpLShr -> (Array.append lshr lshr_le31)
-					  | OpLUShr -> Array.append (Array.append lushr lushr_le31) lushr_not0
-					  | OpIAnd -> [|And|]
-					  | OpIOr -> [|Or|]
-					  | OpIXor -> [|Xor|]
-					  | OpLAnd -> [|Stm;Stm;Stm;Ldm;And;Ldm;Ldm;And|]
-					  | OpLOr -> [|Stm;Stm;Stm;Ldm;Or;Ldm;Ldm;Or|]
-					  | OpLXor -> [|Stm;Stm;Stm;Ldm;Xor;Ldm;Ldm;Xor|]
-					  | OpI2L -> [|Dup;Stm;Ldi;Shr;Ldm|]
-					  | OpI2C -> [|Ldi;And|]
-					  | OpL2I -> [|Stm;Pop;Ldm|]
-					  | OpGoto _ -> [|Nop;Jbr;Nop;Nop|]
-					  | OpL2F -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
-					  | OpL2D -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
-					  | OpF2I -> raise (Opcode_Java_Implemented (JPrint.jopcode op))
-					  | OpF2L -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
-					  | OpF2D -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
-					  | OpD2I -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
-					  | OpD2F -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
-					  | OpD2L -> raise (Opcode_Java_Implemented (JPrint.jopcode op))
-					  | OpI2B -> raise (Opcode_Java_Implemented (JPrint.jopcode op))
-					  | OpI2F -> raise (Opcode_Java_Implemented (JPrint.jopcode op))
-					  | OpI2S -> raise (Opcode_Java_Implemented (JPrint.jopcode op))
-					  | OpI2D -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
-					  | OpIf _ -> [|Nop;Jbr;Pop;Nop|]
-					  | OpIfCmp _ -> [|Nop;Jbr;Pop;Pop|]
-					  | OpCmp x -> (match x with
-							| `DL | `DG -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
-							| `FL | `FG -> raise (Opcode_Java_Implemented (JPrint.jopcode op))
-							| `L -> long_lcmp
-						       )
-					  | OpJsr _ | OpRet _ -> [||]
-					  | OpTableSwitch _ -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
-					  | OpLookupSwitch _ -> let mn = make_ms "f_lookupswitch" [(TBasic `Int)] None in
-								MethodMap.find mn (match jvm_map with | Some x -> x | None -> raise Internal)
-					  | OpGetField (_,x) -> (match (fs_type x) with
-								 | TBasic x -> (match x with
-										| `Long ->
-										   [|Dup;Nop;Bz;Nop;Nop;Stmraf;Wait;Wait;Ldmrd;Nop;
-										     Nop;Ld_opd_16u;Add;Dup;Stmraf;Ldi;Add;Stm;Wait;Wait;Ldmrd;Ldm;Stmraf;Wait;Wait;Ldmrd;
-										    |]
-										| _ -> [|Stgf;Nop;Wait;Wait;Ldmrd;|])
-								 | _ -> [|Stgf;Nop;Wait;Wait;Ldmrd;|])
-								  
-					  | OpGetStatic (_,x) -> (match (fs_type x) with
-								  | TBasic x -> (match x with 
-										 | `Long -> [|Nop;Nop;Ld_opd_16u;Dup;
-											      Stmra;Ldi;Add;Stm;Wait;Wait;
-											      Ldmrd;Ldm;Stmra;Wait;Wait;Ldmrd|] 
-										 | _ -> [|Stgs;Nop;Wait;Wait;Ldmrd|])
-								  | _ -> [|Stgs;Nop;Wait;Wait;Ldmrd|])
-					  | OpArrayLength -> arraylength 
-					  | OpMonitorEnter -> monitorenter
-					  | OpMonitorExit -> monitorexit
-					  | OpReturn x -> (match x with
-							   | `Double | `Long -> [|Stm;Stm;Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;
-										  Ldmrd; Stbcrd;Stm;Nop;Stsp;Pop;Pop;Ldbcstart;Ldm;Add;
-										  Stjpc;Ldm;Ldm;Wait;Wait;Nop|]
-							   | `Void -> [|Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;Ldmrd;Stbcrd;Stm;Nop;
-									Stsp;Ldbcstart;Ldm;Add;Stjpc;Pop;Pop;Wait;Wait;Nop|]
-							   | _ -> [|Stm;Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;Ldmrd;Stbcrd;Stm;Nop;Stsp;
-								    Pop;Pop;Ldbcstart;Ldm;Add;Stjpc;Ldm;Wait;Wait;Nop|])
-					  | OpInvoke (x,y) -> (match x with
-							       | `Interface _ -> invokeinterface_mc
-							       | `Virtual _ -> invokevirtual_mc
-							       | `Special _ -> invokestatic_mc
-							       | `Static cn -> 
-								  let cn = cn_simple_name cn in
-								  let mn = ms_name y in
-								  let () = IFDEF DEBUG THEN print_endline cn ELSE () ENDIF in
-								  let () = IFDEF DEBUG THEN print_endline mn ELSE () ENDIF in
-								  if cn = "Native" then
-								    (match mn with
-								     | "rd" -> jopsys_rd
-								     | "wr" -> jopsys_wr
-								     | "wrMem" -> jopsys_wr
-								     | "rdMem" -> jopsys_rd
-								     | "rdIntMem" -> jopsys_rdint
-								     | "wrIntMem" -> jopsys_wrint
-								     | "getSP" -> jopsys_getsp
-								     | "getVP" -> jopsys_getvp
-								     | "setSP" -> jopsys_setsp
-								     | "setVP" -> jopsys_setvp
-								     | "int2extMem" -> jopsys_int2ext op
-								     | "ext2intMem" -> jopsys_ext2int op
-								     | "makeLong" -> jopsys_nop
-								     | "invoke" -> invoke_vpsave
-								     | "toInt" -> jopsys_nop
-								     | "toFloat" -> jopsys_nop
-								     | "toObject" -> jopsys_nop
-								     | "toIntArray" -> jopsys_nop
-								     | "toLong" -> jopsys_nop
-								     | "toDouble" -> jopsys_nop
-								     | "monitorExit" -> monitorexit
-								     | "monitorEnter" -> monitorenter
-								     | "condMove" -> jopsys_cond_move
-								     | "condMoreRef" -> jopsys_cond_move
-								     | "invalidate" -> jopsys_inval
-								     | "memCopy" -> jopsys_memcpy
-								     | "putStatic" -> jopsys_putstatic
-								     | "getStatic" -> jopsys_getstatic
-								     | "putField" -> jopsys_putfield
-								     | "getField" -> jopsys_getfield
-								     | "arrayLoad" -> iaload
-								     | "arrayStore" -> iastore
-								     | "arrayLength" -> arraylength
-								     | "count" -> jopsys_count
-								     | "hc" -> jopsys_hc
-								     | _ -> invokestatic_mc)
-								  else invokestatic_mc)
-					  | OpAMultiNewArray _ -> raise (Opcode_Java_Implemented (JPrint.jopcode op))
-					  | OpThrow -> 
-					     if enable_throw then
-					       let mn = make_ms "f_athrow" [TObject (TClass (make_cn "java.lang.Throwable"))]
-								(Some (TObject (TClass (make_cn "java.lang.Throwable")))) in
-					       MethodMap.find mn (match jvm_map with | Some x -> x | None -> raise Internal)
-					     else [||]
-					  | OpBreakpoint -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
-					  | OpArrayLoad x -> (match x with
-							      | `Double | `Long -> [||] (* TODO *)
-							      | _ -> iaload)
-					  | OpArrayStore x -> (match x with
-							       | `Double | `Long -> [||] (* TODO *)
-							       | _ -> iastore)
-					  | OpInvalid -> [||])) (Lazy.force code).c_code))) methods
+  MethodMap.map (get_microcode program) methods
 
 let main = 
   try 
@@ -359,12 +390,11 @@ let main =
     let (cp, cn) = 
       if Array.length args <> 3 then let () = print_endline usage_msg in raise Internal
       else (args.(1),args.(2)) in
-    let jvm = generate_microcode (class_path cp) (make_cn "com.jopdesign.sys.JVM") None false in
-    let jvm = MethodMap.filter (function Some _ -> true | None -> false) jvm in
-    let jvm = MethodMap.map (function Some x -> x | _ -> raise Internal) jvm in
-    let jvm = MethodMap.map (fun x -> Array.fold_left (fun t x -> Array.append t x) [||] x) jvm in
-    (* This is the real class! *)
-    let mm = generate_microcode (class_path cp) (make_cn cn) (Some jvm) true in
+    (* Need to build all the other entry points so that other classes are also parsed!! *)
+    let program = JRTA.parse_program ~instantiated:[] ~other_entrypoints:[make_cms (make_cn "com.jopdesign.sys.Startup")
+									 (make_ms "boot" [] None)] 
+				     cp (make_cms (make_cn cn) JProgram.main_signature) in
+    let mm = generate_microcode (class_path cp) (make_cn cn) program in
     let mm = MethodMap.filter (function Some _ -> true | None -> false) mm in
     let mm = MethodMap.map (function Some x -> x | _ -> raise Internal) mm in
     let mm = MethodMap.map (fun x -> Array.fold_left (fun t x -> Array.append t x) [||] x) mm in
