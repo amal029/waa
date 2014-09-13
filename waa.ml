@@ -52,68 +52,9 @@ let jopsys_hc = [|Ldcr;Stm;Stm;Ldm;Ldm;Pop|];;
 
 let invoke_vpsave =
   [|
-    Dup;
-    Ldi;
-    Add;
-    Stmrac;
-    Ldm;
-    Stm;
-    Stm;
-    Wait;
-    Wait;
-    Ldmrd;
-    Ldjpc;
-    Ldbcstart;
-    Sub;
-    Stm;
-    Ldm;
-    Stmrac;
-    Ldm;
-    Stm;
-    Wait;
-    Wait;
-    Ldmrd;
-    Stbcrd;
-    Dup;
-    Ldi;
-    And;
-    Stm;
-    Ldi;
-    Ushr;
-    Dup;
-    Ldi;
-    And;
-    Stm;
-    Ldi;
-    Ushr;
-    Stm;
-    Ldsp;
-    Ldi;
-    Add;
-    Dup;
-    Ldm;
-    Sub;
-    Stm;
-    Ldm;
-    Ldi;
-    Add;
-    Stvp;
-    Ldm;
-    Add;
-    Nop;
-    Stsp;
-    Pop;
-    Pop;
-    Ldm;
-    Ldm;
-    Ldbcstart;
-    Stjpc;
-    Ldm;
-    Ldm;
-    Ldm;
-    Wait;
-    Wait;
-    Nop
+    Dup; Ldi;Add;Stmrac; Ldm; Stm; Stm;Wait;Wait;Ldmrd;Ldjpc;
+    Ldbcstart; Sub; Stm; Ldm;Stmrac; Ldm; Stm;Wait;Wait;Ldmrd;Stbcrd; Dup; Ldi; And; Stm; Ldi;Ushr; Dup; Ldi; And; Stm; Ldi; Ushr; Stm; Ldsp; Ldi;
+    Add; Dup; Ldm; Sub; Stm; Ldm; Ldi; Add; Stvp; Ldm; Add; Nop; Stsp; Pop; Pop; Ldm; Ldm; Ldbcstart; Stjpc; Ldm; Ldm; Ldm; Wait; Wait; Nop
    |];;
 
 let invoke_ok = 
@@ -124,313 +65,52 @@ let invoke_ok =
 
 let invokestatic_mc = 
   Array.append [|
-      Ldm;
-      Nop;
-      Ld_opd_16u;
-      Add;
-      Stmrac;
-      Wait;
-      Wait;
-      Ldmrd;
-      Jmp
+      Ldm; Nop;Ld_opd_16u; Add;Stmrac;Wait;Wait;Ldmrd;Jmp
      |] invoke_vpsave;;
 
 let invokevirtual_mc = 
   Array.append [|
-      Ldm;
-      Nop;
-      Ld_opd_16u;
-      Add;
-      Stmrac;
-      Wait;
-      Wait;
-      Ldmrd;
-      Dup;
-      Ldi;
-      And;
-      Stm;
-      Ldi;
-      Ushr;
-      Stm;
-      Ldsp;
-      Ldi;
-      Add;
-      Ldm;
-      Sub;
-      Star;
-      Nop;
-      Ldmi;
-      Dup;
-      Nop;
-      Bnz;
-      Ldi;
-      Add;
-      Stmraf;
-      Wait;
-      Wait;
-      Ldmrd
+      Ldm;Nop;
+      Ld_opd_16u;Add;Stmrac;Wait;Wait;Ldmrd;Dup;Ldi;And;Stm;Ldi;Ushr;Stm;Ldsp;Ldi;Add;Ldm;Sub;Star;Nop;Ldmi;Dup;Nop;Bnz;Ldi;Add;Stmraf;Wait;Wait;Ldmrd
      |] invoke_ok;;
 
 let invokeinterface_mc = 
   Array.append [|
-      Ldm;
-      Nop;
-      Ld_opd_16u;
-      Add;
-      Stmrac;
-      Wait;
-      Wait;
-      Ldmrd;
-      Dup;
-      Ldi;
-      And;
-      Stm;
-      Ldi;
-      Ushr;
-      Stm;
-      Ldsp;
-      Ldi;
-      Add;
-      Ldm;
-      Sub;
-      Star;
-      Nop;
-      Ldmi;
-      Dup;
-      Nop;
-      Bnz;
-      Ldi;
-      Add;
-      Stmraf;
-      Wait;
-      Wait;
-      Ldmrd;
-      Ldi;
-      Sub;
-      Stmrac;
-      Wait;
-      Wait;
-      Ldmrd;
-      Ldm;
-      Add;
-      Stmrac;
-      Wait;
-      Wait;
-      Ldmrd;
-      Jmp;
-      Nop;
-      Nop;
-      Ldm;
-      Dup;
-      Ld_opd_16u;
-      Add;
-      Stmrac;
-      Wait;
-      Wait;
-      Ldmrd;
-      Dup;
-      Ldi;
-      And;
-      Stm;
-      Ldi;
-      Ushr;
-      Stm;
-      Ldsp;
-      Ldi;
-      Add;
-      Ldm;
-      Sub;
-      Star;
-      Nop;
-      Ldmi;
-      Nop;
-      Nop;
-      Bz;
-      Ldvp;
-      Stm;
-      Ldi;
-      Sub;
-      Stmraf;
-      Wait;
-      Wait;
-      Ldmrd;
-      Ldi;
-      Add;
-      Stmrac;
-      Wait;
-      Wait;
-      Ldmrd;
-      Ldi;
-      Add;
-      Jmp
+      Ldm;Nop;Ld_opd_16u;Add;Stmrac;Wait;
+      Wait;Ldmrd;Dup;Ldi;And;Stm;Ldi;Ushr;Stm;Ldsp;Ldi;Add;Ldm;Sub;Star;Nop;Ldmi;Dup;Nop;Bnz;Ldi;Add;Stmraf;Wait;Wait;Ldmrd;Ldi;Sub;Stmrac;Wait;Wait;Ldmrd;Ldm;Add;
+      Stmrac;Wait;Wait;Ldmrd;Jmp;Nop;Nop;Ldm;Dup;Ld_opd_16u;Add;Stmrac;Wait;Wait;Ldmrd;Dup;Ldi;And;Stm;Ldi;Ushr;Stm;Ldsp;Ldi;Add;Ldm;
+      Sub;Star;Nop;Ldmi;Nop;Nop;Bz;Ldvp;Stm;Ldi;Sub;Stmraf;Wait;Wait;Ldmrd;Ldi;Add;Stmrac;Wait;Wait;Ldmrd;Ldi;Add;Jmp
      |] invoke_ok;;
 
 let lcmp = [|Stm;Stm;Stm;Stm;|];;
 let lcmp_chk_ov1 = 
   [|
-    Ldm;
-    Ldi;
-    Shr;
-    Ldm;
-    Ldi;
-    Shr;
-    Ldi;
-    Xor;
-    Or;
-    Nop;
-    Bnz;
+    Ldm;Ldi;Shr;Ldm;Ldi;Shr;Ldi;Xor;Or;Nop;Bnz;
    |]
 let lcmp_chk_ov2 = 
   [|
-    Ldm;
-    Ldi;
-    Shr;
-    Ldi;
-    Xor;
-    Ldm;
-    Ldi;
-    Shr;
-    Or;
-    Nop;
+    Ldm;Ldi;Shr;Ldi;Xor;Ldm;Ldi;Shr;Or;Nop;
    |]
 let lcmp_chk_ov3 = 
   [|
-    Ldm;
-    Ldi;
-    Xor;
-    Stm;
-    Ldm;
-    Ldi;
-    Xor;
-    Stm;
-    Ldm;
-    Ldi;
-    Ushr;
-    Ldm;
-    Ldi;
-    Ushr;
-    Add;
-    Ldm;
-    Ldi;
-    And;
-    Ldm;
-    Ldi;
-    And;
-    Add;
-    Ldi;
-    Add;
-    Ldi;
-    Shr;
-    Add;
-    Ldi;
-    Ushr;
-    Ldm;
-    Add;
-    Ldm;
-    Add;
-    Stm;
-    Ldm;
-    Ldm;
-    Add;
-    Ldi;
-    Add;
-    Stm;
-    Ldm;
-    Ldm;
-    Or;
-    Nop;
-    Bnz;
-    Ldm;
-    Ldi;
-    Shr;
-    Nop;
-    Bnz;
-    Nop;
-    Nop;
-    Ldi;
+    Ldm;Ldi;Xor;Stm;Ldm;Ldi;Xor;Stm;Ldm;Ldi;Ushr;Ldm;Ldi;Ushr;Add;Ldm;Ldi;And;Ldm;Ldi;And;Add;
+    Ldi;Add;Ldi;Shr;Add;Ldi;Ushr;Ldm;Add;Ldm;Add;Stm;Ldm;Ldm;Add;Ldi;Add;Stm;Ldm;Ldm;Or;Nop;Bnz;Ldm;Ldi;Shr;Nop;Bnz;Nop;Nop;Ldi;
    |];;
 let lshl = [|Ldi;And;Dup;Bnz;Nop;Nop;Nop;Pop|];;
 let lshl_not0 = [|Dup;Ldi;Sub;Ldi;Ushr;Nop;Bnz;Stm;Stm|];;
 let lshl_le31= 
-  [|Stm;
-    Ldm;
-    Ldm;
-    Shl;
-    Ldm;
-    Ldi;
-    Ldm;
-    Sub;
-    Ushr;
-    Add;
-    Ldm;
-    Ldm;
-    Shl|]
+  [|Stm;Ldm;Ldm;Shl;Ldm;Ldi;Ldm;Sub;Ushr;Add;Ldm;Ldm;Shl|]
 let long_lcmp = Array.append lcmp lcmp_chk_ov1 |> Array.append lcmp_chk_ov2 |> Array.append lcmp_chk_ov3
 let lushr = [|Ldi;And;Dup;Bnz;Nop;Nop;Pop|]
 let lushr_not0 = [|Dup;Ldi;Sub;Ldi;Ushr;Nop;Bnz;Stm;Stm|]
 let lushr_le31 = 
-  [|
-    Stm;
-    Ldm;
-    Ldm;
-    Ushr;
-    Ldm;
-    Ldm;
-    Ushr;
-    Ldm;
-    Ldi;
-    Ldm;
-    Sub;
-    Shl;
-    Add
-   |];;
+  [|Stm;Ldm;Ldm;Ushr;Ldm;Ldm;Ushr;Ldm;Ldi;Ldm;Sub;Shl;Add|];;
 
 let lshr = [|Ldi;And;Dup;Bnz;Nop;Nop;Pop;Dup;Ldi;Sub;Ldi;Ushr;Nop;Bnz;Stm;Stm|];;
 let lshr_le31 = 
-  [|
-    Stm;
-    Ldm;
-    Ldm;
-    Shr;
-    Ldm;
-    Ldm;
-    Ushr;
-    Ldm;
-    Ldi;
-    Ldm;
-    Sub;
-    Shl;
-    Add;
-   |];;
+  [|Stm;Ldm;Ldm;Shr;Ldm;Ldm;Ushr;Ldm;Ldi;Ldm;Sub;Shl;Add;|];;
 
-let long_add = [|
-    Stm;
-    Stm;
-    Stm;
-    Stm;
-    Ldm;
-    Ldi;
-    Ushr;
-    Ldm;
-    Ldi;
-    Ushr;
-    Add;
-    Ldm;
-    Ldm;
-    And;
-    Ldi;
-    And;
-    Add;
-    Ldi;
-    Ushr;
-    Ldm;
-    Add;
-    Ldm;
-    Add;
-    Ldm;
-    Ldm;
-    Add
-   |];;
+let long_add = [|Stm;Stm;Stm;Stm;Ldm;Ldi;Ushr;Ldm;Ldi;Ushr;Add;Ldm;Ldm;And;Ldi;And;Add;Ldi;Ushr;Ldm;Add;Ldm;Add;Ldm;Ldm;Add|];;
 
 let generate_microcode (class_path : class_path)
 		       (cn : class_name) jvm_map enable_throw =
@@ -457,32 +137,9 @@ let generate_microcode (class_path : class_path)
 					  | OpCheckCast _ 
 					  | OpInstanceOf _ -> 
 					     [|
-					       Ldjpc;
-					       Ldi;
-					       Stjpc;
-					       Nop;
-					       Nop;
-					       Ldm;
-					       Nop;
-					       Ld_opd_8u;
-					       Ldi;
-					       And;
-					       Dup;
-					       Add;
-					       Add;
-					       Stm;
-					       Ldm;
-					       Nop;
-					       Ld_opd_16u;
-					       Add;
-					       Stmrac;
-					       Wait;
-					       Wait;
-					       Ldmrd;
-					       Ldm;
-					       Jmp;
-					       Nop;
-					       Nop
+					       Ldjpc; Ldi;
+					       Stjpc; Nop; Nop; Ldm;
+					       Nop; Ld_opd_8u; Ldi; And; Dup; Add; Add; Stm; Ldm; Nop; Ld_opd_16u; Add; Stmrac; Wait; Wait; Ldmrd; Ldm; Jmp; Nop;Nop
 					      |]
 					  | OpPutField (_,x) -> (match (fs_type x) with
 								 | TBasic x -> (match x with
@@ -491,53 +148,13 @@ let generate_microcode (class_path : class_path)
 											     Add;Dup;Stmraf;Ldi;Add;Stm;Wait;Wait;Ldmrd;
 											     Ldm;Stmraf;Wait;Wait;Ldmrd|]
 										| _ ->  [|
-										       Ldjpc;
-										       Ldi;
-										       Sub;
-										       Stjpc;
-										       Nop;
-										       Nop;
-										       Ldm;
-										       Nop;
-										       Ld_opd_8u;
-										       Ldi;
-										       And;
-										       Dup;
-										       Add;
-										       Add;
-										       Stm;
-										       Nop;
-										       Nop;
-										       Ld_opd_16u;
-										       Ldm;
-										       Jmp;
-										       Nop;
-										       Nop
+										       Ldjpc; Ldi; Sub; Stjpc; Nop; Nop; Ldm; Nop;
+										       Ld_opd_8u; Ldi; And; Dup; Add; Add; Stm; Nop;
+										       Nop; Ld_opd_16u; Ldm; Jmp; Nop; Nop
 										      |])
 								 | _ -> 
-								    [|
-								      Ldjpc;
-								      Ldi;
-								      Sub;
-								      Stjpc;
-								      Nop;
-								      Nop;
-								      Ldm;
-								      Nop;
-								      Ld_opd_8u;
-								      Ldi;
-								      And;
-								      Dup;
-								      Add;
-								      Add;
-								      Stm;
-								      Nop;
-								      Nop;
-								      Ld_opd_16u;
-								      Ldm;
-								      Jmp;
-								      Nop;
-								      Nop
+								    [|Ldjpc;
+								      Ldi;Sub;Stjpc;Nop;Nop;Ldm;Nop;Ld_opd_8u;Ldi;And;Dup;Add;Add;Stm;Nop;Nop;Ld_opd_16u;Ldm;Jmp;Nop;Nop
 								     |])
 					  | OpPutStatic (_,x) ->
 					     (match (fs_type x) with
@@ -545,55 +162,12 @@ let generate_microcode (class_path : class_path)
 							     | `Long -> [|Stm;Stm;Ld_opd_16u;Dup;Stmwa;Ldm;Stmwd;Ldi;Add;Wait;Wait;
 									  Stmwa;Ldm;Stmwd;Wait;Wait;Nop|]
 							     | _ -> [|
-								    Ldjpc;
-								    Ldi;
-								    Sub;
-								    Stjpc;
-								    Nop;
-								    Nop;
-								    Ldm;
-								    Nop;
-								    Ld_opd_8u;
-								    Ldi;
-								    And;
-								    Dup;
-								    Add;
-								    Add;
-								    Stm;
-								    Nop;
-								    Nop;	
-								    Ld_opd_16u;
-								    Ldm;
-								    Jmp;
-								    Nop;
-								    Nop
-								   |]
-							    )
-					      | _ -> [|
-						     Ldjpc;
-						     Ldi;
-						     Sub;
-						     Stjpc;
-						     Nop;
-						     Nop;
-						     Ldm;
-						     Nop;
-						     Ld_opd_8u;
-						     Ldi;
-						     And;
-						     Dup;
-						     Add;
-						     Add;
-						     Stm;
-						     Nop;
-						     Nop;	
-						     Ld_opd_16u;
-						     Ldm;
-						     Jmp;
-						     Nop;
-						     Nop
-						    |]
-					     )
+								    Ldjpc;Ldi;Sub;Stjpc;Nop;Nop;Ldm;Nop;Ld_opd_8u;Ldi;And;Dup;Add;Add;Stm;Nop;Nop;
+								    Ld_opd_16u;Ldm;Jmp;Nop;Nop
+								   |])
+					      | _ -> [|Ldjpc;Ldi;Sub;
+						     Stjpc;Nop;Nop;Ldm;Nop;Ld_opd_8u;Ldi;And;Dup;Add;Add;Stm;Nop;Nop;	Ld_opd_16u;Ldm;Jmp;Nop;Nop
+						    |])
 					  | OpNop -> [|Nop|]
 					  | OpConst x -> (match x with | `Long _ | `Double _ -> [|Ldi; Ldi|] | _ -> [|Ldi|])
 					  | OpSwap -> [|Stm;Stm;Ldm;Ldm|]
@@ -623,46 +197,8 @@ let generate_microcode (class_path : class_path)
 							| `Double -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
 							| `Float -> raise (Opcode_Java_Implemented (JPrint.jopcode op))
 							| `Long -> 
-							   [|
-							     Ldi;
-							     Xor;
-							     Stm;
-							     Ldi;
-							     Xor;
-							     Stm;
-							     Stm;
-							     Stm;
-							     Ldm;
-							     Ldi;
-							     Ushr;
-							     Ldm;
-							     Ldi;
-							     Ushr;
-							     Add;
-							     Ldm;
-							     Ldi;
-							     And;
-							     Ldm;
-							     Ldi;
-							     And;
-							     Add;
-							     Ldi;
-							     Add;
-							     Ldi;
-							     Shr;
-							     Add;
-							     Ldi;
-							     Ushr;
-							     Ldm;
-							     Add;
-							     Ldm;
-							     Add;
-							     Ldm;
-							     Ldm;
-							     Add;
-							     Ldi;
-							     Add;
-							    |]
+							   [|Ldi;Xor;Stm;Ldi;Xor;Stm;Stm;Stm;Ldm;Ldi;Ushr;Ldm;
+							     Ldi;Ushr;Add;Ldm;Ldi;And;Ldm;Ldi;And;Add;Ldi;Add;Ldi;Shr;Add;Ldi;Ushr;Ldm;Add;Ldm;Add;Ldm;Ldm;Add;Ldi;Add|]
 							| _ -> [|Sub|])
 					  | OpMult x -> (match x with
 							 | `Double -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
@@ -672,6 +208,7 @@ let generate_microcode (class_path : class_path)
 							| `Double -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
 							| _ -> let mn = make_ms "f_idiv" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
 							       (* This is a crappy hack, and leads to significant over-approximation *)
+							       (* FIXME *)
 							       (* The value 32 comes from the fact that idiv has a loop bound of 32 *)
 							       let r = Array.init 32 (fun _ -> 
 										      MethodMap.find mn (match jvm_map with 
@@ -728,33 +265,8 @@ let generate_microcode (class_path : class_path)
 					  | OpGetField (_,x) -> (match (fs_type x) with
 								 | TBasic x -> (match x with
 										| `Long ->
-										   [|
-										     Dup;
-										     Nop;
-										     Bz;
-										     Nop;
-										     Nop;
-										     Stmraf;
-										     Wait;
-										     Wait;
-										     Ldmrd;
-										     Nop;
-										     Nop;
-										     Ld_opd_16u;
-										     Add;
-										     Dup;
-										     Stmraf;
-										     Ldi;
-										     Add;
-										     Stm;
-										     Wait;
-										     Wait;
-										     Ldmrd;
-										     Ldm;
-										     Stmraf;
-										     Wait;
-										     Wait;
-										     Ldmrd;
+										   [|Dup;Nop;Bz;Nop;Nop;Stmraf;Wait;Wait;Ldmrd;Nop;
+										     Nop;Ld_opd_16u;Add;Dup;Stmraf;Ldi;Add;Stm;Wait;Wait;Ldmrd;Ldm;Stmraf;Wait;Wait;Ldmrd;
 										    |]
 										| _ -> [|Stgf;Nop;Wait;Wait;Ldmrd;|])
 								 | _ -> [|Stgf;Nop;Wait;Wait;Ldmrd;|])
