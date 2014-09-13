@@ -671,7 +671,12 @@ let generate_microcode (class_path : class_path)
 					  | OpDiv x -> (match x with
 							| `Double -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
 							| _ -> let mn = make_ms "f_idiv" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
-							       MethodMap.find mn (match jvm_map with | Some x -> x | None -> raise Internal))
+							       (* This is a crappy hack, and leads to significant over-approximation *)
+							       (* The value 32 comes from the fact that idiv has a loop bound of 32 *)
+							       let r = Array.init 32 (fun _ -> 
+										      MethodMap.find mn (match jvm_map with 
+													 | Some x -> x | None -> raise Internal)) in
+							      Array.fold_left (fun t x -> Array.append t x) [||] r)
 					  | OpRem x -> (match x with
 							| `Double -> raise (Opcode_Not_Implemented (JPrint.jopcode op))
 							| _ -> let mn = make_ms "f_idiv" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
