@@ -24,6 +24,10 @@ type jop_microcode =
   | Stpf			(* Mem *)
   | Stcp			(* Mem *)
   | Stbcrd			(* Mem *)
+  | Stidx
+  | Stps
+  | Cyc 			(* Harware counter *)
+  | Ldcr			(* Load hardware counter value *)
   | St0
   | St1
   | St2
@@ -68,4 +72,4 @@ type jop_microcode =
   | Cinval 			(* Cache invalidate instruction, is this mem-instruction?? *)
 
 
-let mem_instr = [|Stmra; Stmrac; Stmwd; Stald; Stast; Stgf; Stpf; Stcp; Stbcrd; Stgs; Stmraf|]
+let mem_instr = [|Stmra; Stmrac; Stmwd; Stald; Stast; Stgf; Stpf; Stcp; Stbcrd; Stgs; Stmraf; Wait|]

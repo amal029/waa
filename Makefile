@@ -5,7 +5,7 @@ SRC=joplang.ml waa.ml
 all: waa
 
 waa:
-	ocamlfind $(CCC) -pp "camlp4o pa_macro.cmo -DDEBUG" -package batteries -package javalib -linkpkg $(SRC) -o $@
+	ocamlfind $(CCC) -pp "camlp4o pa_macro.cmo -UDEBUG" -package batteries -package javalib -linkpkg $(SRC) -o $@
 
 
 clean:
