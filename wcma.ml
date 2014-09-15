@@ -3,12 +3,11 @@ open Javalib
 open JBasics
 open JCode
 open Joplang
-open Sawja_pack
 module Array = BatArray
-module Enum = BatEnum
+module List = BatList
 module JL = JClassLow
+open BatPervasives
 
-let (|>) x f = f x;;
 exception Internal
 exception Opcode_Not_Implemented of string
 exception Opcode_Java_Implemented of string
@@ -586,8 +585,76 @@ let rec generate_microcode_bc const_pool cp = function
       let cpool = cn.JClass.c_consts in
       let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
       let m = JHigh2Low.h2l_acmethod cpool1 m in
-      generate_microcode_method cpool cp m
-
+      let fnew = generate_microcode_method cpool cp m in
+      (* Now do this for the GC allocation thing! *)
+      let mn = make_ms "newObject" [(TBasic `Int)] (Some (TBasic `Int)) in
+      let cn = try JFile.get_class cp (make_cn bj2) with
+	       |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+	       |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+      let m = JClass.get_method cn mn in
+      let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+      let cpool = cn.JClass.c_consts in
+      let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
+      let m = JHigh2Low.h2l_acmethod cpool1 m in
+      let gnew = generate_microcode_method cpool cp m in
+      Array.append fnew gnew |> (Array.append newb)
+   | JL.OpNewArray _ 
+   | JL.OpANewArray _ as op -> 
+      let mn = make_ms "f_newarray" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
+      let cn = try JFile.get_class cp (make_cn bj1) with
+	       |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+	       |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+      let m = JClass.get_method cn mn in
+      let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+      let cpool = cn.JClass.c_consts in
+      let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
+      let m = JHigh2Low.h2l_acmethod cpool1 m in
+      let fnew = generate_microcode_method cpool cp m in
+      (* Now do this for the GC allocation thing! *)
+      let mn = make_ms "newArray" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
+      let cn = try JFile.get_class cp (make_cn bj2) with
+	       |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+	       |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+      let m = JClass.get_method cn mn in
+      let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+      let cpool = cn.JClass.c_consts in
+      let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
+      let m = JHigh2Low.h2l_acmethod cpool1 m in
+      let gnew = generate_microcode_method cpool cp m in
+      Array.append fnew gnew |> (Array.append newb)
+   | JL.OpAMultiNewArray _ as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
+   | JL.OpCheckCast _ as op -> 
+      let mn = make_ms "f_checkcast" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
+      let cn = try JFile.get_class cp (make_cn bj1) with
+	       |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+	       |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+      let m = JClass.get_method cn mn in
+      let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+      let cpool = cn.JClass.c_consts in
+      let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
+      let m = JHigh2Low.h2l_acmethod cpool1 m in
+      let tt = lazy (generate_microcode_method cpool cp m) in
+      (* FIXME: Overestimating again, because we have no data-flow
+      analysis within the method!! *)
+      let r = Array.init 5 (fun _ -> Lazy.force tt) in
+      let r = Array.fold_left (fun t x -> Array.append t x) [||] r in
+      Array.append r newb
+   | JL.OpInstanceOf _ as op ->
+      let mn = make_ms "f_instanceof" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
+      let cn = try JFile.get_class cp (make_cn bj1) with
+	       |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+	       |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+      let m = JClass.get_method cn mn in
+      let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+      let cpool = cn.JClass.c_consts in
+      let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
+      let m = JHigh2Low.h2l_acmethod cpool1 m in
+      let tt = lazy (generate_microcode_method cpool cp m) in
+      (* FIXME: Overestimating again, because we have no data-flow
+      analysis within the method!! *)
+      let r = Array.init 5 (fun _ -> Lazy.force tt) in
+      let r = Array.fold_left (fun t x -> Array.append t x) [||] r in
+      Array.append r newb
 (* Generate micro-code for a given method *)
 and generate_microcode_method cpool cp m = 
   let bcs = m.JClassLow.m_attributes in
