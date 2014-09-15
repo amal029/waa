@@ -22,6 +22,12 @@ let laload =
     Sub;Ldm;Or;Ldi;And;Nop;Bnz;Nop;Nop;Stmraf;Wait;Wait;Ldmrd;Ldm;
     Ldi;Shl;Add;Dup;Stm;Stmra;Wait;Wait;Ldmrd;Ldm;Ldi;Add;Stmra;Wait;Wait;Ldmrd|]
 
+let lastore = 
+  [|Stm;Stm;Stm;Dup;Dup;Bz;Ldi;Add;Stmraf;Wait;Wait;Ldmrd;Ldi;
+    Sub;Ldm;Sub;Ldm;Or;Ldi;And;Nop;Bnz;Nop;Nop;Stmraf;Wait;
+    Wait;Ldmrd;Ldm;Ldi;Shl;Add;Stm;Ldm;Stmwa;Ldm;Stmwd;Ldm;Ldi;Add;Wait;Wait;Stmwa;Ldm;Stmwd;Wait;Wait;Nop;
+   |]
+
 let monitorexit = [|Pop;Ldm;Ldi;Sub;Dup;Stm;Bnz;Ldi;Stmwa;Ldi;Stmwd;Wait;Wait;Ldi;Stmwa;
 							       Ldi;Stmwd;Wait;Wait;Nop|];;
 
@@ -151,6 +157,17 @@ let rec generate_microcode_bc cp = function
 		       | _ -> iaload)
   | JL.OpAALoad | JL.OpBALoad
   | JL.OpCALoad | JL.OpSALoad -> [|Stald;Pop;Wait;Wait;Ldmrd|]
+  | JL.OpAStore _ -> [|Nop;St|]
+  | JL.OpStore (x,_) ->
+     (match x with
+      | `Long | `Double -> [|Ldvp;Dup;Ld_opd_8u;Add;Stvp;Stm;St1;St0;Ldm;Stvp;Nop|] 
+      | _ -> [|Nop;St|])
+  | JL.OpArrayStore x -> 
+     (match x with
+      | `Double | `Long -> lastore
+      | _ -> iastore)
+  | JL.OpAAStore | JL.OpBAStore
+  | JL.OpCAStore | JL.OpSAStore -> [|Stast;Pop;Pop;Wait;Wait;Nop|]
   | JL.OpPop -> [|Pop|]
   | JL.OpPop2 -> [|Pop;Pop|]
   | JL.OpDup -> [|Dup|]
@@ -176,23 +193,127 @@ let rec generate_microcode_bc cp = function
 		  | `Double -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
 		  | `Long | `Float -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
 		  | _ -> Array.init 35 (fun _ -> Nop)) (* Note that imul never access external memory!! *)
-   | JL.OpDiv x as op -> (match x with
-			  | `Double -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
-			  | _ -> let mn = make_ms "f_idiv" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
-				 let cn = try JFile.get_class cp (make_cn bj1) with 
-					  |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
-					  |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
-				 let m = JClass.get_method cn mn in
-				 let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
-				 let cpool = cn.JClass.c_consts in
-				 let cpool = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
-				 let m = JHigh2Low.h2l_acmethod cpool m in
-				 (* FIXME: need to do dataflow analysis of the method itself! *)
-				 (* The value 32 comes from the fact that idiv has a loop bound of 32 *)
-				 let tt = lazy (generate_microcode_method cp m) in
-				 let tt = Array.init 32 (fun _ -> Lazy.force tt) in
-				 Array.fold_left Array.append [||] tt)
-  | _ -> [||]
+   | JL.OpDiv x as op ->  
+      (match x with
+       | `Double -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
+       | _ -> let mn = make_ms "f_idiv" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
+	      let cn = try JFile.get_class cp (make_cn bj1) with 
+		       |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+		       |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+	      let m = JClass.get_method cn mn in
+	      let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+	      let cpool = cn.JClass.c_consts in
+	      let cpool = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
+	      let m = JHigh2Low.h2l_acmethod cpool m in
+	      (* FIXME: need to do dataflow analysis of the method itself! *)
+	      (* The value 32 comes from the fact that idiv has a loop bound of 32 *)
+	      let tt = lazy (generate_microcode_method cp m) in
+	      let tt = Array.init 32 (fun _ -> Lazy.force tt) in
+	      Array.fold_left Array.append [||] tt)
+   | JL.OpRem x as op ->
+      (match x with
+       | `Double -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
+       | _ -> let mn = make_ms "f_irem" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
+	      let cn = try JFile.get_class cp (make_cn bj1) with 
+		       |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+		       |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+	      let m = JClass.get_method cn mn in
+	      let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+	      let cpool = cn.JClass.c_consts in
+	      let cpool = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
+	      let m = JHigh2Low.h2l_acmethod cpool m in
+	      (* FIXME: need to do dataflow analysis of the method itself! *)
+	      (* The value 32 comes from the fact that idiv has a loop bound of 32 *)
+	      let tt = lazy (generate_microcode_method cp m) in
+	      let tt = Array.init 32 (fun _ -> Lazy.force tt) in
+	      Array.fold_left Array.append [||] tt)
+   | JL.OpNeg x as op ->
+      (match x with 
+       | `Long -> Array.append [|Ldi;Xor;Stm;Ldi;Xor;Ldm;Ldi;Ldi|] long_add
+       | `Double -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
+       | `Float -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
+       | _ -> [|Ldi;Xor;Ldi;Add|]) 
+   | JL.OpIShl -> [|Shl|]
+   | JL.OpIShr -> [|Shr|]
+   | JL.OpIUShr -> [|Ushr|]
+   | JL.OpLShl -> Array.append (Array.append lshl lshl_not0) lshl_le31
+   | JL.OpLShr -> (Array.append lshr lshr_le31)
+   | JL.OpLUShr -> Array.append (Array.append lushr lushr_le31) lushr_not0
+   | JL.OpIAnd -> [|And|]
+   | JL.OpIOr -> [|Or|]
+   | JL.OpIXor -> [|Xor|]
+   | JL.OpLAnd -> [|Stm;Stm;Stm;Ldm;And;Ldm;Ldm;And|]
+   | JL.OpLOr -> [|Stm;Stm;Stm;Ldm;Or;Ldm;Ldm;Or|]
+   | JL.OpLXor -> [|Stm;Stm;Stm;Ldm;Xor;Ldm;Ldm;Xor|]
+   | JL.OpI2L -> [|Dup;Stm;Ldi;Shr;Ldm|]
+   | JL.OpI2C -> [|Ldi;And|]
+   | JL.OpL2I -> [|Stm;Pop;Ldm|]
+   | JL.OpL2F as op -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
+   | JL.OpL2D as op -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
+   | JL.OpF2I as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
+   | JL.OpF2L as op -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
+   | JL.OpF2D as op -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
+   | JL.OpD2I as op -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
+   | JL.OpD2F as op -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
+   | JL.OpD2L as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
+   | JL.OpI2B as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
+   | JL.OpI2F as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
+   | JL.OpI2S as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
+   | JL.OpI2D as op -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
+   | JL.OpIInc _ -> [|Ldvp;Ld_opd_8u;Add;Star;Ld_opd_8u;Ldmi;Stmi|]
+   | JL.OpLCmp as op -> 
+      let mn = make_ms "f_lcmp" [(TBasic `Int);(TBasic `Int);(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
+      let cn = try JFile.get_class cp (make_cn bj1) with
+	       |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+	       |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+      let m = JClass.get_method cn mn in
+      let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+      let cpool = cn.JClass.c_consts in
+      let cpool = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
+      let m = JHigh2Low.h2l_acmethod cpool m in
+      generate_microcode_method cp m
+   | JL.OpFCmpL as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
+   | JL.OpFCmpG as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
+   | JL.OpDCmpL as op -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
+   | JL.OpIfEq _ | JL.OpIfNe _ 
+   | JL.OpIfLt _ | JL.OpIfGe _
+   | JL.OpIfLe _ | JL.OpIfGt _ -> [|Nop;Jbr;Pop;Nop|]
+   | JL.OpICmpEq _
+   | JL.OpICmpNe _
+   | JL.OpICmpLt _
+   | JL.OpICmpGe _
+   | JL.OpICmpGt _
+   | JL.OpICmpLe _
+   | JL.OpACmpEq _
+   | JL.OpACmpNe _ -> [|Nop;Jbr;Pop;Pop|]
+   | JL.OpGoto _ -> [|Nop;Jbr;Nop;Nop|]
+   | JL.OpJsr _ | JL.OpRet _ -> [||]
+   | JL.OpTableSwitch _ as op -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
+   | JL.OpLookupSwitch (_,x) as op -> 
+      let mn = make_ms "f_lookupswitch" [(TBasic `Int)] None in
+      let cn = try JFile.get_class cp (make_cn bj1) with
+	       |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+	       |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+      let m = JClass.get_method cn mn in
+      let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+      let cpool = cn.JClass.c_consts in
+      let cpool = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
+      let m = JHigh2Low.h2l_acmethod cpool m in
+      let tt = lazy(generate_microcode_method cp m) in
+      let r = Array.init (List.length x) (fun _ -> Lazy.force tt) in
+      Array.fold_left Array.append [||] r
+   | JL.OpReturn x ->
+      (match x with
+       | `Double | `Long -> [|Stm;Stm;Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;
+			      Ldmrd; Stbcrd;Stm;Nop;Stsp;Pop;Pop;Ldbcstart;Ldm;Add;
+			      Stjpc;Ldm;Ldm;Wait;Wait;Nop|]
+       | _ -> [|Stm;Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;Ldmrd;Stbcrd;Stm;Nop;Stsp;
+		Pop;Pop;Ldbcstart;Ldm;Add;Stjpc;Ldm;Wait;Wait;Nop|])
+   | JL.OpAReturn -> [|Stm;Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;Ldmrd;Stbcrd;Stm;Nop;Stsp;
+		       Pop;Pop;Ldbcstart;Ldm;Add;Stjpc;Ldm;Wait;Wait;Nop|] 
+   | JL.OpReturnVoid -> [|Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;Ldmrd;Stbcrd;Stm;Nop;
+			Stsp;Ldbcstart;Ldm;Add;Stjpc;Pop;Pop;Wait;Wait;Nop|]
+   | _ -> [||]
 
 (* Generate micro-code for a given method *)
 and generate_microcode_method cp m = 
