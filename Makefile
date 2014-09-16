@@ -1,4 +1,4 @@
-CCC ?= ocamlc -annot -g
+CCC ?= ocamlopt -annot -cc gcc-4.9 -ccopt -O3 -ccopt -mtune=native -ccopt -flto
 JAVALIBDIR=`ocamlfind query javalib`
 SRCO=joplang.ml waa.ml
 SRCN=joplang.ml wcma.ml

@@ -256,8 +256,24 @@ let get_method_size = function
   | JL.OpInvalid -> 0
   | JL.OpDCmpG -> 1
 
+let get_invoke_msize cp cn op ms = 
+  let cn = try JFile.get_class cp cn with
+	   |  No_class_found _ -> print_endline (JPrint.jopcode op); raise Not_found 
+	   |  Class_structure_error _ -> print_endline (JPrint.jopcode op); raise Not_found in
+  let m = JClass.get_method cn ms in
+  let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+  let cpool = cn.JClass.c_consts in
+  let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
+  let m = JHigh2Low.h2l_acmethod cpool1 m in
+  let bcs = m.JClassLow.m_attributes in
+  let bcs = List.filter (fun t -> match t with | JClassLow.AttributeCode _ -> true | _ -> false) bcs in
+  let bcs = match (List.hd bcs) with | JClassLow.AttributeCode x -> x | _ -> raise Internal in
+  let bcs = (Lazy.force bcs).JClassLow.c_code in
+  let msize = Array.fold_left (fun v x -> v + (get_method_size x)) 0 bcs in
+  Array.init (msize / 4) (fun _ -> Wait)
+
 (* This is the main function that generates the micro-codes *)
-let rec generate_microcode_bc const_pool cp = function
+let rec generate_microcode_bc bcs const_pool cp = function
   | JL.OpNop -> [|Nop|]
   | JL.OpAConstNull -> [|Ldi|]
   | JL.OpLConst _ -> [|Ldi;Ldi|]
@@ -505,15 +521,26 @@ let rec generate_microcode_bc const_pool cp = function
 	   | _ -> [|Ldjpc;Ldi;Sub;
 		    Stjpc;Nop;Nop;Ldm;Nop;Ld_opd_8u;Ldi;And;Dup;Add;Add;Stm;Nop;Nop;	Ld_opd_16u;Ldm;Jmp;Nop;Nop
 		   |])
-       | OpInvoke (x,y) as op ->
+       | OpInvoke (x,ms) as op ->
+	  let msize = Array.fold_left (fun v x -> v + (get_method_size x)) 0 bcs in
+	  let waits = Array.init (msize / 4) (fun _ -> Wait) in
 	  (match x with
-	   | `Interface _ -> invokeinterface_mc
-	   | `Virtual _ -> invokevirtual_mc
-	   | `Special _ -> invokestatic_mc
-	   | `Static cn -> 
-	      let cn = cn_simple_name cn in
-	      let mn = ms_name y in
-	      if cn = "Native" then
+	   | `Interface cn -> 
+	      let iwaits = get_invoke_msize cp cn op ms in
+	      Array.append iwaits (Array.append waits invokeinterface_mc)
+	      (* Array.append waits invokeinterface_mc *)
+	   | `Virtual ot -> 
+	      let cn = (match ot with | TClass x -> x | TArray _ -> raise Internal) in
+	      let iwaits = get_invoke_msize cp cn op ms in
+	      Array.append iwaits (Array.append waits invokevirtual_mc)
+	   | `Special cn -> 
+	      let iwaits = get_invoke_msize cp cn op ms in
+	      Array.append iwaits (Array.append waits invokestatic_mc)
+	      (* Array.append waits invokestatic_mc *)
+	   | `Static cn ->
+	      let cn1 = cn_simple_name cn in
+	      let mn = ms_name ms in
+	      if cn1 = "Native" then
 		(match mn with
 		 | "rd" -> jopsys_rd
 		 | "wr" -> jopsys_wr
@@ -550,8 +577,16 @@ let rec generate_microcode_bc const_pool cp = function
 		 | "arrayLength" -> arraylength
 		 | "count" -> jopsys_count
 		 | "hc" -> jopsys_hc
-		 | _ -> invokestatic_mc)
-	      else invokestatic_mc)
+		 | _ -> 
+		    let iwaits = get_invoke_msize cp cn op ms in
+		    Array.append iwaits (Array.append waits invokestatic_mc)
+		    (* Array.append waits invokeinterface_mc *)
+		)
+	      else 
+		let iwaits = get_invoke_msize cp cn op ms in
+		Array.append iwaits (Array.append waits invokestatic_mc)
+		(* Array.append waits invokeinterface_mc *)
+	  )
        | _ -> raise Internal)
    | JL.OpMonitorExit -> monitorexit
    | JL.OpMonitorEnter -> monitorenter
@@ -655,6 +690,7 @@ let rec generate_microcode_bc const_pool cp = function
       let r = Array.init 5 (fun _ -> Lazy.force tt) in
       let r = Array.fold_left (fun t x -> Array.append t x) [||] r in
       Array.append r newb
+
 (* Generate micro-code for a given method *)
 and generate_microcode_method cpool cp m = 
   let bcs = m.JClassLow.m_attributes in
@@ -664,11 +700,12 @@ and generate_microcode_method cpool cp m =
   (* Count the number of bytecodes to find the size of the method in bytes *)
   let msize = Array.fold_left (fun v x -> v + (get_method_size x)) 0 bcs in
   let waits = Array.init (msize / 4) (fun _ -> Wait) in
-  Array.fold_left (fun t x -> Array.append t (generate_microcode_bc cpool cp x)) waits bcs 
+  Array.fold_left (fun t x -> Array.append t (generate_microcode_bc bcs cpool cp x)) waits bcs 
 
 (* Generating micro-code for a given class *)
 let generate_microcode_clazz cp clazz = 
   let llc = JFile.get_class_low cp clazz in
+  (* let () = IFDEF DEBUG THEN JDumpLow.dump (IO.output_channel Pervasives.stdout) llc ELSE () ENDIF in *)
   let cpool = llc.JClassLow.j_consts in
   let lms = llc.JClassLow.j_methods in
   List.map (fun x -> ((JDumpBasics.method_signature x.JClassLow.m_name x.JClassLow.m_descriptor)),
