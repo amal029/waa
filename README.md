@@ -9,3 +9,4 @@ Usage: wcma class-path class-name
 Note
 - Class-name should be given without the .class extension
 - Should be a fully qualified name, .e.g,: java.lang.Object
+- Should have the main function
