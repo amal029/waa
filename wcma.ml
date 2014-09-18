@@ -759,7 +759,9 @@ and generate_microcode_method marray pms cms pcname cname cpool cp m =
 
 and invoke_method cn mn cpool cp marray cms cname op = 
   if ((((JPrint.class_name cn) = !bj3) || ((JPrint.class_name cn) = bj1) || ((JPrint.class_name cn) = bj2)) && (not (exists_in_marray marray mn))) then
-    let () = print_endline "putting in marray!!!!" in
+  (* let () = print_endline (JPrint.class_name cn) in *)
+  (* let () = print_endline (JPrint.method_signature mn) in *)
+  (* if (not (exists_in_marray marray mn)) then *)
     let cn = try JFile.get_class cp cn with
 	     |  No_class_found _ -> print_endline (JPrint.jopcode op); raise Not_found 
 	     |  Class_structure_error _ -> print_endline (JPrint.jopcode op); raise Not_found in
@@ -768,8 +770,7 @@ and invoke_method cn mn cpool cp marray cms cname op =
     let cpool = cn.JClass.c_consts in
     let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
     let m = JHigh2Low.h2l_acmethod cpool1 m in
-    generate_microcode_method marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m;
-    DynArray.iter (fun (i,_) -> print_endline "in Marray:"; print_endline (JPrint.method_signature i)) marray
+    generate_microcode_method marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m
 
 (* Generating micro-code for a given class *)
 let generate_microcode_clazz marray cp clazz = 
