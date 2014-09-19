@@ -594,9 +594,9 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
 		    Stjpc;Nop;Nop;Ldm;Nop;Ld_opd_8u;Ldi;And;Dup;Add;Add;Stm;Nop;Nop;	Ld_opd_16u;Ldm;Jmp;Nop;Nop
 		   |])
        | OpInvoke (x,mn) as op ->
-	  let () = print_endline "\nStack state start:\n" in
-	  let () = Stack.iter (fun x -> print_string ((JPrint.method_signature x) ^ "\n")) mstack in
-	  let () = print_endline "\nStack state end\n" in
+	  (* let () = print_endline "\nStack state start:\n" in *)
+	  (* let () = Stack.iter (fun x -> print_string ((JPrint.method_signature x) ^ "\n")) mstack in *)
+	  (* let () = print_endline "\nStack state end\n" in *)
 	  let mstacke = Stack.enum mstack in
 	  let exists = Enum.exists (fun x -> x = mn) mstacke in
 	  (match x with
@@ -788,8 +788,8 @@ and generate_microcode_method mstack marray pms cms pcname cname cpool cp m =
 and invoke_method mstack cn mn cpool cp marray cms cname op = 
   (* if ((((JPrint.class_name cn) = !bj3) || ((JPrint.class_name cn) = bj1) || ((JPrint.class_name cn) = bj2)) && (not (exists_in_marray marray mn))) then *)
   if (not (exists_in_marray marray mn)) then
-  let () = print_endline (JPrint.class_name cn) in
-  let () = print_endline (JPrint.method_signature mn) in
+  (* let () = print_endline (JPrint.class_name cn) in *)
+  (* let () = print_endline (JPrint.method_signature mn) in *)
   (* if (not (exists_in_marray marray mn)) then *)
     let cn = try JFile.get_class cp cn with
 	     |  No_class_found _ -> print_endline (JPrint.jopcode op); raise Not_found 
