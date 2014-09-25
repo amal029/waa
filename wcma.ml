@@ -777,7 +777,26 @@ and generate_microcode_method mstack marray pms cms pcname cname cpool cp m =
   let bcs = m.JClassLow.m_attributes in
   let bcs = List.filter (fun t -> match t with | JClassLow.AttributeCode _ -> true | _ -> false) bcs in
   let bcs = match (List.hd bcs) with | JClassLow.AttributeCode x -> x | _ -> raise Internal in
+  let code = (Lazy.force bcs) in
   let bcs = (Lazy.force bcs).JClassLow.c_code in
+  print_endline ("Opcodes for "^m.JClassLow.m_name);
+  Array.iteri (fun i x -> print_endline (JDumpLow.opcode x);  
+                List.iter (fun x -> 
+                  match x with
+                  | JClassLow.AttributeLineNumberTable ((v,z)::_ as h) ->
+                      List.iter 
+                      (fun (g,j) -> print_endline ("("^(string_of_int g)^","^(string_of_int j)^")")) h
+                  | _ -> ()
+                  ) code.JClassLow.c_attributes;
+
+(*
+                let attr = List.at code.JClassLow.c_attributes i in
+                match attr with
+                | JClassLow.AttributeLineNumberTable ((x,y)::_)  ->
+                    print_endline "123123";
+                | _ -> ()
+*)
+              ) bcs;
   let res = Array.fold_left (fun t x -> Array.append t (generate_microcode_bc mstack marray pms cms pcname cname bcs cpool cp x)) [||] bcs in
   (* Put it into the DynArray!! *)
   DynArray.add marray (cms,res)

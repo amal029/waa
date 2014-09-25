@@ -1,0 +1,4 @@
+#!/bin/bash
+#awk '/\/\/\s*@WCA\s*loop\s*=\s*([0-9]+)/ {print NR}' $@
+sed -n '/.*\(\/\/\s*@WCA\s*loop\s*=\s*\([0-9]\+\)\)$/=' $@ 
+sed -n 's/.*\(\/\/\s*@WCA\s*loop\s*=\s*\([0-9]\+\)\)$/\2/p' $@
