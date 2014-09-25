@@ -428,7 +428,21 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
    | JL.OpD2I as op -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
    | JL.OpD2F as op -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
    | JL.OpD2L as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
-   | JL.OpI2B as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
+   | JL.OpI2B as op -> 
+      let mn = make_ms "f_i2b" [(TBasic `Int)] (Some (TBasic `Int)) in
+      if (not (exists_in_marray marray mn)) then
+	let cn = try JFile.get_class cp (make_cn bj1) with
+		 |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+		 |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+	let m = JClass.get_method cn mn in
+	let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+	let cpool = cn.JClass.c_consts in
+	let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
+	let m = JHigh2Low.h2l_acmethod cpool1 m in
+	generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m
+      else ();
+      invokestatic_mc
+      (* raise (Opcode_Java_Implemented (JDumpLow.opcode op)) *)
    | JL.OpI2F as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
    | JL.OpI2S as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
    | JL.OpI2D as op -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
@@ -511,7 +525,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
 						  Stjpc;Ldm;Ldm;Wait;Wait;Nop|]
        | _ -> Array.append iwaits [|Stm;Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;Ldmrd;Stbcrd;Stm;Nop;Stsp;
 				    Pop;Pop;Ldbcstart;Ldm;Add;Stjpc;Ldm;Wait;Wait;Nop|])
-   | JL.OpAReturn as op -> 
+   | JL.OpAReturn as op ->
       let hopcode = JInstruction.opcode2instruction const_pool op in
       (* BAD hack! TOO EXPENSIVE *)
       let iwaits = 
@@ -797,6 +811,7 @@ and invoke_method mstack cn mn cpool cp marray cms cname op =
 (* Generating micro-code for a given class *)
 let generate_microcode_clazz marray cp clazz = 
   let llc = JFile.get_class_low cp clazz in
+  (* let () = JDumpLow.dump (IO.output_channel (Pervasives.stdout)) llc in *)
   let cn = JLow2High.low2high_class llc in
   let m = JClass.get_method cn JProgram.main_signature in
   let cn = (match cn with JClass.JClass x -> x | _ -> raise Internal) in
