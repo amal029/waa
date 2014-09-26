@@ -74,8 +74,8 @@ try:
         print tps
         sys.exit(1)
     else:
-        map (lambda (i,x),tp: m.addConstr(tp, GRB.EQUAL, d[i][1] * TS + d[i][0]), 
-             d.items(), tps)
+        map (lambda i,tp: m.addConstr(tp, GRB.EQUAL, d[i][1] * TS + d[i][0]), 
+             d.keys(), tps)
         
     # Finally, the reaction time constraints
     if len(d) != len(ws):
