@@ -286,6 +286,8 @@ let getloopcount wca_list bi lnt bc =
   (* lnt (x,y) --> x : bytecode line number, y : line number *)
   (* wca_list (x,y) --> x : line number, y : loop count *)
   (* Getting line number for this bytecode *)
+  ()
+(*
   let (_,linenum) = List.fold_left (fun ln (bln,sln) -> 
       if ((bi >= ln) && (bi < bln)) then
         ln
@@ -293,6 +295,39 @@ let getloopcount wca_list bi lnt bc =
         0
     ) 0 lnt in 
   linenum
+*)
+
+let getloopranges wca_list lnt code = 
+  (* lnt (x,y) --> x : bytecode line number, y : line number *)
+  (* wca_list (x,y) --> x : line number, y : loop count *)
+  let opcodes = code.JClassLow.c_code in
+  let nxt = List.map (fun (ln,lc) -> 
+      try
+        (* This is one line after @WCA *)
+        let (s_bcln,s_ln2) = List.find (fun (bcln, ln2) -> (int_of_string ln) = ln2 ) lnt in
+        let (n_bcln,e_ln2) = List.find (fun (bcln, ln2) -> (int_of_string ln) + 1 = ln2 ) lnt in
+        let tlines = Array.sub opcodes s_bcln (n_bcln - s_bcln) in
+(*         print_endline "---"; *)
+(*         Array.iter (fun x -> print_endline (JDumpLow.opcode x) ) tlines; *)
+        let jumpop = Array.find (fun x -> 
+          match x with
+          | JClassLow.OpICmpGe _ -> true
+          | _ -> false
+        ) tlines in
+        let e_bcln = match jumpop with 
+          | JClassLow.OpICmpGe x -> s_bcln + x
+          | _ -> failwith "Could not find end of loop"
+        in
+        Some (s_bcln,e_bcln)
+      with Not_found -> None
+    ) (DynArray.to_list wca_list) 
+  in
+  List.iter (function
+      | Some (x,y) -> 
+        print_endline ("start "^(string_of_int x)^" end "^(string_of_int y))
+      | None -> () ) nxt;
+  ()
+(*   List.iter (function Some (x,y) -> print_endline (string_of_int y) | None -> ()) nxt *)
 
 
 (* This is the main function that generates the micro-codes *)
@@ -795,6 +830,7 @@ and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l =
   let lnt = List.find (fun x -> match x with | JClassLow.AttributeLineNumberTable _ -> true | _ -> false) attr_l in
   let lnt = match lnt with | JClassLow.AttributeLineNumberTable x -> x | _ -> [] in
   let bcs = (Lazy.force bcs).JClassLow.c_code in
+  let lr = getloopranges l lnt code in
 (*
   print_endline ("Opcodes for "^m.JClassLow.m_name);
   Array.iteri (fun i x -> print_endline (JDumpLow.opcode x);  
@@ -811,7 +847,6 @@ and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l =
   let res = Array.fold_lefti (fun t i x -> 
 (*       print_endline ((string_of_int i)^" "^JDumpLow.opcode x); *)
       let lc = getloopcount l i lnt x in 
-      print_endline ("bytecode "^(JDumpLow.opcode x)^" line : "^(string_of_int lc));
       Array.append t (generate_microcode_bc mstack marray pms cms pcname cname bcs cpool cp l x)
     ) [||] bcs in
   (* Put it into the DynArray!! *)
