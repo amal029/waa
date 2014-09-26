@@ -302,30 +302,37 @@ let getloopranges wca_list lnt code =
   (* wca_list (x,y) --> x : line number, y : loop count *)
   let opcodes = code.JClassLow.c_code in
   let nxt = List.map (fun (ln,lc) -> 
-      try
-        (* This is one line after @WCA *)
-        let (s_bcln,s_ln2) = List.find (fun (bcln, ln2) -> (int_of_string ln) = ln2 ) lnt in
-        let (n_bcln,e_ln2) = List.find (fun (bcln, ln2) -> (int_of_string ln) + 1 = ln2 ) lnt in
-(*         let tlines = Array.filteri (fun i x -> i >= s_bcln && i < n_bcln) opcodes in *)
-        let tlines = Array.fold_lefti (fun z i x -> 
-          if i >= s_bcln && i < n_bcln then
-            Array.append z [|(i,x)|]
-          else
-            z
-          ) [||] opcodes 
-        in
-(*         Array.iter (fun (i,x) -> print_endline ("line : "^(string_of_int i)^" "^(JDumpLow.opcode x))) tlines; *)
-        let jumpop = Array.find (fun x -> 
-          match x with
-          | (_,JClassLow.OpICmpGe _) -> true
-          | _ -> false
-        ) tlines in
-        let e_bcln = match jumpop with 
-          | (i, JClassLow.OpICmpGe x) -> i + x
-          | _ -> failwith "Could not find end of loop"
-        in
-        Some (s_bcln,e_bcln)
-      with Not_found -> None
+    let ((_,l1),(_,l2)) = (List.hd lnt, List.nth lnt ((List.length lnt)-1)) in
+    if ((l1 <= (int_of_string ln)) && ((int_of_string ln) < l2)) then
+      begin
+        try
+          (* This is one line after @WCA *)
+          (* TODO: Also need to include inf loop which may not generate line number from the @WCA *)
+          let (s_bcln,s_ln2) = List.find (fun (bcln, ln2) -> (int_of_string ln) <= ln2 ) lnt in
+          let (n_bcln,e_ln2) = List.find (fun (bcln, ln2) -> (int_of_string ln) + 1 = ln2 ) lnt in
+          (* let tlines = Array.filteri (fun i x -> i >= s_bcln && i < n_bcln) opcodes in *)
+          let tlines = Array.fold_lefti (fun z i x -> 
+              if i >= s_bcln && i < n_bcln then
+                Array.append z [|(i,x)|]
+              else
+                z
+            ) [||] opcodes 
+          in
+          (* This will generate exp for inf loop *)
+          let jumpop = Array.find (fun x -> 
+              match x with
+              | (_,JClassLow.OpICmpGe _) -> true
+              | _ -> false
+            ) tlines in
+          let e_bcln = match jumpop with 
+            | (i, JClassLow.OpICmpGe x) -> i + x
+            | _ -> failwith "Could not find end of loop"
+          in
+          Some (s_bcln,e_bcln)
+        with Not_found -> failwith "Could not find end of loop"
+      end
+    else
+      None
     ) (DynArray.to_list wca_list) 
   in
   List.iter (function
@@ -836,6 +843,7 @@ and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l =
   let lnt = List.find (fun x -> match x with | JClassLow.AttributeLineNumberTable _ -> true | _ -> false) attr_l in
   let lnt = match lnt with | JClassLow.AttributeLineNumberTable x -> x | _ -> [] in
   let bcs = (Lazy.force bcs).JClassLow.c_code in
+  print_endline ("===== method "^(JBasics.ms_name cms));
   let lr = getloopranges l lnt code in
 (*
   print_endline ("Opcodes for "^m.JClassLow.m_name);
@@ -849,7 +857,6 @@ and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l =
                   ) code.JClassLow.c_attributes;
               ) bcs;
 *)
-  print_endline ("===== method "^(JBasics.ms_name cms));
   let res = Array.fold_lefti (fun t i x -> 
 (*       print_endline ((string_of_int i)^" "^JDumpLow.opcode x); *)
       let lc = getloopcount l i lnt x in 
