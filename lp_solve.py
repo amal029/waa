@@ -90,15 +90,16 @@ try:
     m.optimize()
     
     # Print the results if the solution is optimal
-    print '\n'
-    for i in range(0,len(d)):
-        print 'TP'+str(i), ':', tps[i].x
-        print 'x'+str(i), ':', xs[i].x
-        print 'CYC'+str(i), ':', ws[i].x
+    if m.status == GRB.status.OPTIMAL:
         print '\n'
+        for i in range(0,len(d)):
+            print 'TP'+str(i), ':', tps[i].x
+            print 'x'+str(i), ':', xs[i].x
+            print 'CYC'+str(i), ':', ws[i].x
+            print '\n'
 
-    # TS
-    print 'TS:', TS.x , '\n'
+        # TS
+        print 'TS:', TS.x , '\n'
 
 
 except GurobiError as inst:
