@@ -306,16 +306,22 @@ let getloopranges wca_list lnt code =
         (* This is one line after @WCA *)
         let (s_bcln,s_ln2) = List.find (fun (bcln, ln2) -> (int_of_string ln) = ln2 ) lnt in
         let (n_bcln,e_ln2) = List.find (fun (bcln, ln2) -> (int_of_string ln) + 1 = ln2 ) lnt in
-        let tlines = Array.sub opcodes s_bcln (n_bcln - s_bcln) in
-(*         print_endline "---"; *)
-(*         Array.iter (fun x -> print_endline (JDumpLow.opcode x) ) tlines; *)
+(*         let tlines = Array.filteri (fun i x -> i >= s_bcln && i < n_bcln) opcodes in *)
+        let tlines = Array.fold_lefti (fun z i x -> 
+          if i >= s_bcln && i < n_bcln then
+            Array.append z [|(i,x)|]
+          else
+            z
+          ) [||] opcodes 
+        in
+(*         Array.iter (fun (i,x) -> print_endline ("line : "^(string_of_int i)^" "^(JDumpLow.opcode x))) tlines; *)
         let jumpop = Array.find (fun x -> 
           match x with
-          | JClassLow.OpICmpGe _ -> true
+          | (_,JClassLow.OpICmpGe _) -> true
           | _ -> false
         ) tlines in
         let e_bcln = match jumpop with 
-          | JClassLow.OpICmpGe x -> s_bcln + x
+          | (i, JClassLow.OpICmpGe x) -> i + x
           | _ -> failwith "Could not find end of loop"
         in
         Some (s_bcln,e_bcln)
