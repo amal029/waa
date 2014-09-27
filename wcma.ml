@@ -309,56 +309,59 @@ let getloopranges wca_list lnt code =
   (* lnt (x,y) --> x : bytecode line number, y : line number *)
   (* wca_list (x,y) --> x : line number, y : loop count *)
   let opcodes = code.JClassLow.c_code in
+  let rec findr = fun i x -> match x.(i) with | JClassLow.OpInvalid -> findr (i-1) x | _ -> i in
   let nxt = List.map (fun (ln,lc) -> 
-    let ((_,l1),(_,l2)) = (List.hd lnt, List.nth lnt ((List.length lnt)-1)) in
-    if ((l1 <= (int_of_string ln)) && ((int_of_string ln) < l2)) then
-      begin
-        (* This is one line after @WCA *)
-        (* TODO: Also need to include inf loop which may not generate line number from the @WCA *)
-        let (s_bcln,s_ln2) = List.find (fun (bcln, ln2) -> (int_of_string ln) <= ln2 ) lnt in
-        let (n_bcln,e_ln2) = List.find (fun (bcln, ln2) -> (int_of_string ln) + 1 <= ln2 ) lnt in
-        (* let tlines = Array.filteri (fun i x -> i >= s_bcln && i < n_bcln) opcodes in *)
-        let tlines = Array.fold_lefti (fun z i x -> 
-            if i >= s_bcln && i < n_bcln then
-              Array.append z [|(i,x)|]
-            else
-              z
-          ) [||] opcodes 
-        in
-        (* This will generate exp for inf loop *)
-        try
-          let jumpop = Array.find (fun x -> 
-              match x with
-              | (_,JClassLow.OpICmpGe _) -> true
-              | _ -> false
-            ) tlines in
-          let e_bcln = match jumpop with 
-            | (i, JClassLow.OpICmpGe x) -> i + x - 1 (* -1 means inclusive *)
-            | _ -> failwith "Could not find end of loop (general)"
-          in
-          Some (s_bcln,e_bcln)
-        with 
-        | Not_found -> 
-          let goto = filteri (fun i x -> 
-              if (i >= n_bcln) then
-                match x with
-                | JClassLow.OpGoto t -> true
-                | _ -> false
+      let ((_,l1),(_,l2)) = (List.hd lnt, List.nth lnt ((List.length lnt)-1)) in
+      if ((l1 <= (int_of_string ln)) && ((int_of_string ln) < l2)) then
+        begin
+          (* This is one line after @WCA *)
+          (* TODO: Also need to include inf loop which may not generate line number from the @WCA *)
+          let (s_bcln,s_ln2) = List.find (fun (bcln, ln2) -> (int_of_string ln) <= ln2 ) lnt in
+          let (n_bcln,e_ln2) = List.find (fun (bcln, ln2) -> (int_of_string ln) + 1 <= ln2 ) lnt in
+          (* let tlines = Array.filteri (fun i x -> i >= s_bcln && i < n_bcln) opcodes in *)
+          let tlines = Array.fold_lefti (fun z i x -> 
+              if i >= s_bcln && i < n_bcln then
+                Array.append z [|(i,x)|]
               else
-                false
-            ) opcodes in
-          let goto = Array.fold_left (fun x y -> 
-              match x with
-              | None -> (function (i,JClassLow.OpGoto n) -> if (i+n) = s_bcln then Some i else None | _ -> None) y
-              | Some _ as r -> r
-            ) None goto 
+                z
+            ) [||] opcodes 
           in
-          match goto with
-          | Some x -> Some (s_bcln,x)
-          | None -> failwith "Could not find the end of the loop (inf)"
-      end
-    else
-      None
+          (* This will generate exp for inf loop *)
+          try
+            let jumpop = Array.find (fun x -> 
+                match x with
+                | (_,JClassLow.OpICmpGe _) -> true
+                | _ -> false
+              ) tlines in
+            let e_bcln = match jumpop with 
+              | (i, JClassLow.OpICmpGe x) -> 
+                let i = findr (i+x-1) opcodes in
+                i
+              | _ -> failwith "Could not find end of loop (general)"
+            in
+            Some (s_bcln,e_bcln)
+          with 
+          | Not_found -> 
+            let goto = filteri (fun i x -> 
+                if (i >= n_bcln) then
+                  match x with
+                  | JClassLow.OpGoto t -> true
+                  | _ -> false
+                else
+                  false
+              ) opcodes in
+            let goto = Array.fold_left (fun x y -> 
+                match x with
+                | None -> (function (i,JClassLow.OpGoto n) -> if (i+n) = s_bcln then Some i else None | _ -> None) y
+                | Some _ as r -> r
+              ) None goto 
+            in
+            match goto with
+            | Some x -> Some (s_bcln,x)
+            | None -> failwith "Could not find the end of the loop (inf)"
+        end
+      else
+        None
     ) (DynArray.to_list wca_list) 
   in
   List.iter (function
@@ -884,7 +887,7 @@ and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l =
               ) bcs;
 *)
   let res = Array.fold_lefti (fun t i x -> 
-(*       print_endline ((string_of_int i)^" "^JDumpLow.opcode x); *)
+      (*       print_endline ((string_of_int i)^" "^JDumpLow.opcode x); *)
       let lc = getloopcount l i lnt x in 
       Array.append t (generate_microcode_bc mstack marray pms cms pcname cname bcs cpool cp l x)
     ) [||] bcs in
@@ -923,18 +926,18 @@ let generate_microcode_clazz marray cp clazz l =
 let parsewca x =
   let l = DynArray.make 10 in
   (if (x <> "") then
-    let ic = open_in x in
-    try
-      while true do
-        let line = input_line ic in
-        let (x,y) = BatString.split line "," in
-        DynArray.add l (x,y)
-      done;
-    with 
-    | End_of_file -> ()
-    | e ->
-      close_in_noerr ic;
-      raise e
+     let ic = open_in x in
+     try
+       while true do
+         let line = input_line ic in
+         let (x,y) = BatString.split line "," in
+         DynArray.add l (x,y)
+       done;
+     with 
+     | End_of_file -> ()
+     | e ->
+       close_in_noerr ic;
+       raise e
   );
   l
 
@@ -945,9 +948,9 @@ let main =
     let () = Arg.parse [
         ("-wca", Arg.String (fun x -> wcafile := x), "wca filename")
       ]
-    (fun x -> DynArray.add args x)  "WCMA tool " in
+        (fun x -> DynArray.add args x)  "WCMA tool " in
     let l = parsewca !wcafile in 
-(*     let args = Sys.argv in *)
+    (*     let args = Sys.argv in *)
     let (cp, cn) = 
       if DynArray.length args <> 2 then let () = print_endline usage_msg in raise Internal
       else (DynArray.get args 0,DynArray.get args 1) in
