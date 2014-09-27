@@ -297,6 +297,14 @@ let getloopcount wca_list bi lnt bc =
   linenum
 *)
 
+let rec filteri f a =
+  Array.of_list (List.rev (filteri2 f 0 a []))
+and filteri2 f i a l =
+  match f i (Array.get a i) with
+  | true -> (i, Array.get a i) :: l
+  | false when (Array.length a) <> (i+1) -> filteri2 f (i+1) a l
+  | false -> l
+
 let getloopranges wca_list lnt code = 
   (* lnt (x,y) --> x : bytecode line number, y : line number *)
   (* wca_list (x,y) --> x : line number, y : loop count *)
@@ -305,31 +313,49 @@ let getloopranges wca_list lnt code =
     let ((_,l1),(_,l2)) = (List.hd lnt, List.nth lnt ((List.length lnt)-1)) in
     if ((l1 <= (int_of_string ln)) && ((int_of_string ln) < l2)) then
       begin
+        (* This is one line after @WCA *)
+        (* TODO: Also need to include inf loop which may not generate line number from the @WCA *)
+        let (s_bcln,s_ln2) = List.find (fun (bcln, ln2) -> (int_of_string ln) <= ln2 ) lnt in
+        let (n_bcln,e_ln2) = List.find (fun (bcln, ln2) -> (int_of_string ln) + 1 <= ln2 ) lnt in
+        (* let tlines = Array.filteri (fun i x -> i >= s_bcln && i < n_bcln) opcodes in *)
+        let tlines = Array.fold_lefti (fun z i x -> 
+            if i >= s_bcln && i < n_bcln then
+              Array.append z [|(i,x)|]
+            else
+              z
+          ) [||] opcodes 
+        in
+        (* This will generate exp for inf loop *)
         try
-          (* This is one line after @WCA *)
-          (* TODO: Also need to include inf loop which may not generate line number from the @WCA *)
-          let (s_bcln,s_ln2) = List.find (fun (bcln, ln2) -> (int_of_string ln) <= ln2 ) lnt in
-          let (n_bcln,e_ln2) = List.find (fun (bcln, ln2) -> (int_of_string ln) + 1 = ln2 ) lnt in
-          (* let tlines = Array.filteri (fun i x -> i >= s_bcln && i < n_bcln) opcodes in *)
-          let tlines = Array.fold_lefti (fun z i x -> 
-              if i >= s_bcln && i < n_bcln then
-                Array.append z [|(i,x)|]
-              else
-                z
-            ) [||] opcodes 
-          in
-          (* This will generate exp for inf loop *)
           let jumpop = Array.find (fun x -> 
               match x with
               | (_,JClassLow.OpICmpGe _) -> true
               | _ -> false
             ) tlines in
           let e_bcln = match jumpop with 
-            | (i, JClassLow.OpICmpGe x) -> i + x
-            | _ -> failwith "Could not find end of loop"
+            | (i, JClassLow.OpICmpGe x) -> i + x - 1 (* -1 means inclusive *)
+            | _ -> failwith "Could not find end of loop (general)"
           in
           Some (s_bcln,e_bcln)
-        with Not_found -> failwith "Could not find end of loop"
+        with 
+        | Not_found -> 
+          let goto = filteri (fun i x -> 
+              if (i >= n_bcln) then
+                match x with
+                | JClassLow.OpGoto t -> true
+                | _ -> false
+              else
+                false
+            ) opcodes in
+          let goto = Array.fold_left (fun x y -> 
+              match x with
+              | None -> (function (i,JClassLow.OpGoto n) -> if (i+n) = s_bcln then Some i else None | _ -> None) y
+              | Some _ as r -> r
+            ) None goto 
+          in
+          match goto with
+          | Some x -> Some (s_bcln,x)
+          | None -> failwith "Could not find the end of the loop (inf)"
       end
     else
       None
@@ -881,6 +907,7 @@ and invoke_method mstack cn mn cpool cp marray cms cname op l =
 (* Generating micro-code for a given class *)
 let generate_microcode_clazz marray cp clazz l = 
   let llc = JFile.get_class_low cp clazz in
+  let () = JDumpLow.dump (IO.output_channel Pervasives.stdout) llc in
   let cn = JLow2High.low2high_class llc in
   let m = JClass.get_method cn JProgram.main_signature in
   let cn = (match cn with JClass.JClass x -> x | _ -> raise Internal) in

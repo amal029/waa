@@ -6,11 +6,15 @@ public class a {
 		for(int i=0;i<10;i++){ // @WCA loop = 20
 			a++; 
 		}
-		for(int i=0;i<10;i++){ // @WCA loop = 300
-			a++; 
+		while(true){// @WCA loop = 300
+			{
+				a++;
+				a--;
+				a++;
+				tmp();
+				a--;
+			}
 		}
-		tmp();
-		a--;
 	}
 	public static void tmp (){
 		int g = 2;
