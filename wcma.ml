@@ -353,7 +353,21 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
 		      | _ -> [|Sub|])
    | JL.OpMult x as op-> (match x with
 		  | `Double -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
-		  | `Long | `Float -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
+		  | `Long -> 
+		     let mn = make_ms "f_lmul" [(TBasic `Long);(TBasic `Long)] (Some (TBasic `Long)) in
+		     if (not (exists_in_marray marray mn)) then
+		       let cn = try JFile.get_class cp (make_cn bj1) with 
+				|  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+				|  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+		       let m = JClass.get_method cn mn in
+		       let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+		       let cpool = cn.JClass.c_consts in
+		       let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
+		       let m = JHigh2Low.h2l_acmethod cpool1 m in
+		       generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m
+		     else ();
+		     invokestatic_mc
+		  | `Float -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
 		  | _ -> Array.init 35 (fun _ -> Nop)) (* Note that imul never access external memory!! *)
    | JL.OpDiv x as op ->  
       (match x with

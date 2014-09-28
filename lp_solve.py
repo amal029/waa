@@ -25,17 +25,17 @@ try:
     m = Model (sys.argv[0].strip(".")[0])
     
     # Next make the x's
-    xs = map (lambda x: m.addVar(name='x'+str(x)), range (0,len(d))) 
+    xs = map (lambda x: m.addVar(name='x'.join(str(x))), xrange (0,len(d))) 
     
     # Make the W's
     ws = map (lambda x: m.addVar(vtype=GRB.INTEGER,
-                                 name='W'+str(x)), range (0,len(d))) 
+                                 name='W'.join(str(x))), xrange (0,len(d))) 
     # Make the TS
     TS = m.addVar(vtype=GRB.INTEGER,name="TS")
     
     # Make the TP's
     tps = map (lambda x: m.addVar(vtype=GRB.INTEGER,
-                                 name='TP'+str(x)), range (0,len(d))) 
+                                 name='TP'.join(str(x))), xrange (0,len(d))) 
     
     # Integrate the variables into the model
     m.update()
@@ -47,7 +47,7 @@ try:
         m.setObjective(tps[0])
         
     # Set the xs >= 0.1 constraints
-    map (lambda (i,x): m.addConstr(x >= 0.1,name='c'+str(i)), enumerate(xs))
+    map (lambda (i,x): m.addConstr(x >= 0.1,name='c'.join(str(i))), enumerate(xs))
     
     # Add the total constraint list
     if len(xs) > 1:
@@ -74,8 +74,8 @@ try:
         print tps
         sys.exit(1)
     else:
-        map (lambda i,tp: m.addConstr(tp, GRB.EQUAL, d[i][1] * TS + d[i][0]), 
-             d.keys(), tps)
+        map (lambda i,tp,w: m.addConstr(tp, GRB.EQUAL, d[i][1] * TS + d[i][0] * w), 
+             d.keys(), tps,ws)
         
     # Finally, the reaction time constraints
     if len(d) != len(ws):
@@ -92,7 +92,7 @@ try:
     # Print the results if the solution is optimal
     if m.status == GRB.status.OPTIMAL:
         print '\n'
-        for i in range(0,len(d)):
+        for i in xrange(0,len(d)):
             print 'TP'+str(i), ':', tps[i].x
             print 'x'+str(i), ':', xs[i].x
             print 'CYC'+str(i), ':', ws[i].x
