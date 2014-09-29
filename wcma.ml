@@ -867,7 +867,7 @@ and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l =
   in
   let res = Array.fold_lefti (fun t i x -> 
       let lc = getloopcount lr i x in
-      print_endline ((string_of_int i)^" "^(JDumpLow.opcode x)^"\t"^(string_of_int lc));
+      (match x with | JClassLow.OpInvalid -> () | _ -> print_endline ((string_of_int i)^" "^(JDumpLow.opcode x)^"\t"^(string_of_int lc)));
       Array.append t [|((generate_microcode_bc mstack marray pms cms pcname cname bcs cpool cp l x),lc)|]
     ) [||] bcs in
   print_endline ("----- done "^(JBasics.ms_name cms));
