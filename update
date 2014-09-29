@@ -1,0 +1,6 @@
+#!/bin/bash
+./getlines a.java
+rm -rfv jop/java/target/src/hj/a/
+mkdir -p jop/java/target/src/hj/a/
+cp a.java jop/java/target/src/hj/a/
+make -C jop japp

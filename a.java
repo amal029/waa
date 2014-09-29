@@ -10,8 +10,23 @@ public class a {
 			{
 				a++;
 				a--;
+				if(a > 123){
+					break;
+				}
+				for (int y=0;y<20;y++){ // @WCA loop=222
+					int gggg = 0;
+				}
 				a++;
 				tmp();
+				a--;
+			}
+		}
+		while(true){// @WCA loop = 300
+			{
+				a++;
+				if(a >0 ){
+					continue;
+				}
 				a--;
 			}
 		}
