@@ -319,16 +319,22 @@ let getloopranges wca_list lnt code =
           try
             let jumpop = Array.find (fun x -> 
                 match x with
-                | (_,JClassLow.OpICmpGe _) -> true
+                | (_,(JClassLow.OpICmpGe _ | JClassLow.OpACmpEq _ | JClassLow.OpACmpNe _ | JClassLow.OpICmpEq _ 
+                     | JClassLow.OpICmpGt _ | JClassLow.OpICmpLe _ | JClassLow.OpICmpLt _ | JClassLow.OpICmpNe _ 
+                     | JClassLow.OpIfEq _ | JClassLow.OpIfGe _ | JClassLow.OpIfGt _ | JClassLow.OpIfLe _ 
+                     | JClassLow.OpIfLt _ | JClassLow.OpIfNe _ | JClassLow.OpIfNonNull _ | JClassLow.OpIfNull _ ) ) -> true
                 | _ -> false
               ) tlines in
             let (s_bcln,e_bcln) = match jumpop with 
-              | (i, JClassLow.OpICmpGe x) -> 
+              | (i, (JClassLow.OpICmpGe x | JClassLow.OpACmpEq x | JClassLow.OpACmpNe x | JClassLow.OpICmpEq x 
+                    | JClassLow.OpICmpGt x | JClassLow.OpICmpLe x | JClassLow.OpICmpLt x | JClassLow.OpICmpNe x 
+                    | JClassLow.OpIfEq x | JClassLow.OpIfGe x | JClassLow.OpIfGt x | JClassLow.OpIfLe x 
+                    | JClassLow.OpIfLt x | JClassLow.OpIfNe x | JClassLow.OpIfNonNull x | JClassLow.OpIfNull x )) -> 
                 let i = findr (i+x-1) opcodes in
                 let goto = (Array.get opcodes i) in
                 (match goto with
-                | JClassLow.OpGoto n -> ((i+n) ,i)
-                | _ -> failwith "This must be goto bytecode ")
+                 | JClassLow.OpGotoW n | JClassLow.OpGoto n -> ((i+n) ,i)
+                 | _ -> failwith "This must be goto bytecode ")
               | _ -> failwith "Could not find end of loop (general)"
             in
             Some (s_bcln,e_bcln,int_of_string lc)
@@ -337,14 +343,15 @@ let getloopranges wca_list lnt code =
             let goto = filteri (fun i x -> 
                 if (i >= n_bcln) then
                   match x with
-                  | JClassLow.OpGoto t -> true
+                  | JClassLow.OpGotoW _ | JClassLow.OpGoto _ -> true
                   | _ -> false
                 else
                   false
               ) opcodes in
             let goto = Array.fold_left (fun x y -> 
-              (function (i,JClassLow.OpGoto n) -> if (i+n) = s_bcln then Some i else x | _ -> failwith "This must be goto bytecode") y
-                ) None goto 
+                (function (i,JClassLow.OpGotoW n) 
+                        | (i,JClassLow.OpGoto n) -> if (i+n) = s_bcln then Some i else x | _ -> failwith "This must be goto bytecode") y
+              ) None goto 
             in
             match goto with
             | Some x -> Some (s_bcln,x,int_of_string lc)
