@@ -284,9 +284,8 @@ let get_invoke_msize cp cn op ms =
 
 let getloopcount lr opline opcode = 
   (* Getting number of executions for this byte code *)
-  let num = List.filter (fun (sl,el) -> if (sl <= opline) && (el >= opline) then true else false) lr in
-  print_endline ((string_of_int opline)^" "^(JDumpLow.opcode opcode)^"\t"^(string_of_int ((List.length num)+1)));
-  ()
+  let num = List.fold_left (fun x (sl,el,lc) -> if (sl <= opline) && (el >= opline) then x+lc else x ) 0 lr in
+  match num with | 0 -> 1 | _ -> num
 
 let rec filteri f a =
   Array.of_list (filteri2 f 0 a [])
@@ -332,7 +331,7 @@ let getloopranges wca_list lnt code =
                 | _ -> failwith "This must be goto bytecode ")
               | _ -> failwith "Could not find end of loop (general)"
             in
-            Some (s_bcln,e_bcln)
+            Some (s_bcln,e_bcln,int_of_string lc)
           with 
           | Not_found -> 
             let goto = filteri (fun i x -> 
@@ -348,7 +347,7 @@ let getloopranges wca_list lnt code =
                 ) None goto 
             in
             match goto with
-            | Some x -> Some (s_bcln,x)
+            | Some x -> Some (s_bcln,x,int_of_string lc)
             | None -> failwith "Could not find the end of the loop (inf)"
         end
       else
@@ -862,26 +861,16 @@ and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l =
   let () = 
     print_endline ("===== method "^(JBasics.ms_name cms));
     List.iter (function
-        | (x,y) -> 
-          print_endline ("start "^(string_of_int x)^" end "^(string_of_int y))
+        | (x,y,lc) -> 
+          print_endline ("start "^(string_of_int x)^" end "^(string_of_int y)^" loop "^(string_of_int lc))
       ) lr;
   in
-(*
-  print_endline ("Opcodes for "^m.JClassLow.m_name);
-  Array.iteri (fun i x -> print_endline (JDumpLow.opcode x);  
-                List.iter (fun x -> 
-                    match x with
-                    | JClassLow.AttributeLineNumberTable ((v,z)::_ as h) ->
-                      List.iter 
-                        (fun (g,j) -> print_endline ("("^(string_of_int g)^","^(string_of_int j)^")")) h
-                    | _ -> ()
-                  ) code.JClassLow.c_attributes;
-              ) bcs;
-*)
   let res = Array.fold_lefti (fun t i x -> 
       let lc = getloopcount lr i x in
-      Array.append t (generate_microcode_bc mstack marray pms cms pcname cname bcs cpool cp l x)
+      print_endline ((string_of_int i)^" "^(JDumpLow.opcode x)^"\t"^(string_of_int lc));
+      Array.append t [|((generate_microcode_bc mstack marray pms cms pcname cname bcs cpool cp l x),lc)|]
     ) [||] bcs in
+  print_endline ("----- done "^(JBasics.ms_name cms));
   (* Put it into the DynArray!! *)
   DynArray.add marray (cms,res)
 
@@ -949,11 +938,15 @@ let main =
     bj3 := cn;
     let () = generate_microcode_clazz mm (JFile.class_path cp) (make_cn cn) l in 
     let mm = DynArray.map (fun (mn,vals) -> 
-        (JPrint.method_signature mn, Array.fold_left (fun (i,m) x -> 
-             if (Array.exists (fun y -> x = y) mem_instr) then 
-               (i,m+1) 
-             else 
-               (i+1,m)) (0,0) vals)) mm 
+        (JPrint.method_signature mn, Array.fold_left (fun (i,m) (micro,lc) -> 
+             let (ii,mm) = Array.fold_left (fun (i,m) x -> 
+                 if (Array.exists (fun y -> x = y) mem_instr) then 
+                   (i,m+lc) 
+                 else 
+                   (i+lc,m)) (0,0) micro 
+             in
+             (i+ii,mm+m)
+           ) (0,0) vals)) mm 
     in
     let fd = open_out (cn^".ini") in
     DynArray.iter (fun (x,(i,m)) -> 
