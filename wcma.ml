@@ -369,7 +369,7 @@ let getloopranges wca_list lnt code =
 
 (* This is the main function that generates the micro-codes *)
 (* TODO: Dataflow analysis is absolutely necessary!! *)
-let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool cp l = function
+let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool cp l bd = function
   | JL.OpNop -> [|Nop|]
   | JL.OpAConstNull -> [|Ldi|]
   | JL.OpLConst _ -> [|Ldi;Ldi|]
@@ -460,6 +460,8 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
        else ();
        (* let tt = Array.init 32 (fun _ -> Lazy.force tt) in *)
        (* Array.fold_left Array.append [||] tt *)
+(*        let marr = DynArray.fold_left (fun x (ms,ca) -> if(ms = mn) && (x = None) then Some ca else x) None marray in *)
+       let () = DynArray.add bd mn in
        invokestatic_mc
     )
   | JL.OpRem x as op ->
@@ -482,6 +484,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
        else ();
        (* let tt = Array.init 32 (fun _ -> Lazy.force tt) in *)
        (* Array.fold_left Array.append [||] tt *)
+       let () = DynArray.add bd mn in
        invokestatic_mc
     )
   | JL.OpNeg x as op ->
@@ -531,6 +534,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
       let m = JHigh2Low.h2l_acmethod cpool1 m in
       generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
     else ();
+    let () = DynArray.add bd mn in
     invokestatic_mc
   | JL.OpFCmpL as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
   | JL.OpFCmpG as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
@@ -562,6 +566,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
       let m = JHigh2Low.h2l_acmethod cpool1 m in
       generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
     else ();
+    let () = DynArray.add bd mn in
     invokestatic_mc
   | JL.OpLookupSwitch (_,x) as op -> 
     let mn = make_ms "f_lookupswitch" [(TBasic `Int)] None in
@@ -578,6 +583,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
     else ();
     (* let r = Array.init (List.length x) (fun _ -> Lazy.force tt) in *)
     (* Array.fold_left Array.append [||] r *)
+    let () = DynArray.add bd mn in
     invokestatic_mc
   | JL.OpReturn x as op ->
     let hopcode = JInstruction.opcode2instruction const_pool op in
@@ -796,6 +802,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
       let m = JHigh2Low.h2l_acmethod cpool1 m in
       generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
     else (); 
+    let () = DynArray.add bd mn in
     invokestatic_mc
   (* The new bytecodes!! *)
   | JL.OpNew _ as op -> 
@@ -811,6 +818,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
       let m = JHigh2Low.h2l_acmethod cpool1 m in
       generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
     else ();
+    let () = DynArray.add bd mn in
     Array.append newb invokestatic_mc
   | JL.OpNewArray _ 
   | JL.OpANewArray _ as op -> 
@@ -826,6 +834,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
       let m = JHigh2Low.h2l_acmethod cpool1 m in
       generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
     else ();
+    let () = DynArray.add bd mn in
     Array.append newb invokestatic_mc
   | JL.OpAMultiNewArray _ as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
   | JL.OpCheckCast _ as op -> 
@@ -841,6 +850,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
       let m = JHigh2Low.h2l_acmethod cpool1 m in
       generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
     else ();
+    let () = DynArray.add bd mn in
     Array.append newb invokestatic_mc
   | JL.OpInstanceOf _ as op ->
     let mn = make_ms "f_instanceof" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
@@ -855,6 +865,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
       let m = JHigh2Low.h2l_acmethod cpool1 m in
       generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
     else ();
+    let () = DynArray.add bd mn in
     Array.append newb invokestatic_mc
 
 (* Generate micro-code for a given method *)
@@ -879,7 +890,17 @@ and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l =
     let res = Array.fold_lefti (fun t i x -> 
         let lc = getloopcount lr i x in
         (match x with | JClassLow.OpInvalid -> () | _ -> print_endline ((string_of_int i)^" "^(JDumpLow.opcode x)^"\t"^(string_of_int lc)));
-        Array.append t [|((generate_microcode_bc mstack marray pms cms pcname cname bcs cpool cp l x),lc)|]
+        Array.append t 
+        (
+          let bd = DynArray.make 30 in
+          let bcary = generate_microcode_bc mstack marray pms cms pcname cname bcs cpool cp l bd x in
+          let sary = Array.fold_left (fun y x -> 
+              let mc = DynArray.fold_left (fun t (ms,mc) -> if (x = ms) && (t = None) then Some mc else t ) None marray in
+              Array.append y (match mc with Some x -> x | None -> [||])
+            ) [||] (DynArray.to_array bd) in
+          Array.append [|(bcary,lc)|] sary
+        )
+        
       ) [||] bcs in
     print_endline ("----- done "^(JBasics.ms_name cms));
     (* Put it into the DynArray!! *)
