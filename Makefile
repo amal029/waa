@@ -13,4 +13,4 @@ waa:
 
 
 clean:
-	rm -rf *.cm* *.o *.a wcma waa *.annot *.ini
+	rm -rf *.cm* *.o *.a wcma waa *.annot *.ini *.log
