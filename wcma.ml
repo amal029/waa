@@ -439,7 +439,22 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
       | _ -> [|Sub|])
   | JL.OpMult x as op-> (match x with
       | `Double -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
-      | `Long | `Float -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
+      | `Long -> 
+        let mn = make_ms "f_lmul" [(TBasic `Long);(TBasic `Long)] (Some (TBasic `Long)) in
+        if (not (exists_in_marray marray mn)) then
+          let cn = try JFile.get_class cp (make_cn bj1) with 
+            |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+            |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+          let m = JClass.get_method cn mn in
+          let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+          let cpool = cn.JClass.c_consts in
+          let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
+          let m = JHigh2Low.h2l_acmethod cpool1 m in
+          generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
+        else ();
+        let () = if !addmethods then DynArray.add bd mn in
+        invokestatic_mc
+      | `Float -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
       | _ -> Array.init 35 (fun _ -> Nop)) (* Note that imul never access external memory!! *)
   | JL.OpDiv x as op ->  
     (match x with
@@ -461,7 +476,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
        else ();
        (* let tt = Array.init 32 (fun _ -> Lazy.force tt) in *)
        (* Array.fold_left Array.append [||] tt *)
-(*        let marr = DynArray.fold_left (fun x (ms,ca) -> if(ms = mn) && (x = None) then Some ca else x) None marray in *)
+       (*        let marr = DynArray.fold_left (fun x (ms,ca) -> if(ms = mn) && (x = None) then Some ca else x) None marray in *)
        let () = if !addmethods then DynArray.add bd mn in
        invokestatic_mc
     )
@@ -517,7 +532,22 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
   | JL.OpD2I as op -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
   | JL.OpD2F as op -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
   | JL.OpD2L as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
-  | JL.OpI2B as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
+  | JL.OpI2B as op -> 
+    let mn = make_ms "f_i2b" [(TBasic `Int)] (Some (TBasic `Int)) in
+    if (not (exists_in_marray marray mn)) then
+      let cn = try JFile.get_class cp (make_cn bj1) with
+        |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+        |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+      let m = JClass.get_method cn mn in
+      let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+      let cpool = cn.JClass.c_consts in
+      let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
+      let m = JHigh2Low.h2l_acmethod cpool1 m in
+      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
+    else ();
+    let () = if !addmethods then DynArray.add bd mn in
+    invokestatic_mc
+  (* raise (Opcode_Java_Implemented (JDumpLow.opcode op)) *)
   | JL.OpI2F as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
   | JL.OpI2S as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
   | JL.OpI2D as op -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
@@ -892,16 +922,16 @@ and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l =
         let lc = getloopcount lr i x in
         (match x with | JClassLow.OpInvalid -> () | _ -> print_endline ((string_of_int i)^" "^(JDumpLow.opcode x)^"\t"^(string_of_int lc)));
         Array.append t 
-        (
-          let bd = DynArray.make 30 in
-          let bcary = generate_microcode_bc mstack marray pms cms pcname cname bcs cpool cp l bd x in
-          let sary = Array.fold_left (fun y x -> 
-              let mc = DynArray.fold_left (fun t (ms,mc) -> if (x = ms) && (t = None) then Some mc else t ) None marray in
-              Array.append y (match mc with Some x -> x | None -> [||])
-            ) [||] (DynArray.to_array bd) in
-          Array.append [|(bcary,lc)|] sary
-        )
-        
+          (
+            let bd = DynArray.make 30 in
+            let bcary = generate_microcode_bc mstack marray pms cms pcname cname bcs cpool cp l bd x in
+            let sary = Array.fold_left (fun y x -> 
+                let mc = DynArray.fold_left (fun t (ms,mc) -> if (x = ms) && (t = None) then Some mc else t ) None marray in
+                Array.append y (match mc with Some x -> x | None -> [||])
+              ) [||] (DynArray.to_array bd) in
+            Array.append [|(bcary,lc)|] sary
+          )
+
       ) [||] bcs in
     print_endline ("----- done "^(JBasics.ms_name cms));
     (* Put it into the DynArray!! *)
