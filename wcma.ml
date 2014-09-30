@@ -276,11 +276,14 @@ let get_invoke_msize cp cn op ms =
   let m = JHigh2Low.h2l_acmethod cpool1 m in
   let bcs = m.JClassLow.m_attributes in
   let bcs = List.filter (fun t -> match t with | JClassLow.AttributeCode _ -> true | _ -> false) bcs in
-  let bcs = match (List.hd bcs) with | JClassLow.AttributeCode x -> x | _ -> raise Internal in
-  let bcs = (Lazy.force bcs).JClassLow.c_code in
-  let msize = Array.fold_left (fun v x -> v + (get_method_size x)) 0 bcs in
-  let msize = if msize mod 4 = 0 then msize / 4 else msize / 4 + 1 in
-  Array.init msize (fun _ -> Wait)
+  if bcs <> [] then
+    let bcs = match (List.hd bcs) with | JClassLow.AttributeCode x -> x | _ -> raise Internal in
+    let bcs = (Lazy.force bcs).JClassLow.c_code in
+    let msize = Array.fold_left (fun v x -> v + (get_method_size x)) 0 bcs in
+    let msize = if msize mod 4 = 0 then msize / 4 else msize / 4 + 1 in
+    Array.init msize (fun _ -> Wait)
+  else
+    [||]
 
 let getloopcount lr opline opcode = 
   (* Getting number of executions for this byte code *)
@@ -858,28 +861,29 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
 and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l = 
   let bcs = m.JClassLow.m_attributes in
   let bcs = List.filter (fun t -> match t with | JClassLow.AttributeCode _ -> true | _ -> false) bcs in
-  let bcs = match (List.hd bcs) with | JClassLow.AttributeCode x -> x | _ -> raise Internal in
-  let code = (Lazy.force bcs) in
-  let attr_l = code.JClassLow.c_attributes in
-  let lnt = List.find (fun x -> match x with | JClassLow.AttributeLineNumberTable _ -> true | _ -> false) attr_l in
-  let lnt = match lnt with | JClassLow.AttributeLineNumberTable x -> x | _ -> [] in
-  let bcs = (Lazy.force bcs).JClassLow.c_code in
-  let lr = getloopranges l lnt code in
-  let () = 
-    print_endline ("===== method "^(JBasics.ms_name cms));
-    List.iter (function
-        | (x,y,lc) -> 
-          print_endline ("start "^(string_of_int x)^" end "^(string_of_int y)^" loop "^(string_of_int lc))
-      ) lr;
-  in
-  let res = Array.fold_lefti (fun t i x -> 
-      let lc = getloopcount lr i x in
-      (match x with | JClassLow.OpInvalid -> () | _ -> print_endline ((string_of_int i)^" "^(JDumpLow.opcode x)^"\t"^(string_of_int lc)));
-      Array.append t [|((generate_microcode_bc mstack marray pms cms pcname cname bcs cpool cp l x),lc)|]
-    ) [||] bcs in
-  print_endline ("----- done "^(JBasics.ms_name cms));
-  (* Put it into the DynArray!! *)
-  DynArray.add marray (cms,res)
+  if bcs <> [] then
+    let bcs = match (List.hd bcs) with | JClassLow.AttributeCode x -> x | _ -> raise Internal in
+    let code = (Lazy.force bcs) in
+    let attr_l = code.JClassLow.c_attributes in
+    let lnt = List.find (fun x -> match x with | JClassLow.AttributeLineNumberTable _ -> true | _ -> false) attr_l in
+    let lnt = match lnt with | JClassLow.AttributeLineNumberTable x -> x | _ -> [] in
+    let bcs = (Lazy.force bcs).JClassLow.c_code in
+    let lr = getloopranges l lnt code in
+    let () = 
+      print_endline ("===== method "^(JBasics.ms_name cms));
+      List.iter (function
+          | (x,y,lc) -> 
+            print_endline ("start "^(string_of_int x)^" end "^(string_of_int y)^" loop "^(string_of_int lc))
+        ) lr;
+    in
+    let res = Array.fold_lefti (fun t i x -> 
+        let lc = getloopcount lr i x in
+        (match x with | JClassLow.OpInvalid -> () | _ -> print_endline ((string_of_int i)^" "^(JDumpLow.opcode x)^"\t"^(string_of_int lc)));
+        Array.append t [|((generate_microcode_bc mstack marray pms cms pcname cname bcs cpool cp l x),lc)|]
+      ) [||] bcs in
+    print_endline ("----- done "^(JBasics.ms_name cms));
+    (* Put it into the DynArray!! *)
+    DynArray.add marray (cms,res)
 
 and invoke_method mstack cn mn cpool cp marray cms cname op l = 
   if (not (exists_in_marray marray mn)) then
