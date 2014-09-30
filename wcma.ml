@@ -134,8 +134,8 @@ let lshr_le31 =
 
 let long_add = [|Stm;Stm;Stm;Stm;Ldm;Ldi;Ushr;Ldm;Ldi;Ushr;Add;Ldm;Ldm;And;Ldi;And;Add;Ldi;Ushr;Ldm;Add;Ldm;Add;Ldm;Ldm;Add|];;
 
-let usage_msg = "Usage: wcma [-wca <filename>] class-path class-name
-[Note
+let usage_msg = "Usage: wcma [-wca <filename>] [OPTION] class-path class-name
+Note:
  1.) Class-name should be given without the .class extension
  2.) Should be a fully qualified name, .e.g,: java.lang.Object";;
 
@@ -958,15 +958,15 @@ let main =
   try
     let args = DynArray.make 2 in
     let wcafile = ref "" in
-    let () = Arg.parse [
-        ("-wca", Arg.String (fun x -> wcafile := x), "wca filename");
-        ("-m", Arg.Set addmethods, "Add execution times of Java implemented bytecodes")
-      ]
-        (fun x -> DynArray.add args x)  "WCMA tool " in
+    let speclist = [
+      ("-wca", Arg.String (fun x -> wcafile := x), "wca filename");
+      ("-m", Arg.Set addmethods, "Add execution times of Java implemented bytecodes")
+    ] in
+    let () = Arg.parse speclist (fun x -> DynArray.add args x) (usage_msg^"\n[OPTION]:") in
     let l = parsewca !wcafile in 
     (*     let args = Sys.argv in *)
     let (cp, cn) = 
-      if DynArray.length args <> 2 then let () = print_endline usage_msg in raise Internal
+      if DynArray.length args <> 2 then let () = print_endline usage_msg; Arg.usage speclist "[OPTION]:" in raise Internal
       else (DynArray.get args 0,DynArray.get args 1) in
     let mm = DynArray.make 100 in
     bj3 := cn;
