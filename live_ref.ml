@@ -17,7 +17,15 @@ let usage_msg = "Usage: live_ref class-path class-name
 exception Internal
 
 let du t = 
-  let instrs = Array.length (JBir.code t) in
+  (* let bc2irn = Ptmap.elements (JBir.pc_bc2ir t) in *)
+  (* let () = List.iter (fun (x,y) -> print_endline ((string_of_int x) ^ " bc --- ir " ^ (string_of_int y))) bc2irn in *)
+  let lnums = JBir.pc_ir2bc t in
+  let () = Array.iteri (fun i x -> print_endline ((string_of_int i) ^ "--" ^ (string_of_int x))) lnums in
+  let instrs = JBir.code t in
+  let () = Array.iter (function 
+			| JBir.InvokeVirtual (None,e,k,ms,args) as s -> print_endline (JBir.print_expr e)
+			| _ -> ()) instrs in
+  let instrs = Array.length instrs in
   let lives = Array.init instrs (ReachDef.run t) in
   let lives = Array.map (ReachDef.Lat.to_string t) lives in
   Array.iteri (fun i x -> print_endline ((string_of_int i) ^ ":"^ x)) lives

@@ -5,10 +5,10 @@ VALUE=()
 
 FILENAME=$(basename $@)
 
-LINENUM=($(sed -n '/.*\(\/\/\s*@WCA\s*loop\s*=\s*\([0-9]\+\)\)$/=' $@))
-VALUE=($(sed -n 's/.*\(\/\/\s*@WCA\s*loop\s*=\s*\([0-9]\+\)\)$/\2/p' $@))
+LINENUM=($(sed -n '/.*\(\/\/\s*@WCA\s*loop\s*=\s*\([0-9]\+\)\s*\)$/=' $@))
+VALUE=($(sed -n 's/.*\(\/\/\s*@WCA\s*loop\s*=\s*\([0-9]\+\)\s*\)$/\2/p' $@))
 
-rm $FILENAME.wca
+rm -rf $FILENAME.wca
 for (( i=0;i<${#LINENUM[@]};i++ ));
 do
 	printf "${LINENUM[i]},${VALUE[i]}\n" >> $FILENAME.wca
