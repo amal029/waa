@@ -288,7 +288,7 @@ let get_invoke_msize cp cn op ms =
 
 let getloopcount lr opline opcode = 
   (* Getting number of executions for this byte code *)
-  let num = List.fold_left (fun x (sl,el,lc) -> if (sl <= opline) && (el >= opline) then x+lc else x ) 0 lr in
+  let num = List.fold_left (fun x (sl,el,lc) -> if (sl <= opline) && (el >= opline) then x*lc else x ) 1 lr in
   match num with | 0 -> 1 | _ -> num
 
 let rec filteri f a =

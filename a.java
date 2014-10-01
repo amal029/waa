@@ -13,7 +13,7 @@ public class a {
 				if(a > 123){
 					break;
 				}
-				for (int y=0;y<20;y++){ // @WCA loop=222
+				for (int y=0;y<20;y++){ // @WCA loop=2
 					int gggg = 0;
 				}
 				a++;
