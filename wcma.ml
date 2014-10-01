@@ -9,6 +9,7 @@ module Array = BatArray
 module List = BatList
 module JL = JClassLow
 module Enum = BatEnum
+module File = BatFile
 open BatPervasives
 
 exception Internal
@@ -965,8 +966,18 @@ let generate_microcode_clazz marray cp clazz l =
   let () = Stack.push JProgram.main_signature ss in
   generate_microcode_method ss marray None JProgram.main_signature None llc.JClassLow.j_name cpool cp m l
 
+let rec getds x dirs =
+  let fl = Sys.readdir x in
+  Array.iter (fun x -> print_endline (x)) fl
+
 
 let parsewca x =
+  (* First parsing file *) 
+  let dirs = DynArray.init 1 (fun x -> Sys.getcwd ()) in
+  let x = Str.split (Str.regexp ";") x in
+  let ds = List.iter (fun x -> getds x dirs ) x in
+  exit 0
+(*
   let l = DynArray.make 10 in
   (if (x <> "") then
      let ic = open_in x in
@@ -983,17 +994,18 @@ let parsewca x =
        raise e
   );
   l
+*)
 
 let main = 
   try
     let args = DynArray.make 2 in
-    let wcafile = ref "" in
+    let sourcep = ref "" in
     let speclist = [
-      ("-wca", Arg.String (fun x -> wcafile := x), "wca filename");
+      ("-sourcepath", Arg.String (fun x -> sourcep := x), "Source path for parsing loop count");
       ("-m", Arg.Set addmethods, "Add execution times of Java implemented bytecodes")
     ] in
     let () = Arg.parse speclist (fun x -> DynArray.add args x) (usage_msg^"\n[OPTION]:") in
-    let l = parsewca !wcafile in 
+    let l = parsewca !sourcep in 
     (*     let args = Sys.argv in *)
     let (cp, cn) = 
       if DynArray.length args <> 2 then let () = print_endline usage_msg; Arg.usage speclist "[OPTION]:" in raise Internal

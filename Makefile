@@ -2,7 +2,7 @@ CCC ?= ocamlopt -g -annot -ccopt -O3 -ccopt -mtune=native -ccopt -flto
 JAVALIBDIR=`ocamlfind query javalib`
 SRCO=live_ref.ml
 SRCN=joplang.ml wcma.ml
-all: wcma live_ref
+all: wcma
 
 wcma:
 	ocamlfind $(CCC) -pp "camlp4o pa_macro.cmo -DDEBUG" -package extlib -package sawja -package batteries -package javalib \
