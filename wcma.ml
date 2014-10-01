@@ -966,16 +966,62 @@ let generate_microcode_clazz marray cp clazz l =
   let () = Stack.push JProgram.main_signature ss in
   generate_microcode_method ss marray None JProgram.main_signature None llc.JClassLow.j_name cpool cp m l
 
-let rec getds x dirs =
-  let fl = Sys.readdir x in
-  Array.iter (fun x -> print_endline (x)) fl
+let wca = Str.regexp ".*\\(//[ ]*@WCA[ ]*loop[ ]*=[ ]*\\([0-9]+\\)[ ]*\\)$"
+
+let pgex = Str.regexp "[ ]*package[ ]+\\(.*\\)[ ]*;[ ]*"
+
+let cgex = Str.regexp "[ ]*\\(\\(public\\|private\\|protected\\)[ ]+\\)?\\(static[ ]+\\)?class[ ]+\\([a-zA-Z]+[a-zA-Z_0-9]*\\).*"
+
+let rec getds package =
+  let fl = Sys.readdir "." in
+  let files = Array.map (fun y -> 
+      if Sys.is_directory y then
+        let () = DynArray.add package y in
+        let () = Sys.chdir y in
+        getds package
+      else if Filename.check_suffix y "java" then
+        let wl = DynArray.make 50 in
+        let ic = open_in y in
+        let () =
+          try
+            let ln = ref 1 in
+            let rp = ref "." in
+            let cn_name = ref "" in
+            while true do
+              let line = input_line ic in
+              let () = if Str.string_match wca line 0 then
+                  let ss = Str.matched_group 2 line in
+                  DynArray.add wl (!rp, !cn_name, ((string_of_int !ln),ss))
+                else if Str.string_match pgex line 0 then
+                  rp := Str.matched_group 1 line
+                else if Str.string_match cgex line 0 then
+                  match !cn_name with 
+                  | "" -> cn_name := (Str.matched_group 4 line)
+                  | _ -> failwith "Currently only single (top-most) class per file is supported"
+              in
+              ln := succ !ln
+            done
+          with
+            End_of_file -> close_in ic
+        in
+        (* wl : (clazzname * packagename * (linenumber * loopcount )) *)
+        let wl = DynArray.map (fun (x,y,z) -> (x^"."^y,z)) wl in
+        let wl = DynArray.iter (fun (x,(y,z)) -> print_endline ("class "^x^" : "^y^" "^z)) wl in
+        ()
+(*         (^,(DynArray.to_array wl)) *)
+      else ()
+    ) fl in
+  let () = Sys.chdir ".." in
+  ()
 
 
 let parsewca x =
   (* First parsing file *) 
-  let dirs = DynArray.init 1 (fun x -> Sys.getcwd ()) in
+(*   let dirs = DynArray.init 10 (fun x -> Sys.getcwd ()) in *)
   let x = Str.split (Str.regexp ";") x in
-  let ds = List.iter (fun x -> getds x dirs ) x in
+  let x = Array.of_list x in
+  let cdir = Sys.getcwd () in
+  let ds = Array.map (fun x -> let () = Sys.chdir x in getds (DynArray.make 10)) x in
   exit 0
 (*
   let l = DynArray.make 10 in
