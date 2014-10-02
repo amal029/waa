@@ -315,7 +315,7 @@ let getloopranges wca_list lnt code cname =
           (* TODO: Also need to include inf loop which may not generate line number from the @WCA *)
           let (s_bcln,s_ln2) = List.find (fun (bcln, ln2) -> (int_of_string ln) <= ln2 ) lnt in
           let (n_bcln,e_ln2) = List.find (fun (bcln, ln2) -> s_ln2 < ln2 ) lnt in (* it was (int_of_string ln) + 1 <= ln2 *)
-          print_endline ("start_bytecode "^(string_of_int s_bcln)^" end_bytecode "^(string_of_int n_bcln)^" "^ln);
+          print_endline ("Branch to search : start_bytecode "^(string_of_int s_bcln)^" end_bytecode "^(string_of_int n_bcln)^" "^ln);
           (* let tlines = Array.filteri (fun i x -> i >= s_bcln && i < n_bcln) opcodes in *)
           let tlines = Array.fold_lefti (fun z i x -> 
               if i >= s_bcln && i < n_bcln then
@@ -324,7 +324,7 @@ let getloopranges wca_list lnt code cname =
                 z
             ) [||] opcodes 
           in
-          Array.iter (fun (i,x) -> print_endline ("FFFF "^(string_of_int i)^" "^(JDumpLow.opcode x)) ) tlines;
+          Array.iter (fun (i,x) -> print_endline ("Searching bytecode : "^(string_of_int i)^" "^(JDumpLow.opcode x)) ) tlines;
           (* This will generate exp for inf loop *)
           try
             let jumpop = Array.find (fun x -> 
@@ -912,12 +912,14 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
 and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l = 
   let bcs = m.JClassLow.m_attributes in
   let bcs = List.filter (fun t -> match t with | JClassLow.AttributeCode _ -> true | _ -> false) bcs in
+(*
   let () = 
     if((JBasics.ms_name cms) = "f_instanceof") && (!tttt)then
       let llc = JFile.get_class_low cp (make_cn bj1) in
       tttt := false;
       JDumpLow.dump (IO.output_channel Pervasives.stdout) llc 
   in
+*)
   if bcs <> [] then
     let bcs = match (List.hd bcs) with | JClassLow.AttributeCode x -> x | _ -> raise Internal in
     let code = (Lazy.force bcs) in
@@ -933,7 +935,7 @@ and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l =
           | (x,y,lc) -> 
             print_endline ("start "^(string_of_int x)^" end "^(string_of_int y)^" loop "^(string_of_int lc))
         ) lr;
-      if lr = [] then print_endline ("\n\n--------------------------------") else print_endline ("--------------------------------")
+      if lr = [] then print_endline ("\n--------------------------------") else print_endline ("--------------------------------")
     in
     let res = Array.fold_lefti (fun t i x -> 
         let lc = getloopcount lr i x in
@@ -1019,7 +1021,6 @@ let rec getds h cdir =
       with
         End_of_file -> close_in ic
     in
-    (* wl : (clazzname * packagename * (linenumber * loopcount )) *)
     let wl = DynArray.map (fun (x,y,z) -> match x with "." -> (y,z) | _ -> (x^"."^y,z) ) wl in
     let clname = DynArray.fold_left (fun x (b,_) -> match x with "" -> b | _ as s -> if x <> s then failwith "Multiple class defs" else x) "" wl in
     let ll = DynArray.map (fun (_,x) -> x ) wl in
@@ -1033,29 +1034,10 @@ let rec getds h cdir =
 
 let parsewca x =
   (* First parsing file *) 
-(*   let dirs = DynArray.init 10 (fun x -> Sys.getcwd ()) in *)
   let x = Str.split (Str.regexp ";") x in
   let x = Array.of_list x in
   let x = Array.map (fun x -> String.trim x) x in
   Array.fold_left (fun h x -> getds h x ;h ) (Hashtbl.create 50) x
-(*
-  let l = DynArray.make 10 in
-  (if (x <> "") then
-     let ic = open_in x in
-     try
-       while true do
-         let line = input_line ic in
-         let (x,y) = BatString.split line "," in
-         DynArray.add l (x,y)
-       done;
-     with 
-     | End_of_file -> ()
-     | e ->
-       close_in_noerr ic;
-       raise e
-  );
-  l
-*)
 
 let main = 
   try
