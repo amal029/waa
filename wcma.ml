@@ -136,7 +136,7 @@ let lshr_le31 =
 
 let long_add = [|Stm;Stm;Stm;Stm;Ldm;Ldi;Ushr;Ldm;Ldi;Ushr;Add;Ldm;Ldm;And;Ldi;And;Add;Ldi;Ushr;Ldm;Add;Ldm;Add;Ldm;Ldm;Add|];;
 
-let usage_msg = "Usage: wcma [-wca <filename>] [OPTION] class-path class-name
+let usage_msg = "Usage: wcma [-sourcepath <filename>] [OPTION] class-path class-name
 Note:
  1.) Class-name should be given without the .class extension
  2.) Should be a fully qualified name, .e.g,: java.lang.Object";;
