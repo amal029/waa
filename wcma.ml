@@ -10,6 +10,7 @@ module List = BatList
 module JL = JClassLow
 module Enum = BatEnum
 module File = BatFile
+module Hashtbl = BatHashtbl
 open BatPervasives
 
 exception Internal
@@ -299,10 +300,12 @@ and filteri2 f i a l =
   | true -> (i, Array.get a i) :: if (Array.length a) <> (i+1) then filteri2 f (i+1) a l else l
   | false -> if (Array.length a) <> (i+1) then filteri2 f (i+1) a l else l
 
-let getloopranges wca_list lnt code = 
+let getloopranges wca_list lnt code cname = 
   (* lnt (x,y) --> x : bytecode line number, y : line number *)
   (* wca_list (x,y) --> x : line number, y : loop count *)
   let opcodes = code.JClassLow.c_code in
+  let wca_list = BatHashtbl.find_option wca_list (JBasics.cn_name cname) in
+  let wca_list = match wca_list with | Some x -> DynArray.to_list x | None -> [] in
   let rec findr = fun i x -> match x.(i) with | JClassLow.OpInvalid -> findr (i-1) x | _ -> i in
   let nxt = List.map (fun (ln,lc) -> 
       let ((_,l1),(_,l2)) = (List.hd lnt, List.nth lnt ((List.length lnt)-1)) in
@@ -311,7 +314,8 @@ let getloopranges wca_list lnt code =
           (* This is one line after @WCA *)
           (* TODO: Also need to include inf loop which may not generate line number from the @WCA *)
           let (s_bcln,s_ln2) = List.find (fun (bcln, ln2) -> (int_of_string ln) <= ln2 ) lnt in
-          let (n_bcln,e_ln2) = List.find (fun (bcln, ln2) -> (int_of_string ln) + 1 <= ln2 ) lnt in
+          let (n_bcln,e_ln2) = List.find (fun (bcln, ln2) -> s_ln2 < ln2 ) lnt in (* it was (int_of_string ln) + 1 <= ln2 *)
+          print_endline ("start_bytecode "^(string_of_int s_bcln)^" end_bytecode "^(string_of_int n_bcln)^" "^ln);
           (* let tlines = Array.filteri (fun i x -> i >= s_bcln && i < n_bcln) opcodes in *)
           let tlines = Array.fold_lefti (fun z i x -> 
               if i >= s_bcln && i < n_bcln then
@@ -320,6 +324,7 @@ let getloopranges wca_list lnt code =
                 z
             ) [||] opcodes 
           in
+          Array.iter (fun (i,x) -> print_endline ("FFFF "^(string_of_int i)^" "^(JDumpLow.opcode x)) ) tlines;
           (* This will generate exp for inf loop *)
           try
             let jumpop = Array.find (fun x -> 
@@ -335,11 +340,12 @@ let getloopranges wca_list lnt code =
                     | JClassLow.OpICmpGt x | JClassLow.OpICmpLe x | JClassLow.OpICmpLt x | JClassLow.OpICmpNe x 
                     | JClassLow.OpIfEq x | JClassLow.OpIfGe x | JClassLow.OpIfGt x | JClassLow.OpIfLe x 
                     | JClassLow.OpIfLt x | JClassLow.OpIfNe x | JClassLow.OpIfNonNull x | JClassLow.OpIfNull x )) -> 
+                let sss = i in
                 let i = findr (i+x-1) opcodes in
                 let goto = (Array.get opcodes i) in
                 (match goto with
                  | JClassLow.OpGotoW n | JClassLow.OpGoto n -> ((i+n) ,i)
-                 | _ -> failwith "This must be goto bytecode ")
+                 | _ -> print_endline ("jump line "^(string_of_int sss)^" |  "^(string_of_int i)^" "^(JDumpLow.opcode goto)); raise Not_found)
               | _ -> failwith "Could not find end of loop (general)"
             in
             Some (s_bcln,e_bcln,int_of_string lc)
@@ -348,25 +354,27 @@ let getloopranges wca_list lnt code =
             let goto = filteri (fun i x -> 
                 if (i >= n_bcln) then
                   match x with
-                  | JClassLow.OpGotoW _ | JClassLow.OpGoto _ -> true
+                  | JClassLow.OpGotoW _ | JClassLow.OpGoto _ | JClassLow.OpIfNe _ -> true
                   | _ -> false
                 else
                   false
               ) opcodes in
             let goto = Array.fold_left (fun x y -> 
-                (function (i,JClassLow.OpGotoW n) 
-                        | (i,JClassLow.OpGoto n) -> if (i+n) = s_bcln then Some i else x | _ -> failwith "This must be goto bytecode") y
+                (function (i,JClassLow.OpGotoW n) | (i,JClassLow.OpGoto n) | (i,JClassLow.OpIfNe n) -> 
+                  if (i+n) = s_bcln then Some i else x | _ -> failwith "This must be goto bytecode") y
               ) None goto 
             in
             match goto with
             | Some x -> Some (s_bcln,x,int_of_string lc)
-            | None -> failwith "Could not find the end of the loop (inf)"
+            | None -> print_endline ((string_of_int s_bcln)^" loopc "^lc); failwith "Could not find the end of the loop (inf)"
         end
       else
         None
-    ) (DynArray.to_list wca_list) 
+    ) wca_list
   in
   List.filter_map (fun x -> x) nxt
+
+let tttt = ref true
 
 
 (* This is the main function that generates the micro-codes *)
@@ -904,6 +912,12 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
 and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l = 
   let bcs = m.JClassLow.m_attributes in
   let bcs = List.filter (fun t -> match t with | JClassLow.AttributeCode _ -> true | _ -> false) bcs in
+  let () = 
+    if((JBasics.ms_name cms) = "f_instanceof") && (!tttt)then
+      let llc = JFile.get_class_low cp (make_cn bj1) in
+      tttt := false;
+      JDumpLow.dump (IO.output_channel Pervasives.stdout) llc 
+  in
   if bcs <> [] then
     let bcs = match (List.hd bcs) with | JClassLow.AttributeCode x -> x | _ -> raise Internal in
     let code = (Lazy.force bcs) in
@@ -911,13 +925,15 @@ and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l =
     let lnt = List.find (fun x -> match x with | JClassLow.AttributeLineNumberTable _ -> true | _ -> false) attr_l in
     let lnt = match lnt with | JClassLow.AttributeLineNumberTable x -> x | _ -> [] in
     let bcs = (Lazy.force bcs).JClassLow.c_code in
-    let lr = getloopranges l lnt code in
+    print_endline ("CURRR "^(JBasics.ms_name cms)^"  "^m.JClassLow.m_name);
+    let lr = getloopranges l lnt code cname in
     let () = 
-      print_endline ("===== method "^(JBasics.ms_name cms));
+      print_endline ("===== Method : "^(JBasics.ms_name cms));
       List.iter (function
           | (x,y,lc) -> 
             print_endline ("start "^(string_of_int x)^" end "^(string_of_int y)^" loop "^(string_of_int lc))
         ) lr;
+      if lr = [] then print_endline ("\n\n--------------------------------") else print_endline ("--------------------------------")
     in
     let res = Array.fold_lefti (fun t i x -> 
         let lc = getloopcount lr i x in
@@ -966,53 +982,53 @@ let generate_microcode_clazz marray cp clazz l =
   let () = Stack.push JProgram.main_signature ss in
   generate_microcode_method ss marray None JProgram.main_signature None llc.JClassLow.j_name cpool cp m l
 
-let wca = Str.regexp ".*\\(//[ ]*@WCA[ ]*loop[ ]*=[ ]*\\([0-9]+\\)[ ]*\\)$"
+let wca = Str.regexp ".*\\(//[ ]*@WCA[ ]*loop[ ]*\\(<\\)?=[ ]*\\([0-9]+\\)[ ]*\\)$"
 
 let pgex = Str.regexp "[ ]*package[ ]+\\(.*\\)[ ]*;[ ]*"
 
-let cgex = Str.regexp "[ ]*\\(\\(public\\|private\\|protected\\)[ ]+\\)?\\(static[ ]+\\)?class[ ]+\\([a-zA-Z]+[a-zA-Z_0-9]*\\).*"
+let cgex = Str.regexp "[ ]*\\(\\(public\\|private\\|protected\\)[ ]+\\)?\\(final[ ]+\\)?class[ ]+\\([a-zA-Z]+[a-zA-Z_0-9]*\\).*"
 
-let rec getds package =
-  let fl = Sys.readdir "." in
-  let files = Array.map (fun y -> 
-      if Sys.is_directory y then
-        let () = DynArray.add package y in
-        let () = Sys.chdir y in
-        getds package
-      else if Filename.check_suffix y "java" then
-        let wl = DynArray.make 50 in
-        let ic = open_in y in
-        let () =
-          try
-            let ln = ref 1 in
-            let rp = ref "." in
-            let cn_name = ref "" in
-            while true do
-              let line = input_line ic in
-              let () = if Str.string_match wca line 0 then
-                  let ss = Str.matched_group 2 line in
-                  DynArray.add wl (!rp, !cn_name, ((string_of_int !ln),ss))
-                else if Str.string_match pgex line 0 then
-                  rp := Str.matched_group 1 line
-                else if Str.string_match cgex line 0 then
-                  match !cn_name with 
-                  | "" -> cn_name := (Str.matched_group 4 line)
-                  | _ -> failwith "Currently only single (top-most) class per file is supported"
-              in
-              ln := succ !ln
-            done
-          with
-            End_of_file -> close_in ic
-        in
-        (* wl : (clazzname * packagename * (linenumber * loopcount )) *)
-        let wl = DynArray.map (fun (x,y,z) -> (x^"."^y,z)) wl in
-        let wl = DynArray.iter (fun (x,(y,z)) -> print_endline ("class "^x^" : "^y^" "^z)) wl in
-        ()
-(*         (^,(DynArray.to_array wl)) *)
-      else ()
-    ) fl in
-  let () = Sys.chdir ".." in
-  ()
+let rec getds h cdir =
+  if Sys.is_directory cdir then
+    let () = Sys.chdir cdir in
+    let fl = Sys.readdir "." in
+    let () = Array.iter (fun x -> getds h x) fl in
+    Sys.chdir ".."
+  else if Filename.check_suffix cdir "java" then
+    let wl = DynArray.make 50 in
+    let ic = open_in cdir in
+    let () =
+      try
+        let ln = ref 1 in
+        let rp = ref "." in
+        let cn_name = ref "" in
+        while true do
+          let line = input_line ic in
+          let () = if Str.string_match wca line 0 then
+              let ss = Str.matched_group 3 line in
+              DynArray.add wl (!rp, !cn_name, ((string_of_int !ln),ss))
+            else if Str.string_match pgex line 0 then
+              rp := Str.matched_group 1 line
+            else if Str.string_match cgex line 0 then
+              match !cn_name with 
+              | "" -> cn_name := (Str.matched_group 4 line);
+              | _ -> failwith "Currently only single (top-most) class per file is supported"
+          in
+          ln := succ !ln
+        done
+      with
+        End_of_file -> close_in ic
+    in
+    (* wl : (clazzname * packagename * (linenumber * loopcount )) *)
+    let wl = DynArray.map (fun (x,y,z) -> match x with "." -> (y,z) | _ -> (x^"."^y,z) ) wl in
+    let clname = DynArray.fold_left (fun x (b,_) -> match x with "" -> b | _ as s -> if x <> s then failwith "Multiple class defs" else x) "" wl in
+    let ll = DynArray.map (fun (_,x) -> x ) wl in
+    match DynArray.empty ll with
+    | true -> ()
+    | false -> 
+      match Hashtbl.find_option h clname with
+      | None -> Hashtbl.add h clname ll
+      | Some _ -> failwith ("Source dir "^(Sys.getcwd ())^" has multiple class definitions : "^clname)
 
 
 let parsewca x =
@@ -1020,9 +1036,8 @@ let parsewca x =
 (*   let dirs = DynArray.init 10 (fun x -> Sys.getcwd ()) in *)
   let x = Str.split (Str.regexp ";") x in
   let x = Array.of_list x in
-  let cdir = Sys.getcwd () in
-  let ds = Array.map (fun x -> let () = Sys.chdir x in getds (DynArray.make 10)) x in
-  exit 0
+  let x = Array.map (fun x -> String.trim x) x in
+  Array.fold_left (fun h x -> getds h x ;h ) (Hashtbl.create 50) x
 (*
   let l = DynArray.make 10 in
   (if (x <> "") then
