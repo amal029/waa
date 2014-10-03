@@ -148,6 +148,9 @@ set_permissive true;;
 let exists_in_marray marray ms = 
   List.exists (fun (i,_) -> (i = ms)) (DynArray.to_list  marray)
 
+let exists_in_clzms_array clzms x = 
+  let a = Stack.enum x in
+  Enum.exists (fun x -> x = clzms) a
 
 (* Method size in bytes *)
 let get_method_size = function
@@ -379,7 +382,7 @@ let tttt = ref true
 
 (* This is the main function that generates the micro-codes *)
 (* TODO: Dataflow analysis is absolutely necessary!! *)
-let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool cp l bd level = function
+let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool cp l bd level ss2 = function
   | JL.OpNop -> [|Nop|]
   | JL.OpAConstNull -> [|Ldi|]
   | JL.OpLConst _ -> [|Ldi;Ldi|]
@@ -450,18 +453,21 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
       | `Double -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
       | `Long -> 
         let mn = make_ms "f_lmul" [(TBasic `Long);(TBasic `Long)] (Some (TBasic `Long)) in
-        if (not (exists_in_marray marray mn)) then
-          let cn = try JFile.get_class cp (make_cn bj1) with 
-            |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
-            |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
-          let m = JClass.get_method cn mn in
-          let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+        let cn = try JFile.get_class cp (make_cn bj1) with 
+          |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+          |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+        let m = JClass.get_method cn mn in
+        let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+        let clzms = (JBasics.make_cms cn.JClass.c_name mn) in
+        if not (exists_in_clzms_array clzms ss2) && not (exists_in_marray marray clzms) then
+          let () = Stack.push clzms ss2 in
           let cpool = cn.JClass.c_consts in
           let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
           let m = JHigh2Low.h2l_acmethod cpool1 m in
-          generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
+          let () = generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level ss2 in
+          ignore(Stack.pop ss2)
         else ();
-        let () = if !addmethods then DynArray.add bd mn in
+        let () = if !addmethods then DynArray.add bd clzms in
         invokestatic_mc
       | `Float -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
       | _ -> Array.init 35 (fun _ -> Nop)) (* Note that imul never access external memory!! *)
@@ -470,23 +476,26 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
      | `Double -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
      | _ -> 
        let mn = make_ms "f_idiv" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
-       if (not (exists_in_marray marray mn)) then
-         let cn = try JFile.get_class cp (make_cn bj1) with 
-           |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
-           |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
-         let m = JClass.get_method cn mn in
-         let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+       let cn = try JFile.get_class cp (make_cn bj1) with 
+         |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+         |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+       let m = JClass.get_method cn mn in
+       let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+       let clzms = (JBasics.make_cms cn.JClass.c_name mn) in
+       if not (exists_in_clzms_array clzms ss2) && not (exists_in_marray marray clzms) then
+         let () = Stack.push clzms ss2 in
          let cpool = cn.JClass.c_consts in
          let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
          let m = JHigh2Low.h2l_acmethod cpool1 m in
          (* FIXME: need to do dataflow analysis of the method itself! *)
          (* The value 32 comes from the fact that idiv has a loop bound of 32 *)
-         generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
+         let () = generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level ss2 in
+         ignore(Stack.pop ss2)
        else ();
        (* let tt = Array.init 32 (fun _ -> Lazy.force tt) in *)
        (* Array.fold_left Array.append [||] tt *)
        (*        let marr = DynArray.fold_left (fun x (ms,ca) -> if(ms = mn) && (x = None) then Some ca else x) None marray in *)
-       let () = if !addmethods then DynArray.add bd mn in
+       let () = if !addmethods then DynArray.add bd clzms in
        invokestatic_mc
     )
   | JL.OpRem x as op ->
@@ -494,22 +503,25 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
      | `Double -> raise (Opcode_Not_Implemented (JDumpLow.opcode op))
      | _ -> 
        let mn = make_ms "f_irem" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
-       if (not (exists_in_marray marray mn)) then
-         let cn = try JFile.get_class cp (make_cn bj1) with 
-           |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
-           |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
-         let m = JClass.get_method cn mn in
-         let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+       let cn = try JFile.get_class cp (make_cn bj1) with 
+         |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+         |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+       let m = JClass.get_method cn mn in
+       let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+       let clzms = (JBasics.make_cms cn.JClass.c_name mn) in
+       if not (exists_in_clzms_array clzms ss2) && not (exists_in_marray marray clzms) then
+         let () = Stack.push clzms ss2 in
          let cpool = cn.JClass.c_consts in
          let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
          let m = JHigh2Low.h2l_acmethod cpool1 m in
          (* FIXME: need to do dataflow analysis of the method itself! *)
          (* The value 32 comes from the fact that idiv has a loop bound of 32 *)
-         generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
+         let () = generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level ss2 in
+         ignore(Stack.pop ss2)
        else ();
        (* let tt = Array.init 32 (fun _ -> Lazy.force tt) in *)
        (* Array.fold_left Array.append [||] tt *)
-       let () = if !addmethods then DynArray.add bd mn in
+       let () = if !addmethods then DynArray.add bd clzms in
        invokestatic_mc
     )
   | JL.OpNeg x as op ->
@@ -543,18 +555,21 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
   | JL.OpD2L as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
   | JL.OpI2B as op -> 
     let mn = make_ms "f_i2b" [(TBasic `Int)] (Some (TBasic `Int)) in
-    if (not (exists_in_marray marray mn)) then
-      let cn = try JFile.get_class cp (make_cn bj1) with
-        |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
-        |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
-      let m = JClass.get_method cn mn in
-      let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+    let cn = try JFile.get_class cp (make_cn bj1) with
+      |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+      |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+    let m = JClass.get_method cn mn in
+    let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+    let clzms = (JBasics.make_cms cn.JClass.c_name mn) in
+    if not (exists_in_clzms_array clzms ss2) && not (exists_in_marray marray clzms) then
+      let () = Stack.push clzms ss2 in
       let cpool = cn.JClass.c_consts in
       let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
       let m = JHigh2Low.h2l_acmethod cpool1 m in
-      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
+      let () = generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level ss2 in 
+      ignore(Stack.pop ss2)
     else ();
-    let () = if !addmethods then DynArray.add bd mn in
+    let () = if !addmethods then DynArray.add bd clzms in
     invokestatic_mc
   (* raise (Opcode_Java_Implemented (JDumpLow.opcode op)) *)
   | JL.OpI2F as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
@@ -563,18 +578,21 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
   | JL.OpIInc _ -> [|Ldvp;Ld_opd_8u;Add;Star;Ld_opd_8u;Ldmi;Stmi|]
   | JL.OpLCmp as op -> 
     let mn = make_ms "f_lcmp" [(TBasic `Int);(TBasic `Int);(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
-    if (not (exists_in_marray marray mn)) then
-      let cn = try JFile.get_class cp (make_cn bj1) with
-        |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
-        |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
-      let m = JClass.get_method cn mn in
-      let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+    let cn = try JFile.get_class cp (make_cn bj1) with
+      |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+      |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+    let m = JClass.get_method cn mn in
+    let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+    let clzms = (JBasics.make_cms cn.JClass.c_name mn) in
+    if not (exists_in_clzms_array clzms ss2) && not (exists_in_marray marray clzms) then
+      let () = Stack.push clzms ss2 in
       let cpool = cn.JClass.c_consts in
       let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
       let m = JHigh2Low.h2l_acmethod cpool1 m in
-      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
+      let () = generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level ss2 in 
+      ignore(Stack.pop ss2)
     else ();
-    let () = if !addmethods then DynArray.add bd mn in
+    let () = if !addmethods then DynArray.add bd clzms in
     invokestatic_mc
   | JL.OpFCmpL as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
   | JL.OpFCmpG as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
@@ -595,35 +613,41 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
   | JL.OpJsr _ | JL.OpRet _ -> [||]
   | JL.OpTableSwitch _ as op -> 
     let mn = make_ms "f_tableswitch" [(TBasic `Int)] None in
-    if (not (exists_in_marray marray mn)) then
-      let cn = try JFile.get_class cp (make_cn bj1) with
-        |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
-        |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
-      let m = JClass.get_method cn mn in
-      let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+    let cn = try JFile.get_class cp (make_cn bj1) with
+      |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+      |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+    let m = JClass.get_method cn mn in
+    let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+    let clzms = (JBasics.make_cms cn.JClass.c_name mn) in
+    if not (exists_in_clzms_array clzms ss2) && not (exists_in_marray marray clzms) then
+      let () = Stack.push clzms ss2 in
       let cpool = cn.JClass.c_consts in
       let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
       let m = JHigh2Low.h2l_acmethod cpool1 m in
-      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
+      let () = generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level ss2 in
+      ignore(Stack.pop ss2)
     else ();
-    let () = if !addmethods then DynArray.add bd mn in
+    let () = if !addmethods then DynArray.add bd clzms in
     invokestatic_mc
   | JL.OpLookupSwitch (_,x) as op -> 
     let mn = make_ms "f_lookupswitch" [(TBasic `Int)] None in
-    if (not (exists_in_marray marray mn)) then
-      let cn = try JFile.get_class cp (make_cn bj1) with
-        |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
-        |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
-      let m = JClass.get_method cn mn in
-      let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+    let cn = try JFile.get_class cp (make_cn bj1) with
+      |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+      |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+    let m = JClass.get_method cn mn in
+    let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+    let clzms = (JBasics.make_cms cn.JClass.c_name mn) in
+    if not (exists_in_clzms_array clzms ss2) && not (exists_in_marray marray clzms) then
+      let () = Stack.push clzms ss2 in
       let cpool = cn.JClass.c_consts in
       let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
       let m = JHigh2Low.h2l_acmethod cpool1 m in
-      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
+      let () = generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level ss2 in
+      ignore(Stack.pop ss2)
     else ();
     (* let r = Array.init (List.length x) (fun _ -> Lazy.force tt) in *)
     (* Array.fold_left Array.append [||] r *)
-    let () = if !addmethods then DynArray.add bd mn in
+    let () = if !addmethods then DynArray.add bd clzms in
     invokestatic_mc
   | JL.OpReturn x as op ->
     let hopcode = JInstruction.opcode2instruction const_pool op in
@@ -732,8 +756,8 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
           (* Invoke the method itself!! *)
           if (not exists) then
             let () = Stack.push mn mstack in
-            let () = invoke_method mstack cn mn const_pool cp marray cms cname op l level in
-            let () = if (!addmethods) && (level > 1) then DynArray.add bd mn in
+            let () = invoke_method mstack cn mn const_pool cp marray cms cname op l level ss2 in
+            let () = if (!addmethods) && (level > 1) then DynArray.add bd (JBasics.make_cms cn mn) in
             ignore(Stack.pop mstack)
           else ();
           let iwaits = get_invoke_msize cp cn op mn in
@@ -743,8 +767,8 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
           let cn = (match ot with | TClass x -> x | TArray _ -> raise Internal) in
           if (not exists) then
             let () = Stack.push mn mstack in
-            let () = invoke_method mstack cn mn const_pool cp marray cms cname op l level in
-            let () = if (!addmethods) && (level > 1) then DynArray.add bd mn in
+            let () = invoke_method mstack cn mn const_pool cp marray cms cname op l level ss2 in
+            let () = if (!addmethods) && (level > 1) then DynArray.add bd (JBasics.make_cms cn mn) in
             ignore(Stack.pop mstack)
           else ();
           let iwaits = get_invoke_msize cp cn op mn in
@@ -753,8 +777,8 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
         | `Special cn -> 
           if (not exists) then
             let () = Stack.push mn mstack in
-            let () = invoke_method mstack cn mn const_pool cp marray cms cname op l level in
-            let () = if (!addmethods) && (level > 1) then DynArray.add bd mn in
+            let () = invoke_method mstack cn mn const_pool cp marray cms cname op l level ss2 in
+            let () = if (!addmethods) && (level > 1) then DynArray.add bd (JBasics.make_cms cn mn) in
             ignore(Stack.pop mstack)
           else ();
           let iwaits = get_invoke_msize cp cn op mn in
@@ -803,8 +827,8 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
              | _ -> 
                if (Stack.top mstack <> mn) then
                  let () = Stack.push mn mstack in
-                 let () = invoke_method mstack cn mn const_pool cp marray cms cname op l level in
-                 let () = if (!addmethods) && (level > 1) then DynArray.add bd mn in
+                 let () = invoke_method mstack cn mn const_pool cp marray cms cname op l level ss2 in
+                 let () = if (!addmethods) && (level > 1) then DynArray.add bd (JBasics.make_cms cn mn) in
                  ignore(Stack.pop mstack)
                else ();
                let iwaits = get_invoke_msize cp cn op mn in
@@ -813,8 +837,8 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
             )
           else if (not exists) then
             let () = Stack.push mn mstack in
-            let () = invoke_method mstack cn mn const_pool cp marray cms cname op l level in
-            let () = if (!addmethods) && (level > 1) then DynArray.add bd mn in
+            let () = invoke_method mstack cn mn const_pool cp marray cms cname op l level ss2 in
+            let () = if (!addmethods) && (level > 1) then DynArray.add bd (JBasics.make_cms cn mn) in
             ignore(Stack.pop mstack);
             let iwaits = get_invoke_msize cp cn op mn in
             Array.append iwaits invokestatic_mc
@@ -836,85 +860,100 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
   | JL.OpThrow as op -> 
     let mn = make_ms "f_athrow" [TObject (TClass (make_cn "java.lang.Throwable"))]
         (Some (TObject (TClass (make_cn "java.lang.Throwable")))) in
-    if (not (exists_in_marray marray mn)) then
-      let cn = try JFile.get_class cp (make_cn bj1) with
-        |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
-        |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
-      let m = JClass.get_method cn mn in
-      let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+    let cn = try JFile.get_class cp (make_cn bj1) with
+      |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+      |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+    let m = JClass.get_method cn mn in
+    let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+    let clzms = (JBasics.make_cms cn.JClass.c_name mn) in
+    if not (exists_in_clzms_array clzms ss2) && not (exists_in_marray marray clzms) then
+      let () = Stack.push clzms ss2 in
       let cpool = cn.JClass.c_consts in
       let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
       let m = JHigh2Low.h2l_acmethod cpool1 m in
-      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
+      let () = generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level ss2 in 
+      ignore(Stack.pop ss2)
     else (); 
-    let () = if !addmethods then DynArray.add bd mn in
+    let () = if !addmethods then DynArray.add bd clzms in
     invokestatic_mc
   (* The new bytecodes!! *)
   | JL.OpNew _ as op -> 
     let mn = make_ms "f_new" [(TBasic `Int)] (Some (TBasic `Int)) in
-    if (not (exists_in_marray marray mn)) then
-      let cn = try JFile.get_class cp (make_cn bj1) with
-        |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
-        |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
-      let m = JClass.get_method cn mn in
-      let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+    let cn = try JFile.get_class cp (make_cn bj1) with
+      |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+      |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+    let m = JClass.get_method cn mn in
+    let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+    let clzms = (JBasics.make_cms cn.JClass.c_name mn) in
+    if not (exists_in_clzms_array clzms ss2) && not (exists_in_marray marray clzms) then
+      let () = Stack.push clzms ss2 in
       let cpool = cn.JClass.c_consts in
       let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
       let m = JHigh2Low.h2l_acmethod cpool1 m in
-      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
+      let () = generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level ss2 in
+      ignore(Stack.pop ss2)
     else ();
-    let () = if !addmethods then DynArray.add bd mn in
+    let () = if !addmethods then DynArray.add bd clzms in
     Array.append newb invokestatic_mc
   | JL.OpNewArray _ 
   | JL.OpANewArray _ as op -> 
     let mn = make_ms "f_newarray" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
-    if (not (exists_in_marray marray mn)) then
-      let cn = try JFile.get_class cp (make_cn bj1) with
-        |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
-        |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
-      let m = JClass.get_method cn mn in
-      let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+    let cn = try JFile.get_class cp (make_cn bj1) with
+      |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+      |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+    let m = JClass.get_method cn mn in
+    let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+    let clzms = (JBasics.make_cms cn.JClass.c_name mn) in
+    if not (exists_in_clzms_array clzms ss2) && not (exists_in_marray marray clzms) then
+      let () = Stack.push clzms ss2 in
       let cpool = cn.JClass.c_consts in
       let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
       let m = JHigh2Low.h2l_acmethod cpool1 m in
-      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
+      let () = generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level ss2 in
+      ignore(Stack.pop ss2)
     else ();
-    let () = if !addmethods then DynArray.add bd mn in
+    let () = if !addmethods then DynArray.add bd clzms in
     Array.append newb invokestatic_mc
   | JL.OpAMultiNewArray _ as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
   | JL.OpCheckCast _ as op -> 
     let mn = make_ms "f_checkcast" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
-    if (not (exists_in_marray marray mn)) then
-      let cn = try JFile.get_class cp (make_cn bj1) with
-        |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
-        |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
-      let m = JClass.get_method cn mn in
-      let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+    let cn = try JFile.get_class cp (make_cn bj1) with
+      |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+      |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+    let m = JClass.get_method cn mn in
+    let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+    let clzms = (JBasics.make_cms cn.JClass.c_name mn) in
+    if not (exists_in_clzms_array clzms ss2) && not (exists_in_marray marray clzms) then
+      let () = Stack.push clzms ss2 in
       let cpool = cn.JClass.c_consts in
       let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
       let m = JHigh2Low.h2l_acmethod cpool1 m in
-      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
+      let () = generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level ss2 in
+      ignore(Stack.pop ss2)
     else ();
-    let () = if !addmethods then DynArray.add bd mn in
+    let () = if !addmethods then DynArray.add bd clzms in
     Array.append newb invokestatic_mc
   | JL.OpInstanceOf _ as op ->
     let mn = make_ms "f_instanceof" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
-    if (not (exists_in_marray marray mn)) then
-      let cn = try JFile.get_class cp (make_cn bj1) with
-        |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
-        |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
-      let m = JClass.get_method cn mn in
-      let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+    let cn = try JFile.get_class cp (make_cn bj1) with
+      |  No_class_found _ -> print_endline (JDumpLow.opcode op); raise Not_found 
+      |  Class_structure_error _ -> print_endline (JDumpLow.opcode op); raise Not_found in
+    let m = JClass.get_method cn mn in
+    let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+    let clzms = (JBasics.make_cms cn.JClass.c_name mn) in
+    if not (exists_in_clzms_array clzms ss2) && not (exists_in_marray marray clzms) then
+      let () = Stack.push clzms ss2 in
       let cpool = cn.JClass.c_consts in
       let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
       let m = JHigh2Low.h2l_acmethod cpool1 m in
-      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
+      let () = generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level ss2 in
+      ignore(Stack.pop ss2)
     else ();
-    let () = if !addmethods then DynArray.add bd mn in
+    let () = if !addmethods then DynArray.add bd clzms in
     Array.append newb invokestatic_mc
 
 (* Generate micro-code for a given method *)
-and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l level = 
+and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l level ss2 = 
   let bcs = m.JClassLow.m_attributes in
   let bcs = List.filter (fun t -> match t with | JClassLow.AttributeCode _ -> true | _ -> false) bcs in
 (*
@@ -935,7 +974,7 @@ and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l le
     print_endline ("CURRR "^(JBasics.ms_name cms)^"  "^m.JClassLow.m_name);
     let lr = getloopranges l lnt code cname in
     let () = 
-      print_endline ("===== Method : "^(JBasics.ms_name cms));
+      print_endline ("===== Method : "^(JPrint.class_method_signature (JBasics.make_cms cname cms)));
       List.iter (function
           | (x,y,lc) -> 
             print_endline ("start "^(string_of_int x)^" end "^(string_of_int y)^" loop "^(string_of_int lc))
@@ -948,21 +987,23 @@ and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l le
         Array.append t 
           (
             let bd = DynArray.make 30 in
-            let bcary = generate_microcode_bc mstack marray pms cms pcname cname bcs cpool cp l bd (succ level) x in
+            let bcary = generate_microcode_bc mstack marray pms cms pcname cname bcs cpool cp l bd (succ level) ss2 x in
             let sary = Array.fold_left (fun y x -> 
                 let mc = DynArray.fold_left (fun t (ms,mc) -> if (x = ms) && (t = None) then Some mc else t ) None marray in
                 Array.append y (match mc with Some x -> x | None -> [||])
               ) [||] (DynArray.to_array bd) in
+(*             DynArray.iter (fun x -> if (JBasics.ms_name cms) = "main" then print_endline ("RRRR "^(JPrint.class_method_signature x))) bd; *)
             Array.append [|(bcary,lc)|] sary
           )
 
       ) [||] bcs in
     print_endline ("----- done "^(JBasics.ms_name cms));
-    (* Put it into the DynArray!! *)
-    DynArray.add marray (cms,res)
+    DynArray.add marray ((JBasics.make_cms cname cms),res)
 
-and invoke_method mstack cn mn cpool cp marray cms cname op l level = 
-  if (not (exists_in_marray marray mn)) then
+and invoke_method mstack cn mn cpool cp marray cms cname op l level ss2 = 
+  let clzms = (JBasics.make_cms cn mn) in
+  if not (exists_in_clzms_array clzms ss2) && not (exists_in_marray marray clzms) then
+    let () = Stack.push clzms ss2 in
     let cn = try JFile.get_class cp cn with
       |  No_class_found _ -> print_endline (JPrint.jopcode op); raise Not_found 
       |  Class_structure_error _ -> print_endline (JPrint.jopcode op); raise Not_found in
@@ -971,7 +1012,8 @@ and invoke_method mstack cn mn cpool cp marray cms cname op l level =
     let cpool = cn.JClass.c_consts in
     let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
     let m = JHigh2Low.h2l_acmethod cpool1 m in
-    generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
+    let () = generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level ss2 in
+    ignore(Stack.pop ss2)
 
 
 (* Generating micro-code for a given class *)
@@ -987,7 +1029,9 @@ let generate_microcode_clazz marray cp clazz l =
   (* The stack to hold the method call sequence *)
   let ss = Stack.create () in
   let () = Stack.push JProgram.main_signature ss in
-  generate_microcode_method ss marray None JProgram.main_signature None llc.JClassLow.j_name cpool cp m l 0
+  let ss2 = Stack.create () in
+  let () = Stack.push (JBasics.make_cms clazz JProgram.main_signature) ss2 in
+  generate_microcode_method ss marray None JProgram.main_signature None llc.JClassLow.j_name cpool cp m l 0 ss2
 
 let wca = Str.regexp ".*\\(//[ ]*@WCA[ ]*loop[ ]*\\(<\\)?=[ ]*\\([0-9]+\\)[ ]*\\)$"
 
@@ -1062,7 +1106,7 @@ let main =
     bj3 := cn;
     let () = generate_microcode_clazz mm (JFile.class_path cp) (make_cn cn) l in 
     let mm = DynArray.map (fun (mn,vals) -> 
-        (JPrint.method_signature mn, Array.fold_left (fun (i,m) (micro,lc) -> 
+        (JPrint.class_method_signature mn, Array.fold_left (fun (i,m) (micro,lc) -> 
              let (ii,mm) = Array.fold_left (fun (i,m) x -> 
                  if (Array.exists (fun y -> x = y) mem_instr) then 
                    (i,m+lc) 
