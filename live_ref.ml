@@ -60,7 +60,18 @@ let isnew mbir pc =
    | NewArray _ -> true
    | _ -> false)
 
-let rec start prta pbir mstack mbir =
+(* FIXME:
+ 1.) Need to consider if the var is an argument and not a local var
+ 2.) Need to consider if the var itself if being set from a field or another var.
+ *)
+let vardefpcs map cms mstack ms_stack mbir pc v x = 
+  let defpcs = du mbir pc v in
+  let lm = List.map (isnew mbir) defpcs in
+  if List.fold_left (&&) true lm then 
+    ClassMethodMap.add cms (List.map (fun x -> x - 1) defpcs) map
+  else raise (Not_supported ("new outside of current method: " ^ (print_instr x)))
+
+let rec start prta pbir mstack ms_stack this_ms mbir =
   (* First check if there are any setValue signal class calls in this method using the bir representation! *)
   let instrs = code mbir in
   let setSigs = Array.mapi (fun pc x ->
@@ -70,55 +81,60 @@ let rec start prta pbir mstack mbir =
 				| _ -> None)) instrs in
   let setValuepcs = Array.filter (function | Some _ -> true | None -> false) setSigs in
   let setValuepcs = Array.map (function | Some (x,y) -> (x,y) | _ -> raise (Internal "")) setValuepcs in
-  let () = Array.iter (fun (x,pc) ->
-		       (* Get the argument of the setValue method *)
-		       let (e1,k,ms,arg) = (match x with 
-					    | InvokeVirtual (None,e1,vk,ms,el) -> (e1,vk,ms,el) 
-					    | _ as s -> raise (Internal ("Set value not of type InvokeVirtual!: " ^ (print_instr s)))
-					   ) in
-		       (* If arg is a local variable *)
-		       let arg = if List.length arg = 1 then List.hd arg else raise (Internal "") in
-		       let arg = getargs arg in
-		       List.iter (function 
-				   | StaticField (cn,fs) -> 
-				      let () = print_endline "it be a static field" in
-				      ()
-				   | Field (e,cn,fs) -> print_endline "It be a non-static field!"
-				   | Var (vt,v) -> 
-				      (* Get the pc where this ar is being declared, can be more than one! *)
-				      let defpcs = du mbir pc v in
-				      let lm = List.map (isnew mbir) defpcs in
-				      if List.fold_left (&&) true lm then
-					let defpcs = List.map (fun x -> x - 1) defpcs in
-					List.iter (print_endline >> string_of_int) defpcs
-				      else raise (Not_supported ("new outside of current method: " ^ (print_instr x)))
-				   | Const x -> ()
-				   (* Local variable or argument to mbir method case *)
-				   | _ as s -> raise (Internal ("Setting a non-field, var type value in setValue: " ^ (print_expr s)))
-				 ) arg
-		      ) setValuepcs in
+  let nmap =
+    Array.fold_left 
+      (fun elist (x,pc) ->
+       (* Get the argument of the setValue method *)
+       let (e1,k,ms,arg) = (match x with 
+			    | InvokeVirtual (None,e1,vk,ms,el) -> (e1,vk,ms,el) 
+			    | _ as s -> raise (Internal ("Set value not of type InvokeVirtual!: " ^ (print_instr s)))
+			   ) in
+       (* If arg is a local variable *)
+       let arg = if List.length arg = 1 then List.hd arg else raise (Internal "") in
+       let arg = getargs arg in
+       List.fold_left (fun _ y -> 
+		       (match y with
+			| StaticField (cn,fs) -> 
+			   let () = print_endline "it be a static field" in
+			   elist
+			| Field (e,cn,fs) -> 
+			   let () = print_endline "It be a non-static field!" in
+			   elist
+			| Var (vt,v) -> 
+			   let ret = vardefpcs elist this_ms mstack ms_stack mbir pc v x in
+			   let () = List.iter (print_endline >> string_of_int) 
+					      (List.flatten (ClassMethodMap.value_elements ret)) in 
+			   ret
+			| Const x -> elist
+			| _ as s -> 
+			   raise (Internal ("Setting a non-field, var type value in setValue: " ^ (print_expr s)))
+		      )) ClassMethodMap.empty arg) ClassMethodMap.empty setValuepcs in
 
-  (* Now just print this *)
-  (* let () = Array.iter (fun (x,_) -> print_endline (print_instr x)) setValuepcs in *)
+  (* TODO: simulate heap here! *)
+  (* REMEMBER when replacing new with loads, make sure that they have
+  not already been replaced *)
 
-
+  
   (* Invoke each method call separately for each invoke bytecode *)
-  let () = Array.iter (function
-			| InvokeStatic (_,cn,ms,_) -> invoke_method prta pbir cn ms mbir mstack
-			| InvokeVirtual (_,_,VirtualCall (TClass cn),ms,el) -> 
-			   invoke_method prta pbir cn ms mbir mstack
-			| InvokeVirtual (_,_,VirtualCall (TArray cn),ms,el) -> raise (Internal "")
-			| InvokeVirtual (_,_,InterfaceCall cn,ms,el) -> 
-			   invoke_method prta pbir cn ms mbir mstack
-			| InvokeNonVirtual(_,_,cn,ms,_) ->
-			   invoke_method prta pbir cn ms mbir mstack
-			| _ -> ()) instrs in ()
+  Array.iter (function
+	       | InvokeStatic (_,cn,ms,_) -> 
+		  invoke_method prta pbir cn ms mbir mstack ms_stack this_ms
+	       | InvokeVirtual (_,_,VirtualCall (TClass cn),ms,el) -> 
+		  invoke_method prta pbir cn ms mbir mstack ms_stack this_ms
+	       | InvokeVirtual (_,_,VirtualCall (TArray cn),ms,el) -> raise (Internal "")
+	       | InvokeVirtual (_,_,InterfaceCall cn,ms,el) -> 
+		  invoke_method prta pbir cn ms mbir mstack ms_stack this_ms
+	       | InvokeNonVirtual(_,_,cn,ms,_) ->
+		  invoke_method prta pbir cn ms mbir mstack ms_stack this_ms
+	       | _ -> ()) instrs
 
-and invoke_method prta pbir cn ms mbir mstack = 
+and invoke_method prta pbir cn ms mbir mstack ms_stack this_ms = 
   let cmi = JProgram.get_concrete_method (JProgram.get_node pbir cn) ms in
   let () = Stack.push mbir mstack in
-  let _ = map_concrete_method ~force:true (start prta pbir mstack) cmi in
-  ignore(Stack.pop mstack)
+  let () = Stack.push this_ms ms_stack in
+  let _ = map_concrete_method ~force:true (start prta pbir mstack ms_stack (cmi.cm_class_method_signature)) cmi in
+  let _ = Stack.pop mstack in 
+  ignore(Stack.pop ms_stack)
 
 let main =
   try
@@ -141,7 +157,8 @@ let main =
     (* let mobj = JProgram.get_concrete_method obj (make_ms "MethodCall1_0" [] (Some (TBasic `Bool)))in *)
     (* Try doing liveness analysis *)
     let ss = Stack.create () in
-    ignore(map_concrete_method ~force:true (start prta pbir ss) mobj);
+    let ms_ss = Stack.create () in
+    ignore(map_concrete_method ~force:true (start prta pbir ss ms_ss (mobj.cm_class_method_signature)) mobj);
     (* let _ = map_concrete_method ~force:true liveness mobj in *)
     (* let () = print_endline "----------------------" in *)
     (* Try doing possible definition analysis *)
