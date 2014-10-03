@@ -22,6 +22,7 @@ public class a {
 			}
 		}
 		String w= new String("2@");
+		w.charAt(0);
 		while(true){// @WCA loop = 300
 			{
 				a++;

@@ -379,7 +379,7 @@ let tttt = ref true
 
 (* This is the main function that generates the micro-codes *)
 (* TODO: Dataflow analysis is absolutely necessary!! *)
-let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool cp l bd = function
+let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool cp l bd level = function
   | JL.OpNop -> [|Nop|]
   | JL.OpAConstNull -> [|Ldi|]
   | JL.OpLConst _ -> [|Ldi;Ldi|]
@@ -459,7 +459,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
           let cpool = cn.JClass.c_consts in
           let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
           let m = JHigh2Low.h2l_acmethod cpool1 m in
-          generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
+          generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
         else ();
         let () = if !addmethods then DynArray.add bd mn in
         invokestatic_mc
@@ -481,7 +481,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
          let m = JHigh2Low.h2l_acmethod cpool1 m in
          (* FIXME: need to do dataflow analysis of the method itself! *)
          (* The value 32 comes from the fact that idiv has a loop bound of 32 *)
-         generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
+         generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
        else ();
        (* let tt = Array.init 32 (fun _ -> Lazy.force tt) in *)
        (* Array.fold_left Array.append [||] tt *)
@@ -505,7 +505,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
          let m = JHigh2Low.h2l_acmethod cpool1 m in
          (* FIXME: need to do dataflow analysis of the method itself! *)
          (* The value 32 comes from the fact that idiv has a loop bound of 32 *)
-         generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
+         generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
        else ();
        (* let tt = Array.init 32 (fun _ -> Lazy.force tt) in *)
        (* Array.fold_left Array.append [||] tt *)
@@ -552,7 +552,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
       let cpool = cn.JClass.c_consts in
       let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
       let m = JHigh2Low.h2l_acmethod cpool1 m in
-      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
+      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
     else ();
     let () = if !addmethods then DynArray.add bd mn in
     invokestatic_mc
@@ -572,7 +572,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
       let cpool = cn.JClass.c_consts in
       let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
       let m = JHigh2Low.h2l_acmethod cpool1 m in
-      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
+      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
     else ();
     let () = if !addmethods then DynArray.add bd mn in
     invokestatic_mc
@@ -604,7 +604,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
       let cpool = cn.JClass.c_consts in
       let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
       let m = JHigh2Low.h2l_acmethod cpool1 m in
-      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
+      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
     else ();
     let () = if !addmethods then DynArray.add bd mn in
     invokestatic_mc
@@ -619,7 +619,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
       let cpool = cn.JClass.c_consts in
       let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
       let m = JHigh2Low.h2l_acmethod cpool1 m in
-      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
+      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
     else ();
     (* let r = Array.init (List.length x) (fun _ -> Lazy.force tt) in *)
     (* Array.fold_left Array.append [||] r *)
@@ -732,7 +732,8 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
           (* Invoke the method itself!! *)
           if (not exists) then
             let () = Stack.push mn mstack in
-            let () = invoke_method mstack cn mn const_pool cp marray cms cname op l in
+            let () = invoke_method mstack cn mn const_pool cp marray cms cname op l level in
+            let () = if (!addmethods) && (level > 1) then DynArray.add bd mn in
             ignore(Stack.pop mstack)
           else ();
           let iwaits = get_invoke_msize cp cn op mn in
@@ -742,7 +743,8 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
           let cn = (match ot with | TClass x -> x | TArray _ -> raise Internal) in
           if (not exists) then
             let () = Stack.push mn mstack in
-            let () = invoke_method mstack cn mn const_pool cp marray cms cname op l in
+            let () = invoke_method mstack cn mn const_pool cp marray cms cname op l level in
+            let () = if (!addmethods) && (level > 1) then DynArray.add bd mn in
             ignore(Stack.pop mstack)
           else ();
           let iwaits = get_invoke_msize cp cn op mn in
@@ -751,7 +753,8 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
         | `Special cn -> 
           if (not exists) then
             let () = Stack.push mn mstack in
-            let () = invoke_method mstack cn mn const_pool cp marray cms cname op l in
+            let () = invoke_method mstack cn mn const_pool cp marray cms cname op l level in
+            let () = if (!addmethods) && (level > 1) then DynArray.add bd mn in
             ignore(Stack.pop mstack)
           else ();
           let iwaits = get_invoke_msize cp cn op mn in
@@ -800,7 +803,8 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
              | _ -> 
                if (Stack.top mstack <> mn) then
                  let () = Stack.push mn mstack in
-                 let () = invoke_method mstack cn mn const_pool cp marray cms cname op l in
+                 let () = invoke_method mstack cn mn const_pool cp marray cms cname op l level in
+                 let () = if (!addmethods) && (level > 1) then DynArray.add bd mn in
                  ignore(Stack.pop mstack)
                else ();
                let iwaits = get_invoke_msize cp cn op mn in
@@ -809,7 +813,8 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
             )
           else if (not exists) then
             let () = Stack.push mn mstack in
-            let () = invoke_method mstack cn mn const_pool cp marray cms cname op l in
+            let () = invoke_method mstack cn mn const_pool cp marray cms cname op l level in
+            let () = if (!addmethods) && (level > 1) then DynArray.add bd mn in
             ignore(Stack.pop mstack);
             let iwaits = get_invoke_msize cp cn op mn in
             Array.append iwaits invokestatic_mc
@@ -840,7 +845,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
       let cpool = cn.JClass.c_consts in
       let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
       let m = JHigh2Low.h2l_acmethod cpool1 m in
-      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
+      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
     else (); 
     let () = if !addmethods then DynArray.add bd mn in
     invokestatic_mc
@@ -856,7 +861,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
       let cpool = cn.JClass.c_consts in
       let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
       let m = JHigh2Low.h2l_acmethod cpool1 m in
-      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
+      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
     else ();
     let () = if !addmethods then DynArray.add bd mn in
     Array.append newb invokestatic_mc
@@ -872,7 +877,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
       let cpool = cn.JClass.c_consts in
       let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
       let m = JHigh2Low.h2l_acmethod cpool1 m in
-      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
+      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
     else ();
     let () = if !addmethods then DynArray.add bd mn in
     Array.append newb invokestatic_mc
@@ -888,7 +893,7 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
       let cpool = cn.JClass.c_consts in
       let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
       let m = JHigh2Low.h2l_acmethod cpool1 m in
-      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
+      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
     else ();
     let () = if !addmethods then DynArray.add bd mn in
     Array.append newb invokestatic_mc
@@ -903,13 +908,13 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
       let cpool = cn.JClass.c_consts in
       let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
       let m = JHigh2Low.h2l_acmethod cpool1 m in
-      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
+      generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
     else ();
     let () = if !addmethods then DynArray.add bd mn in
     Array.append newb invokestatic_mc
 
 (* Generate micro-code for a given method *)
-and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l = 
+and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l level = 
   let bcs = m.JClassLow.m_attributes in
   let bcs = List.filter (fun t -> match t with | JClassLow.AttributeCode _ -> true | _ -> false) bcs in
 (*
@@ -943,7 +948,7 @@ and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l =
         Array.append t 
           (
             let bd = DynArray.make 30 in
-            let bcary = generate_microcode_bc mstack marray pms cms pcname cname bcs cpool cp l bd x in
+            let bcary = generate_microcode_bc mstack marray pms cms pcname cname bcs cpool cp l bd (succ level) x in
             let sary = Array.fold_left (fun y x -> 
                 let mc = DynArray.fold_left (fun t (ms,mc) -> if (x = ms) && (t = None) then Some mc else t ) None marray in
                 Array.append y (match mc with Some x -> x | None -> [||])
@@ -956,7 +961,7 @@ and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l =
     (* Put it into the DynArray!! *)
     DynArray.add marray (cms,res)
 
-and invoke_method mstack cn mn cpool cp marray cms cname op l = 
+and invoke_method mstack cn mn cpool cp marray cms cname op l level = 
   if (not (exists_in_marray marray mn)) then
     let cn = try JFile.get_class cp cn with
       |  No_class_found _ -> print_endline (JPrint.jopcode op); raise Not_found 
@@ -966,7 +971,7 @@ and invoke_method mstack cn mn cpool cp marray cms cname op l =
     let cpool = cn.JClass.c_consts in
     let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
     let m = JHigh2Low.h2l_acmethod cpool1 m in
-    generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l
+    generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level
 
 
 (* Generating micro-code for a given class *)
@@ -982,7 +987,7 @@ let generate_microcode_clazz marray cp clazz l =
   (* The stack to hold the method call sequence *)
   let ss = Stack.create () in
   let () = Stack.push JProgram.main_signature ss in
-  generate_microcode_method ss marray None JProgram.main_signature None llc.JClassLow.j_name cpool cp m l
+  generate_microcode_method ss marray None JProgram.main_signature None llc.JClassLow.j_name cpool cp m l 0
 
 let wca = Str.regexp ".*\\(//[ ]*@WCA[ ]*loop[ ]*\\(<\\)?=[ ]*\\([0-9]+\\)[ ]*\\)$"
 
