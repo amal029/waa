@@ -1119,8 +1119,8 @@ let parsewca x =
   let x = Array.map (fun x -> String.trim x) x in
   Array.fold_left (fun h x -> getds h x ;h ) (Hashtbl.create 50) x
 
-let rec calc_exec_time (mn,vals) marray =
-   Array.fold_left (fun (i,m) (micro,lc,bd) -> 
+let rec calc_exec_time (mn,vals) marray tbl =
+  let vals = Array.fold_left (fun (i,m) (micro,lc,bd) -> 
       let (ii,mm) = Array.fold_left (fun (i,m) x -> 
           if (Array.exists (fun y -> x = y) mem_instr) then 
             (i,m+lc) 
@@ -1130,12 +1130,16 @@ let rec calc_exec_time (mn,vals) marray =
       let (ii,mm) = Array.fold_left (fun (ii,mm) x -> 
           let indx = DynArray.index_of (fun (y,_) -> x = y) marray in
           let (mn,vals) = DynArray.get marray indx in 
-          let (ri, rm) = calc_exec_time (mn,vals) marray in
+          let n = Hashtbl.find_option tbl mn in
+          let (ri,rm) = match n with | Some n -> n | None -> calc_exec_time (mn,vals) marray tbl in
           (ii+(ri*lc),mm+(rm*lc))
         ) (ii,mm) bd
       in
       (i+ii,mm+m)
     ) (0,0) vals
+  in
+  let () = Hashtbl.add tbl mn vals in
+  vals
 
 let main = 
   try
@@ -1154,7 +1158,7 @@ let main =
     let marray = DynArray.make 100 in
     bj3 := cn;
     let () = generate_microcode_clazz marray (JFile.class_path cp) (make_cn cn) l in 
-    let mm = DynArray.map (fun (mn,vals) -> (JPrint.class_method_signature mn,calc_exec_time (mn,vals) marray) ) marray 
+    let mm = DynArray.map (fun (mn,vals) -> (JPrint.class_method_signature mn,calc_exec_time (mn,vals) marray (Hashtbl.create 50)) ) marray 
     in
     let fd = open_out (cn^".ini") in
     DynArray.iter (fun (x,(i,m)) -> 
