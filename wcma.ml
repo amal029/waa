@@ -770,8 +770,10 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
           (* Invoke the method itself!! *)
           if (not exists) then
             let () = Stack.push mn mstack in
-            let () = invoke_method mstack cn mn const_pool cp marray cms cname op l level ss2 in
-            let () = if (!addmethods) && (level > 1) then DynArray.add bd (JBasics.make_cms cn mn) in
+            let clzms = (JBasics.make_cms cn mn) in
+            let () = if not (exists_in_clzms_array clzms ss2) then 
+                let () = if (!addmethods) && (level > 1) then DynArray.add bd clzms in
+                invoke_method mstack cn mn const_pool cp marray cms cname op l level ss2 clzms in
             ignore(Stack.pop mstack)
           else ();
           let iwaits = get_invoke_msize cp cn op mn in
@@ -781,8 +783,10 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
           let cn = (match ot with | TClass x -> x | TArray _ -> raise Internal) in
           if (not exists) then
             let () = Stack.push mn mstack in
-            let () = invoke_method mstack cn mn const_pool cp marray cms cname op l level ss2 in
-            let () = if (!addmethods) && (level > 1) then DynArray.add bd (JBasics.make_cms cn mn) in
+            let clzms = (JBasics.make_cms cn mn) in
+            let () = if not (exists_in_clzms_array clzms ss2) then 
+                let () = if (!addmethods) && (level > 1) then DynArray.add bd clzms in
+                invoke_method mstack cn mn const_pool cp marray cms cname op l level ss2 clzms in
             ignore(Stack.pop mstack)
           else ();
           let iwaits = get_invoke_msize cp cn op mn in
@@ -791,8 +795,10 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
         | `Special cn -> 
           if (not exists) then
             let () = Stack.push mn mstack in
-            let () = invoke_method mstack cn mn const_pool cp marray cms cname op l level ss2 in
-            let () = if (!addmethods) && (level > 1) then DynArray.add bd (JBasics.make_cms cn mn) in
+            let clzms = (JBasics.make_cms cn mn) in
+            let () = if not (exists_in_clzms_array clzms ss2) then 
+                let () = if (!addmethods) && (level > 1) then DynArray.add bd clzms in
+                invoke_method mstack cn mn const_pool cp marray cms cname op l level ss2 clzms in
             ignore(Stack.pop mstack)
           else ();
           let iwaits = get_invoke_msize cp cn op mn in
@@ -841,8 +847,10 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
              | _ -> 
                if (Stack.top mstack <> mn) then
                  let () = Stack.push mn mstack in
-                 let () = invoke_method mstack cn mn const_pool cp marray cms cname op l level ss2 in
-                 let () = if (!addmethods) && (level > 1) then DynArray.add bd (JBasics.make_cms cn mn) in
+                 let clzms = (JBasics.make_cms cn mn) in
+                 let () = if not (exists_in_clzms_array clzms ss2) then 
+                     let () = if (!addmethods) && (level > 1) then DynArray.add bd clzms in
+                     invoke_method mstack cn mn const_pool cp marray cms cname op l level ss2 clzms in
                  ignore(Stack.pop mstack)
                else ();
                let iwaits = get_invoke_msize cp cn op mn in
@@ -851,8 +859,10 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
             )
           else if (not exists) then
             let () = Stack.push mn mstack in
-            let () = invoke_method mstack cn mn const_pool cp marray cms cname op l level ss2 in
-            let () = if (!addmethods) && (level > 1) then DynArray.add bd (JBasics.make_cms cn mn) in
+            let clzms = (JBasics.make_cms cn mn) in
+            let () = if not (exists_in_clzms_array clzms ss2) then 
+                let () = if (!addmethods) && (level > 1) then DynArray.add bd clzms in
+                invoke_method mstack cn mn const_pool cp marray cms cname op l level ss2 clzms in
             ignore(Stack.pop mstack);
             let iwaits = get_invoke_msize cp cn op mn in
             Array.append iwaits invokestatic_mc
@@ -1022,20 +1032,19 @@ and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l le
   else
     DynArray.add marray ((JBasics.make_cms cname cms),[||])
 
-and invoke_method mstack cn mn cpool cp marray cms cname op l level ss2 = 
-  let clzms = (JBasics.make_cms cn mn) in
-  if not (exists_in_clzms_array clzms ss2) && not (exists_in_marray marray clzms) then
-    let () = Stack.push clzms ss2 in
-    let cn = try JFile.get_class cp cn with
-      |  No_class_found _ -> print_endline (JPrint.jopcode op); raise Not_found 
-      |  Class_structure_error _ -> print_endline (JPrint.jopcode op); raise Not_found in
-    let m = JClass.get_method cn mn in
-    let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
-    let cpool = cn.JClass.c_consts in
-    let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
-    let m = JHigh2Low.h2l_acmethod cpool1 m in
-    let () = generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level ss2 in
-    ignore(Stack.pop ss2)
+and invoke_method mstack cn mn cpool cp marray cms cname op l level ss2 clzms = 
+    if not (exists_in_marray marray clzms) then
+      let () = Stack.push clzms ss2 in
+      let cn = try JFile.get_class cp cn with
+        |  No_class_found _ -> print_endline (JPrint.jopcode op); raise Not_found 
+        |  Class_structure_error _ -> print_endline (JPrint.jopcode op); raise Not_found in
+      let m = JClass.get_method cn mn in
+      let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+      let cpool = cn.JClass.c_consts in
+      let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
+      let m = JHigh2Low.h2l_acmethod cpool1 m in
+      let () = generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level ss2 in
+      ignore(Stack.pop ss2)
 
 
 (* Generating micro-code for a given class *)
