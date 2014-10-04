@@ -46,8 +46,8 @@ try:
     else:
         m.setObjective(tps[0])
         
-    # Set the xs >= 0.1 constraints
-    map (lambda (i,x): m.addConstr(x >= 0.1,name='c'.join(str(i))), enumerate(xs))
+    # Set the xs >= 0.0 constraints
+    map (lambda (i,x): m.addConstr(x >= 0.0,name='c'.join(str(i))), enumerate(xs))
     
     # Add the total constraint list
     if len(xs) > 1:
@@ -93,7 +93,7 @@ try:
     if m.status == GRB.status.OPTIMAL:
         print '\n'
         for i in xrange(0,len(d)):
-            print 'TP'+str(i), ':', tps[i].x
+            print 'TP'+str(i), ':', tps[i].x/ws[i].x
             print 'x'+str(i), ':', xs[i].x
             print 'CYC'+str(i), ':', ws[i].x
             print '\n'
