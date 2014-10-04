@@ -19,6 +19,8 @@ let usage_msg = "Usage: live_ref class-path class-name
 (* The global list of new bytecodes program points to replace *)
 let global_replace = ref []
 
+let hADDRESS = ref 512000000
+
 exception Internal of string
 exception Not_supported of string
 
@@ -131,6 +133,7 @@ and fielddefpcs map cms mstack ms_stack mbir pc cn fs x =
 	       |> Array.filteri (fun i _ -> (i < pc)) 
 	       |> Array.rev in
   try
+    (* FIXME: this should be all AffectFields not just the first one! *)
     let pc' = Array.findi
 	      (function
 		| AffectField (e,cn',fs',e') -> 
@@ -192,17 +195,34 @@ let main =
     (* Now we are ready to replace the bytecodes!! *)
     let global_replace = !global_replace in
     let global_replace = List.fold_left (fun r x -> ClassMethodMap.merge (@) x r) ClassMethodMap.empty global_replace in
+    (* Replace them bytecodes *)
     let prta = ClassMethodMap.fold 
 		 (fun k v prta ->
 		  JProgram.map_program2 (fun pnode cm javacode -> 
 					 if (cms_equal k cm.cm_class_method_signature) then
-					   List.iter (fun rl -> 
-						      List.iter ()
-						     )
+					   (* Changing the new instruction here!! *)
+					   List.fold_left (fun jt rl ->
+					   		   (* Extend the constant pool!! *)
+					   		   let pc = (match JProgram.to_ioc pnode with | JClass x -> x | _ -> raise (Internal "")) in
+					   		   let pool = Array.append pc.c_consts [|ConstValue (ConstInt (Int32.of_int !hADDRESS))|] in
+					   		   pc.c_consts <- pool;
+							   let () = print_endline (string_of_int (List.length rl)) in
+					   		   let r =
+					   		     List.fold_left
+					   		       (fun r x ->
+					   			let fa = Array.filteri (fun i _ -> (i<x)) r in
+					   			let sa = Array.filteri (fun i _ -> (i>x)) r in
+					   			let xx = [|JInstruction.opcode2instruction
+					   				     pc.c_consts (JClassLow.OpLdc1 ((Array.length pc.c_consts) - 1))|] in
+					   			Array.append (Array.append fa xx) sa
+					   		       )jt.c_code rl in
+					   		   hADDRESS := !hADDRESS - 5; (* Get rid of 5 words *)
+					   		   {jt with c_code = r}
+					   		  ) javacode v
 					else javacode) None prta
 		 ) global_replace prta in
-    (* Replace them bytecodes *)
-    JPrint.print_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) JPrint.jcode stdout
-    (* JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout *)
+    (* JPrint.print_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) JPrint.jcode stdout; *)
+    unparse_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) (open_out_bin (cn^".class"));
+    JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout
   with 
   | Internal _ -> ()

@@ -13,4 +13,4 @@ live_ref:
 
 
 clean:
-	rm -rf *.cm* *.o *.a wcma waa *.annot *.ini *.log live_ref
+	rm -rf *.cm* *.o *.a wcma waa *.annot *.ini *.log live_ref *.class
