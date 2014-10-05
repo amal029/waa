@@ -33,6 +33,11 @@ let (|>) x f = f x
 (* This is the compose operator *)
 let (>>) f g x = (f(g x))
 
+let find_alli f l = 
+  let ret = Array.mapi (fun c x -> if (f x) then Some c else None) l in
+  let ret = Array.filter (function Some x -> true | None -> false) ret in
+  Array.map (function Some x -> x | None -> raise (Internal "")) ret
+
 let du t pc v = ReachDef.Lat.get (ReachDef.run t pc) v |> Ptset.elements
 
 let liveness t pc = Live_bir.run t pc |> Live_bir.Env.elements 
@@ -116,7 +121,7 @@ let rec start prta pbir mstack ms_stack this_ms mbir =
 
 (* FIXME:
  1.) Need to consider if the var is an argument and not a local var
- 2.) Need to consider if the var itself if being set from a field or another var.
+ 2.) Need to consider if the var itself is being set from a field or another var.
  *)
 and vardefpcs map cms mstack ms_stack mbir pc v x = 
   let defpcs = du mbir pc v in
@@ -132,41 +137,81 @@ and fielddefpcs map cms mstack ms_stack mbir pc cn fs x =
   let instrs = code mbir 
 	       |> Array.filteri (fun i _ -> (i < pc)) 
 	       |> Array.rev in
-  try
-    (* FIXME: this should be all AffectFields not just the first one! *)
-    let pc' = Array.findi
+  (* FIXME: The below can be made better by doing UD chains on fields.
+     NOTE: We can re-use the memory for if-else new opcodes being
+     pointed to by some reference "r" used in setValue(r).  IFF: there
+     is no other field "t" that holds the same reference, i.e., there
+     should be no pointer aliasing
+
+    Because of the aforementioned reason we do a very conservative (but
+   too much) memory allocation.  *)
+  let pcs = find_alli 
 	      (function
 		| AffectField (e,cn',fs',e') -> 
 		   cfs_equal (make_cfs cn' fs') (make_cfs cn fs)
 		| AffectStaticField (cn',fs',e') -> 
 		   cfs_equal (make_cfs cn' fs') (make_cfs cn fs)
 		| _ -> false) instrs in
-    let pc' = pc - (pc' + 1) in
-    (* Give the result back! *)
-    match (code mbir).(pc') with
-     | AffectField (e,cn',fs',e') as s -> 
-	let vars = liveness mbir pc' in
-	if List.length vars = 1 then
-	  vardefpcs map cms mstack ms_stack mbir pc' (List.hd vars) x
-	else
-	  raise (Internal ("Field being set with more than one var!: " ^ (print_instr s)))
-     | AffectStaticField (cn',fs',e') as s -> 
-	let vars = liveness mbir pc' in
-	if List.length vars = 1 then
-	  vardefpcs map cms mstack ms_stack mbir pc' (List.hd vars) x
-	else
-	  raise (Internal ("Field being set with more than one var!: " ^ (print_instr s)))
-     | _ -> raise (Internal "")
-  with
-  | Not_found -> 
-     (* FIXME: this needs to change to do interprocedural analysis *)
-     raise (Not_supported ("new outside of current method: " ^ (print_instr x))) 
+  if Array.length pcs <> 0 then
+    let ret = 
+      Array.map 
+	(fun pc'->
+	 let pc' = pc - (pc' + 1) in
+	 (* Give the result back! *)
+	 match (code mbir).(pc') with
+	 | AffectField (e,cn',fs',e') as s -> 
+	    let vars = liveness mbir pc' in
+	    if List.length vars = 1 then
+	      vardefpcs map cms mstack ms_stack mbir pc' (List.hd vars) x
+	    else
+	      raise (Internal ("Field being set with more than one var!: " ^ (print_instr s)))
+	 | AffectStaticField (cn',fs',e') as s -> 
+	    let vars = liveness mbir pc' in
+	    if List.length vars = 1 then
+	      vardefpcs map cms mstack ms_stack mbir pc' (List.hd vars) x
+	    else
+	      raise (Internal ("Field being set with more than one var!: " ^ (print_instr s)))
+	 | _ -> raise (Internal "")
+	) pcs in
+    Array.fold_left (fun r x -> ClassMethodMap.merge (@) x r) ClassMethodMap.empty ret
+  else
+    (* FIXME: this needs to change to do interprocedural analysis *)
+    raise (Not_supported ("Field initialized outside of current method: " ^ (print_instr x))) 
 
 and invoke_method prta pbir cn ms mbir mstack ms_stack this_ms = 
   let cmi = JProgram.get_concrete_method (JProgram.get_node pbir cn) ms in
   let () = Stack.push mbir mstack in
   let () = Stack.push this_ms ms_stack in
   let _ = map_concrete_method ~force:true (start prta pbir mstack ms_stack (cmi.cm_class_method_signature)) cmi in
+  let _ = Stack.pop mstack in 
+  ignore(Stack.pop ms_stack)
+
+let rec signals prta pbir mstack ms_stack this_ms mbir =
+  (* These are all the new statements for some objects *)
+  let snpcs = find_alli (function New (_,cn,_,_) -> cn_equal cn signal_class_name | _ -> false) (code mbir) in
+  let bcn = pc_ir2bc mbir in
+  let snpcs = Array.map (fun x -> [bcn.(x-1)]) snpcs in
+  let nmap = Array.map (fun x -> ClassMethodMap.add this_ms [x] ClassMethodMap.empty) snpcs in
+  let nmap = Array.fold_left (fun r x -> ClassMethodMap.merge (@) x r) ClassMethodMap.empty nmap in
+  global_replace := nmap :: !global_replace;
+  (* Now iterate throw the rest of the calls made from this method *)
+  Array.iter (function
+	       | InvokeStatic (_,cn,ms,_) -> 
+		  sinvoke_method prta pbir mstack ms_stack cn ms this_ms mbir 
+	       | InvokeVirtual (_,_,VirtualCall (TClass cn),ms,el) -> 
+		  sinvoke_method prta pbir mstack ms_stack cn ms this_ms mbir 
+	       | InvokeVirtual (_,_,VirtualCall (TArray cn),ms,el) -> raise (Internal "")
+	       | InvokeVirtual (_,_,InterfaceCall cn,ms,el) -> 
+		  sinvoke_method prta pbir mstack ms_stack cn ms this_ms mbir 
+	       | InvokeNonVirtual(_,_,cn,ms,_) ->
+		   sinvoke_method prta pbir mstack ms_stack cn ms this_ms mbir 
+	       | _ -> ()) (code mbir)
+
+and sinvoke_method prta pbir mstack ms_stack cn ms this_ms mbir =  
+  let cmi = JProgram.get_concrete_method (JProgram.get_node pbir cn) ms in
+  let () = Stack.push mbir mstack in
+  let () = Stack.push this_ms ms_stack in
+  let _ = map_concrete_method ~force:true (signals prta pbir mstack ms_stack (cmi.cm_class_method_signature)) cmi in
   let _ = Stack.pop mstack in 
   ignore(Stack.pop ms_stack)
 
@@ -190,6 +235,17 @@ let main =
     let mobj = JProgram.get_concrete_method obj JProgram.main_signature in
     let ss = Stack.create () in
     let ms_ss = Stack.create () in
+
+    (* This function is used to get new opcodes for the signal objects *)
+    ignore(map_concrete_method ~force:true (signals prta pbir ss ms_ss (mobj.cm_class_method_signature)) mobj);
+
+
+    (* From here on we use dataflow analysis to replace new opcodes being passed to signal object's setValue method *)
+    (* NOTE: 
+        1.) Currently we give block space of 5 words (20 bytes) for each new opcode
+        2.) We do not check the worst case object size
+        3.) We do not support objects that themselves have references to other objects, we don't check for this either!
+     *)
     ignore(map_concrete_method ~force:true (start prta pbir ss ms_ss (mobj.cm_class_method_signature)) mobj);
     
     (* Now we are ready to replace the bytecodes!! *)
@@ -206,7 +262,6 @@ let main =
 					   		   let pc = (match JProgram.to_ioc pnode with | JClass x -> x | _ -> raise (Internal "")) in
 					   		   let pool = Array.append pc.c_consts [|ConstValue (ConstInt (Int32.of_int !hADDRESS))|] in
 					   		   pc.c_consts <- pool;
-							   let () = print_endline (string_of_int (List.length rl)) in
 					   		   let r =
 					   		     List.fold_left
 					   		       (fun r x ->
