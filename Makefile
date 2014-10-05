@@ -1,4 +1,4 @@
-CCC ?= ocamlopt -g -annot -ccopt -O3 -ccopt -mtune=native -ccopt -flto
+CCC ?= ocamlopt -g -S -inline 20 -nodynlink -annot -ccopt -O3 -ccopt -mtune=native -ccopt -flto
 JAVALIBDIR=`ocamlfind query javalib`
 SRCO=live_ref.ml
 SRCN=joplang.ml wcma.ml
@@ -13,4 +13,4 @@ live_ref:
 
 
 clean:
-	rm -rf *.cm* *.o *.a wcma waa *.annot *.ini *.log live_ref *.class
+	rm -rf *.cm* *.o *.a wcma waa *.annot *.ini *.log live_ref *.class *.s
