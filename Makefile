@@ -1,6 +1,6 @@
 CCC ?= ocamlopt -g -S -inline 20 -nodynlink -annot -ccopt -O3 -ccopt -mtune=native -ccopt -flto
 JAVALIBDIR=`ocamlfind query javalib`
-SRCO=live_ref.ml
+SRCO=live_ref.ml myReachDef.ml
 SRCN=joplang.ml wcma.ml
 all: wcma live_ref
 
