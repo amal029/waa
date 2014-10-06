@@ -119,17 +119,16 @@ let init params =
     Ptmap.empty
 
 let collect_fields m = 
-  pp := 
-    (Array.fold_left 
-       (fun l x ->
-	match x with
-	| JBir.AffectField (_,cn,fs,_) -> (make_cfs cn fs) :: l
-	| JBir.AffectStaticField (cn,fs,_) -> (make_cfs cn fs) :: l
-	| _ -> l) [] (JBir.code m)
-     |> List.rev)
+  Array.fold_left 
+    (fun l x ->
+     match x with
+     | JBir.AffectField (_,cn,fs,_) -> (make_cfs cn fs) :: l
+     | JBir.AffectStaticField (cn,fs,_) -> (make_cfs cn fs) :: l
+     | _ -> l) [] (JBir.code m)
+  |> List.rev
 
 let run m =
-  let () = collect_fields m in
+  pp := collect_fields m; 
     Iter.run 
       {
 	Iter.bot = Lat.bot ;

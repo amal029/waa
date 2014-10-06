@@ -19,7 +19,8 @@ let usage_msg = "Usage: live_ref class-path class-name
 (* The global list of new bytecodes program points to replace *)
 let global_replace = ref []
 
-let hADDRESS = ref 512000000
+let hADDRESS = ref (8388608/2)
+(* let hADDRESS = ref 8388608 *)
 
 exception Internal of string
 exception Not_supported of string
@@ -183,7 +184,10 @@ and invoke_method prta pbir cn ms mbir mstack ms_stack this_ms =
   let cmi = JProgram.get_concrete_method (JProgram.get_node pbir cn) ms in
   let () = Stack.push mbir mstack in
   let () = Stack.push this_ms ms_stack in
-  let _ = map_concrete_method ~force:true (start prta pbir mstack ms_stack (cmi.cm_class_method_signature)) cmi in
+  let _ = 
+    try
+      ignore(map_concrete_method ~force:true (start prta pbir mstack ms_stack (cmi.cm_class_method_signature)) cmi) 
+    with Not_found -> () in
   let _ = Stack.pop mstack in 
   ignore(Stack.pop ms_stack)
 
@@ -212,7 +216,12 @@ and sinvoke_method prta pbir mstack ms_stack cn ms this_ms mbir =
   let cmi = JProgram.get_concrete_method (JProgram.get_node pbir cn) ms in
   let () = Stack.push mbir mstack in
   let () = Stack.push this_ms ms_stack in
-  let _ = map_concrete_method ~force:true (signals prta pbir mstack ms_stack (cmi.cm_class_method_signature)) cmi in
+  let _ = 
+    try
+      ignore(map_concrete_method ~force:true (signals prta pbir mstack ms_stack (cmi.cm_class_method_signature)) cmi)
+    with
+    | Not_found -> () in
+
   let _ = Stack.pop mstack in 
   ignore(Stack.pop ms_stack)
 
