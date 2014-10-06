@@ -24,10 +24,14 @@ open Javalib_pack
 open Javalib
 open JBasics
 open Sawja_pack
+module H = BatHashtbl
 
+
+(* This is the piping operator *)
+let (|>) x f = f x
+let pp = ref []
 
 module Lat = struct
-  (* canonic lattice on (JBir.var -> Powerset(PC)) *)
   type t = Ptset.t Ptmap.t
 
   let bot = Ptmap.empty
@@ -43,9 +47,14 @@ module Lat = struct
       (fun i s b -> b && Ptset.subset s (get m2 i))
       m1 true
 
-  let get m x = get m (JBir.index x)
+  let get m x = 
+    let (p,_) = List.findi (fun _ y -> x=y) !pp in
+    get m p
 
   let to_string code ab =
+    let cfs_name x = 
+      let (x,y) = cfs_split x in
+      Printf.sprintf "%s.%s" (cn_name x) (fs_name y) in
     let print i =
       if i < 0 then "?" else string_of_int i in
     let set_to_string s =
@@ -53,10 +62,13 @@ module Lat = struct
 	| [] -> "{}"
 	| [x] -> Printf.sprintf "{%s}" x
 	| x::q -> Printf.sprintf "{%s%s}" x (List.fold_right (fun x s -> ","^x^s) q "")	 in
-      Ptmap.fold (fun i set -> Printf.sprintf "%s:%s %s"
-		    (JBir.var_name_g ((JBir.vars code).(i)))
-		    (set_to_string set)) ab ""
+    Ptmap.fold (fun i set ->
+		Printf.sprintf "%s:%s %s"
+			       (cfs_name (Array.of_list !pp).(i))
+	       		       (set_to_string set)
+	       ) ab ""
 end
+
 
 let foldi f x0 t = 
   let n = Array.length t in
@@ -68,19 +80,19 @@ let foldi f x0 t =
 type pc = int
 type transfer = 
   | Nop
-  | KillGen of  class_field_signature * int
+  | KillGen of class_field_signature * int
 
 let transfer_to_string = function 
   | Nop -> "Nop"
   | KillGen (x,i) -> 
      let (x,y) = cfs_split x in
-     Printf.sprintf "KillGen(%s%s,%d)" (cn_name x) (fs_name y) i
+     Printf.sprintf "KillGen(%s.%s,%d)" (cn_name x) (fs_name y) i
       
 let eval_transfer = function
   | Nop -> (fun ab -> ab)
   | KillGen (x,i) -> 
-     let (x,y) = cfs_split x in
-     Ptmap.add ((cn_hash x) + (fs_hash y)) (Ptset.singleton i) 
+     let (p,_) = List.findi (fun _ y -> x=y) !pp in
+     Ptmap.add p (Ptset.singleton i)
 
 (* [gen_instrs last i] computes a list of transfert function [(f,j);...] with
    [j] the successor of [i] for the transfert function [f]. *)
@@ -89,16 +101,16 @@ let gen_instrs i = function
   | JBir.Goto j -> [Nop,j]
   | JBir.Throw _
   | JBir.Return _  -> []
+  | JBir.AffectStaticField (cn,fs,_) -> [KillGen ((make_cfs cn fs),i),i+1]
+  | JBir.AffectField (_,cn,fs,_) -> [KillGen ((make_cfs cn fs),i),i+1]
   | JBir.AffectVar _  
   | JBir.NewArray _ 
   | JBir.New _ 
   | JBir.InvokeStatic _ 
   | JBir.InvokeVirtual _ 
-  | JBir.InvokeNonVirtual _ -> [Nop,i+1]
+  | JBir.InvokeNonVirtual _ 
   | JBir.MonitorEnter _
-  | JBir.MonitorExit _ -> [Nop,i+1]
-  | JBir.AffectStaticField (cn,fs,_) -> [KillGen ((make_cfs cn fs),i),i+1]
-  | JBir.AffectField (_,cn,fs,_) -> [KillGen ((make_cfs cn fs),i),i+1]
+  | JBir.MonitorExit _ 
   | JBir.AffectArray _
   | JBir.MayInit _ 
   | JBir.Check _
@@ -118,13 +130,26 @@ let gen_symbolic (m:JBir.t) : (pc * transfer * pc) list =
 let unknown = -1 
 
 let init params =
+  let i = ref (-1) in
   List.fold_right
-    (fun (_,x) -> Ptmap.add (JBir.index x) (Ptset.singleton unknown))
+    (fun x -> 
+     i := !i + 1;
+     Ptmap.add !i (Ptset.singleton unknown))
     params
     Ptmap.empty
 
+let collect_fields m = 
+  pp := 
+    (Array.fold_left 
+       (fun l x ->
+	match x with
+	| JBir.AffectField (_,cn,fs,_) -> (make_cfs cn fs) :: l
+	| JBir.AffectStaticField (cn,fs,_) -> (make_cfs cn fs) :: l
+	| _ -> l) [] (JBir.code m)
+     |> List.rev)
+
 let run m =
-  let init = init (JBir.params m) in
+  let () = collect_fields m in
     Iter.run 
       {
 	Iter.bot = Lat.bot ;
@@ -136,7 +161,7 @@ let run m =
 	Iter.workset_strategy = Iter.Incr;
 	Iter.cstrs = gen_symbolic m;
 	Iter.init_points = [0];
-	Iter.init_value = (fun _ -> init); (* useless here since we iterate from bottom *)
+	Iter.init_value = (fun _ -> Ptmap.empty);
 	Iter.verbose = false;
 	Iter.dom_to_string = Lat.to_string m;
 	Iter.transfer_to_string = transfer_to_string

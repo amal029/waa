@@ -39,6 +39,7 @@ let find_alli f l =
   Array.map (function Some x -> x | None -> raise (Internal "")) ret
 
 let du t pc v = ReachDef.Lat.get (ReachDef.run t pc) v |> Ptset.elements
+let duf t pc v = MyReachDef.Lat.get (MyReachDef.run t pc) v |> Ptset.elements
 
 let liveness t pc = Live_bir.run t pc |> Live_bir.Env.elements 
 
@@ -142,9 +143,9 @@ and fielddefpcs map cms mstack ms_stack mbir pc cn fs x =
      pointed to by some reference "r" used in setValue(r).  IFF: there
      is no other field "t" that holds the same reference, i.e., there
      should be no pointer aliasing
-
-    Because of the aforementioned reason we do a very conservative (but
-   too much) memory allocation.  *)
+    *)
+  let ress = duf mbir pc (make_cfs cn fs) in
+  let () = List.iter (print_endline >> string_of_int) ress in
   let pcs = find_alli 
 	      (function
 		| AffectField (e,cn',fs',e') -> 
