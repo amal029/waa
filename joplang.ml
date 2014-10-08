@@ -72,4 +72,4 @@ type jop_microcode =
   | Cinval 			(* Cache invalidate instruction, is this mem-instruction?? *)
 
 
-let mem_instr = [|Stps; Stmra; Stmwa; Stmrac; Ldmrd; Ldbcstart; Stmwd; Stald; Stast; Stgf; Stpf; Stcp; Stbcrd; Stgs; Stmraf; Wait|]
+let mem_instr = [|Ldm; Stps; Stmra; Stmwa; Stmrac; Ldmrd; Ldbcstart; Stmwd; Stald; Stast; Stgf; Stpf; Stcp; Stbcrd; Stgs; Stmraf; Wait|]

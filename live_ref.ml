@@ -19,7 +19,8 @@ let usage_msg = "Usage: live_ref class-path class-name
 (* The global list of new bytecodes program points to replace *)
 let global_replace = ref []
 
-let hADDRESS = ref (8388608/2)
+let mtab_len = 5
+let hADDRESS = ref (57536+8000)
 (* let hADDRESS = ref 8388608 *)
 
 exception Internal of string
@@ -146,7 +147,7 @@ and fielddefpcs map cms mstack ms_stack mbir pc cn fs x =
      should be no pointer aliasing
     *)
   let ress = duf mbir pc (make_cfs cn fs) in
-  let () = List.iter (print_endline >> string_of_int) ress in
+  (* let () = List.iter (print_endline >> string_of_int) ress in *)
   let pcs = find_alli 
 	      (function
 		| AffectField (e,cn',fs',e') -> 
@@ -195,7 +196,7 @@ let rec signals prta pbir mstack ms_stack this_ms mbir =
   (* These are all the new statements for some objects *)
   let snpcs = find_alli (function New (_,cn,_,_) -> cn_equal cn signal_class_name | _ -> false) (code mbir) in
   let bcn = pc_ir2bc mbir in
-  let snpcs = Array.map (fun x -> [bcn.(x-1)]) snpcs in
+  let snpcs = Array.map (fun x -> [bcn.(x-1)]) snpcs |> Array.rev in
   let nmap = Array.map (fun x -> ClassMethodMap.add this_ms [x] ClassMethodMap.empty) snpcs in
   let nmap = Array.fold_left (fun r x -> ClassMethodMap.merge (@) x r) ClassMethodMap.empty nmap in
   global_replace := nmap :: !global_replace;
@@ -264,30 +265,97 @@ let main =
     (* Replace them bytecodes *)
     let prta = ClassMethodMap.fold 
 		 (fun k v prta ->
-		  JProgram.map_program2 (fun pnode cm javacode -> 
-					 if (cms_equal k cm.cm_class_method_signature) then
-					   (* Changing the new instruction here!! *)
-					   List.fold_left (fun jt rl ->
-					   		   (* Extend the constant pool!! *)
-					   		   let pc = (match JProgram.to_ioc pnode with | JClass x -> x | _ -> raise (Internal "")) in
-					   		   let pool = Array.append pc.c_consts [|ConstValue (ConstInt (Int32.of_int !hADDRESS))|] in
-					   		   pc.c_consts <- pool;
-					   		   let r =
-					   		     List.fold_left
-					   		       (fun r x ->
-					   			let fa = Array.filteri (fun i _ -> (i<x)) r in
-					   			let sa = Array.filteri (fun i _ -> (i>x)) r in
-					   			let xx = [|JInstruction.opcode2instruction
-					   				     pc.c_consts (JClassLow.OpLdc1 ((Array.length pc.c_consts) - 1))|] in
-					   			Array.append (Array.append fa xx) sa
-					   		       )jt.c_code rl in
-					   		   hADDRESS := !hADDRESS - 5; (* Get rid of 5 words *)
-					   		   {jt with c_code = r}
-					   		  ) javacode v
-					else javacode) None prta
+		  JProgram.map_program2 
+		    (fun pnode cm javacode -> 
+		     if (cms_equal k cm.cm_class_method_signature) 
+		     then
+		       (* Changing the new instruction here!! *)
+		       List.fold_left 
+			 (fun jt rl ->
+			  (* Extend the constant pool!! *)
+			  let pc = (match JProgram.to_ioc pnode with | JClass x -> x | _ -> raise (Internal "")) in
+			  hADDRESS := !hADDRESS - 5; (* Get rid of 5 words *)
+			  let pool = Array.append pc.c_consts [|ConstValue (ConstInt (Int32.of_int !hADDRESS))|] in
+			  pc.c_consts <- pool;
+			  let r =
+			    List.fold_left
+			      (fun r x ->
+			       let cpool1 = DynArray.init (Array.length pool) (fun i -> pool.(i)) in
+			       let newinstr = r.(x) in
+			       (* Change to low level format to get the index in the constant pool *)
+			       (* Should be encoded in 3 bytes max *)
+			       let newinstrlow = JInstruction.instruction2opcode cpool1 3 newinstr in
+			       let poolindex = (match newinstrlow with 
+						| JClassLow.OpNew x -> x
+						| _ as op -> raise (Internal ("Encode incorrectly: " ^ (JDumpLow.opcode op)))) in
+			       let fa = Array.filteri (fun i _ -> (i<x)) r in
+			       let fa = Array.mapi 
+					  (fun rr ff ->
+					   (match ff with
+					    | OpIfCmp (xx,target) as s -> if (rr + target) = x then s 
+									  else if (rr+target) > x then OpIfCmp (xx,(target+12))
+									  else s
+					    | OpIf (xx,target) as s -> if (rr+target) = x then s 
+								       else if (rr+target) > x then OpIf (xx,(target+12))
+								       else s
+					    | OpGoto target as s -> if (rr+target) = x then s 
+								    else if (rr+target) > x then OpGoto (target + 12)
+								    else s
+					    | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
+					    | _ as s -> s
+					  )) fa in
+			       let sa = Array.filteri (fun i _ -> (i>x+2)) r in
+			       let sa = Array.mapi 
+					  (fun rr ff ->
+					   let mindex = x + 3 + rr in
+					   (match ff with
+					    | OpIfCmp (xx,target) as s -> if (mindex + target) = x then s 
+									  else if (mindex + target) < x then OpIfCmp (xx,(target-12))
+									  else s
+					    | OpIf (xx,target) as s -> if (mindex + target) = x then s 
+								       else if (mindex + target) < x then OpIf (xx,(target-12))
+								       else s
+					    | OpGoto target as s -> 
+					       if (mindex + target) = x then s 
+					       else if (mindex + target) < x then OpGoto (target - 12)
+					       else s
+					    | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
+					    | _ as s -> s
+					  )) sa in
+			       let xx = [|
+				   (* This is the instruction sequence that replaces new after deleting it *)
+				   JInstruction.opcode2instruction
+				     pc.c_consts (JClassLow.OpLdc1 ((Array.length pc.c_consts) - 1));
+				   OpInvalid; (* 2 bytes *)
+
+				   OpDup; (* 1 byte *)
+				   
+				   OpConst (`Byte 1); OpInvalid; (* 2 byte *)
+				   
+				   OpAdd `Int2Bool; (* 1 byte *)
+				   
+				   JInstruction.opcode2instruction pc.c_consts (JClassLow.OpLdc1 poolindex); 
+				   OpInvalid; (* 2 bytes *)
+				   
+				   OpConst (`Byte mtab_len); OpInvalid; (* 2 bytes *)
+				   
+				   OpAdd `Int2Bool; (* 1 byte *)
+				   
+				   OpSwap; (* 1 byte *)
+				   
+				   OpInvoke ((`Static (make_cn "com.jopdesign.sys.Native")),
+					    (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
+				   OpInvalid; OpInvalid (* 3 bytes *)
+
+				  |] in
+			       Array.append (Array.append fa xx) sa
+			      )jt.c_code rl in
+			  {jt with c_code = r}
+			 ) javacode v
+		     else javacode) None prta
 		 ) global_replace prta in
     (* JPrint.print_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) JPrint.jcode stdout; *)
+    (* JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout; *)
     unparse_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) (open_out_bin (cn^".class"));
-    JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout
   with 
   | Internal _ -> ()
