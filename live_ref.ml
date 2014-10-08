@@ -127,56 +127,44 @@ let rec start prta pbir mstack ms_stack this_ms mbir =
  2.) Need to consider if the var itself is being set from a field or another var.
  *)
 and vardefpcs map cms mstack ms_stack mbir pc v x = 
+  ClassMethodMap.add 
+    cms [fvardefpcs map cms mstack ms_stack mbir pc v x] map
+
+and fvardefpcs map cms mstack ms_stack mbir pc v x =
   let defpcs = du mbir pc v in
   let lm = List.map (isnew mbir) defpcs in
   let bcn = pc_ir2bc mbir in
   if List.fold_left (&&) true lm then 
-    ClassMethodMap.add cms [(List.map (fun x -> bcn.(x-1)) defpcs)] map
+    List.map (fun x -> bcn.(x-1)) defpcs
   else 
     (* FIXME: this needs to change to do interprocedural analysis *)
     raise (Not_supported ("new outside of current method: " ^ (print_instr x)))
 
+(* FIXME: Need to do pointer aliasing analysis.
+ *)
 and fielddefpcs map cms mstack ms_stack mbir pc cn fs x =
-  let instrs = code mbir 
-	       |> Array.filteri (fun i _ -> (i < pc)) 
-	       |> Array.rev in
-  (* FIXME: The below can be made better by doing UD chains on fields.
-     NOTE: We can re-use the memory for if-else new opcodes being
-     pointed to by some reference "r" used in setValue(r).  IFF: there
-     is no other field "t" that holds the same reference, i.e., there
-     should be no pointer aliasing
-    *)
-  let ress = duf mbir pc (make_cfs cn fs) in
-  (* let () = List.iter (print_endline >> string_of_int) ress in *)
-  let pcs = find_alli 
-	      (function
-		| AffectField (e,cn',fs',e') -> 
-		   cfs_equal (make_cfs cn' fs') (make_cfs cn fs)
-		| AffectStaticField (cn',fs',e') -> 
-		   cfs_equal (make_cfs cn' fs') (make_cfs cn fs)
-		| _ -> false) instrs in
-  if Array.length pcs <> 0 then
+  let pcs = duf mbir pc (make_cfs cn fs) in
+  if List.length pcs <> 0 then
     let ret = 
-      Array.map 
-	(fun pc'->
-	 let pc' = pc - (pc' + 1) in
+      Array.fold_left 
+	(fun res pc'->
 	 (* Give the result back! *)
 	 match (code mbir).(pc') with
 	 | AffectField (e,cn',fs',e') as s -> 
 	    let vars = liveness mbir pc' in
 	    if List.length vars = 1 then
-	      vardefpcs map cms mstack ms_stack mbir pc' (List.hd vars) x
+	      res @ (fvardefpcs map cms mstack ms_stack mbir pc' (List.hd vars) x)
 	    else
 	      raise (Internal ("Field being set with more than one var!: " ^ (print_instr s)))
 	 | AffectStaticField (cn',fs',e') as s -> 
 	    let vars = liveness mbir pc' in
 	    if List.length vars = 1 then
-	      vardefpcs map cms mstack ms_stack mbir pc' (List.hd vars) x
+	      res @ (fvardefpcs map cms mstack ms_stack mbir pc' (List.hd vars) x)
 	    else
 	      raise (Internal ("Field being set with more than one var!: " ^ (print_instr s)))
-	 | _ -> raise (Internal "")
-	) pcs in
-    Array.fold_left (fun r x -> ClassMethodMap.merge (@) x r) ClassMethodMap.empty ret
+	 | _ as s -> raise (Internal (print_instr s))
+	) [] (Array.of_list pcs) in
+    ClassMethodMap.add cms [ret] map
   else
     (* FIXME: this needs to change to do interprocedural analysis *)
     raise (Not_supported ("Field initialized outside of current method: " ^ (print_instr x))) 
@@ -259,6 +247,7 @@ let main =
      *)
     ignore(map_concrete_method ~force:true (start prta pbir ss ms_ss (mobj.cm_class_method_signature)) mobj);
     
+    (* JPrint.print_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) JPrint.jcode stdout; *)
     (* Now we are ready to replace the bytecodes!! *)
     let global_replace = !global_replace in
     let global_replace = List.fold_left (fun r x -> ClassMethodMap.merge (@) x r) ClassMethodMap.empty global_replace in
@@ -277,17 +266,22 @@ let main =
 			  hADDRESS := !hADDRESS - 5; (* Get rid of 5 words *)
 			  let pool = Array.append pc.c_consts [|ConstValue (ConstInt (Int32.of_int !hADDRESS))|] in
 			  pc.c_consts <- pool;
+			  let ndone = ref [] in
 			  let r =
 			    List.fold_left
 			      (fun r x ->
 			       let cpool1 = DynArray.init (Array.length pool) (fun i -> pool.(i)) in
+			       let x = List.fold_left (fun _ t -> if x > t then x + 12 else x) x !ndone in
+			       ndone := x :: !ndone;
 			       let newinstr = r.(x) in
 			       (* Change to low level format to get the index in the constant pool *)
 			       (* Should be encoded in 3 bytes max *)
 			       let newinstrlow = JInstruction.instruction2opcode cpool1 3 newinstr in
 			       let poolindex = (match newinstrlow with 
 						| JClassLow.OpNew x -> x
-						| _ as op -> raise (Internal ("Encode incorrectly: " ^ (JDumpLow.opcode op)))) in
+						| _ as op -> 
+						   print_endline ("Looking for new opcode, found: " ^ (JDumpLow.opcode op));
+						   raise (Internal ("Encode incorrectly as byte: " ^ (string_of_int x)))) in
 			       let fa = Array.filteri (fun i _ -> (i<x)) r in
 			       let fa = Array.mapi 
 					  (fun rr ff ->
@@ -344,7 +338,7 @@ let main =
 				   OpSwap; (* 1 byte *)
 				   
 				   OpInvoke ((`Static (make_cn "com.jopdesign.sys.Native")),
-					    (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
+					     (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
 				   OpInvalid; OpInvalid (* 3 bytes *)
 
 				  |] in
@@ -355,7 +349,7 @@ let main =
 		     else javacode) None prta
 		 ) global_replace prta in
     (* JPrint.print_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) JPrint.jcode stdout; *)
-    (* JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout; *)
+    JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout;
     unparse_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) (open_out_bin (cn^".class"));
   with 
-  | Internal _ -> ()
+  | Internal _ as s -> raise s
