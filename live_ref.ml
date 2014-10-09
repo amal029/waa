@@ -147,7 +147,7 @@ and vfielddefpcs map cms mstack ms_stack mbir pc cn fs x =
   let fsl = List.map (fun x -> let (_,y) = cfs_split x in y) fsl in
   (* remove the fs from fsl *)
   let fsl = List.filter (not >> (fs_equal fs)) fsl in
-  let () = List.iter (print_endline >> fs_name) fsl in
+  (* let () = List.iter (print_endline >> fs_name) fsl in *)
   let pcs = duf mbir pc (make_cfs cn fs) in
   if List.length pcs <> 0 then
     Array.fold_left 
@@ -278,8 +278,9 @@ let main =
 			    List.fold_left
 			      (fun r x ->
 			       let cpool1 = DynArray.init (Array.length pool) (fun i -> pool.(i)) in
-			       let x = List.fold_left (fun _ t -> if x > t then x + 12 else x) x !ndone in
-			       ndone := x :: !ndone;
+			       let ox = x in
+			       let x = List.fold_left (fun x t -> if x > t then x + 12 else x) x !ndone in
+			       ndone := ox :: !ndone;
 			       let newinstr = r.(x) in
 			       (* Change to low level format to get the index in the constant pool *)
 			       (* Should be encoded in 3 bytes max *)
@@ -356,7 +357,7 @@ let main =
 		     else javacode) None prta
 		 ) global_replace prta in
     (* JPrint.print_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) JPrint.jcode stdout; *)
-    JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout;
+    (* JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout; *)
     unparse_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) (open_out_bin (cn^".class"));
   with 
   | Internal _ as s -> raise s
