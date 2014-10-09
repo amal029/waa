@@ -142,32 +142,39 @@ and fvardefpcs map cms mstack ms_stack mbir pc v x =
 
 (* FIXME: Need to do pointer aliasing analysis.
  *)
-and fielddefpcs map cms mstack ms_stack mbir pc cn fs x =
+and vfielddefpcs map cms mstack ms_stack mbir pc cn fs x =
+  let fsl = MyReachDef.collect_fields mbir in
+  let fsl = List.map (fun x -> let (_,y) = cfs_split x in y) fsl in
+  (* remove the fs from fsl *)
+  let fsl = List.filter (not >> (fs_equal fs)) fsl in
+  let () = List.iter (print_endline >> fs_name) fsl in
   let pcs = duf mbir pc (make_cfs cn fs) in
   if List.length pcs <> 0 then
-    let ret = 
-      Array.fold_left 
-	(fun res pc'->
-	 (* Give the result back! *)
-	 match (code mbir).(pc') with
-	 | AffectField (e,cn',fs',e') as s -> 
-	    let vars = liveness mbir pc' in
-	    if List.length vars = 1 then
-	      res @ (fvardefpcs map cms mstack ms_stack mbir pc' (List.hd vars) x)
-	    else
-	      raise (Internal ("Field being set with more than one var!: " ^ (print_instr s)))
-	 | AffectStaticField (cn',fs',e') as s -> 
-	    let vars = liveness mbir pc' in
-	    if List.length vars = 1 then
-	      res @ (fvardefpcs map cms mstack ms_stack mbir pc' (List.hd vars) x)
-	    else
-	      raise (Internal ("Field being set with more than one var!: " ^ (print_instr s)))
-	 | _ as s -> raise (Internal (print_instr s))
-	) [] (Array.of_list pcs) in
-    ClassMethodMap.add cms [ret] map
+    Array.fold_left 
+      (fun res pc'->
+       (* Give the result back! *)
+       match (code mbir).(pc') with
+       | AffectField (e,cn',fs',e') as s -> 
+	  let vars = liveness mbir pc' in
+	  if List.length vars = 1 then
+	    res @ (fvardefpcs map cms mstack ms_stack mbir pc' (List.hd vars) x)
+	  else
+	    raise (Internal ("Field being set with more than one var!: " ^ (print_instr s)))
+       | AffectStaticField (cn',fs',e') as s -> 
+	  let vars = liveness mbir pc' in
+	  if List.length vars = 1 then
+	    res @ (fvardefpcs map cms mstack ms_stack mbir pc' (List.hd vars) x)
+	  else
+	    raise (Internal ("Field being set with more than one var!: " ^ (print_instr s)))
+       | _ as s -> raise (Internal (print_instr s))
+      ) [] (Array.of_list pcs) 
   else
     (* FIXME: this needs to change to do interprocedural analysis *)
     raise (Not_supported ("Field initialized outside of current method: " ^ (print_instr x))) 
+
+and fielddefpcs map cms mstack ms_stack mbir pc cn fs x =
+    ClassMethodMap.add 
+      cms [vfielddefpcs map cms mstack ms_stack mbir pc cn fs x] map
 
 and invoke_method prta pbir cn ms mbir mstack ms_stack this_ms = 
   let cmi = JProgram.get_concrete_method (JProgram.get_node pbir cn) ms in
