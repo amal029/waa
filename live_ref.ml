@@ -147,7 +147,25 @@ and vfielddefpcs map cms mstack ms_stack mbir pc cn fs x =
   let fsl = List.map (fun x -> let (_,y) = cfs_split x in y) fsl in
   (* remove the fs from fsl *)
   let fsl = List.filter (not >> (fs_equal fs)) fsl in
-  (* let () = List.iter (print_endline >> fs_name) fsl in *)
+  let () = List.iter (print_endline >> JPrint.field_signature) fsl in
+  let fslv = Array.mapi 
+	       (fun pc' x ->
+		match x with
+		| AffectField (e,cn',fs',e')
+		     when List.exists ((=) fs') fsl -> 
+		   let vars = liveness mbir pc' in
+		   if List.length vars = 1 then Some (List.hd vars)
+		   else None
+		| AffectStaticField (cn',fs',e') as s 
+		     when List.exists ((=) fs') fsl -> 
+		   let vars = liveness mbir pc' in
+		   if List.length vars = 1 then Some (List.hd vars)
+		   else None
+		| _ -> None) (code mbir) in
+  let fslv = Array.filter (function | Some _ -> true | None -> false) fslv in
+  let fslv = Array.map (function | Some x -> x 
+			  | None -> raise (Internal "")) fslv in
+  (* Solve this later, make this more concise *)
   let pcs = duf mbir pc (make_cfs cn fs) in
   if List.length pcs <> 0 then
     Array.fold_left 
@@ -252,6 +270,7 @@ let main =
         2.) We do not check the worst case object size
         3.) We do not support objects that themselves have references to other objects, we don't check for this either!
     *)
+    JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout;
     ignore(map_concrete_method ~force:true (start prta pbir ss ms_ss (mobj.cm_class_method_signature)) mobj);
 
     (* JPrint.print_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) JPrint.jcode stdout; *)
@@ -276,9 +295,9 @@ let main =
                        let ndone = ref [] in
                        let lnt = match jt.JCode.c_line_number_table with 
                          | Some x -> x 
-                         | None -> failwith ("Could not find the line number table of "^(JPrint.class_method_signature cm.Javalib.cm_class_method_signature))
+                         | None -> failwith  
+				     ("Could not find the line number table of "^(JPrint.class_method_signature cm.Javalib.cm_class_method_signature))
                        in
-                       let lntr = lnt in
                        let (r,lnt) =
                          List.fold_left
                            (fun (r,lnt) x ->
@@ -367,7 +386,6 @@ let main =
                 else javacode) None prta
         ) global_replace prta in
     (* JPrint.print_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) JPrint.jcode stdout; *)
-    (* JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout; *)
     unparse_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) (open_out_bin (cn^".class"));
   with 
-  | Internal _ as s -> raise s
+  | Internal _-> ()
