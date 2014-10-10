@@ -278,7 +278,7 @@ let main =
                          | Some x -> x 
                          | None -> failwith ("Could not find the line number table of "^(JPrint.class_method_signature cm.Javalib.cm_class_method_signature))
                        in
-                       let lntr = ref [] in
+                       let lntr = lnt in
                        let (r,lnt) =
                          List.fold_left
                            (fun (r,lnt) x ->
@@ -288,10 +288,7 @@ let main =
                               ndone := ox :: !ndone;
 
                               (* Increasing line numbers *)
-                              let (bl,sl) = List.find (fun (bl,sl) -> bl <= ox ) lnt in
-                              let lnt = List.map (fun ((bll,sll) as x) -> if bll > bl then (bll+12,sll) else x ) lnt in
-                              print_endline ("ooo");
-                              List.iter(fun (bl,sl) -> print_endline ((string_of_int bl)^" "^(string_of_int sl))) lnt;
+                              let lnt = List.map (fun ((bll,sll) as y) -> if bll > x then (bll+12,sll) else y ) lnt in
                               (* ------ done *)
 
                               let newinstr = r.(x) in
