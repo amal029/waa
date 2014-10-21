@@ -144,11 +144,14 @@ and hexpr map cms mstack ms_stack mbir pc x = function
      |> List.flatten |> List.unique
 
 and others map cms mstack ms_stack mbir x pc = 
-  match (code mbir).(pc) with
-  | AffectVar (_,e) as s -> 
-     hexpr map cms mstack ms_stack mbir pc s e
-  | New _ | NewArray _ -> [(pc_ir2bc mbir).(pc - 1)]
-  | _ as s -> raise (Internal ("Can't handle: " ^ (print_instr s)))
+  if pc >= 0 then
+    match (code mbir).(pc) with
+    | AffectVar (_,e) as s -> 
+       hexpr map cms mstack ms_stack mbir pc s e
+    | New _ | NewArray _ -> [(pc_ir2bc mbir).(pc - 1)]
+    | _ as s -> raise (Internal ("Can't handle: " ^ (print_instr s)))
+  else
+    raise (Internal ("New outside the current method"))
 
 and fvardefpcs map cms mstack ms_stack mbir pc v x =
   let defpcs = du mbir pc v in
