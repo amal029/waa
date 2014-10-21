@@ -63,17 +63,10 @@ let rec isSignalSetValue ms = function
   | Unop (_,e1) -> isSignalSetValue ms e1 
   | Const _ -> false
 
-
 let rec getargs = function
   | Unop (_,x) -> getargs x
   | Binop (_,x,y) -> (getargs x) @ (getargs y)
   | _ as s -> [s]
-
-let isnew mbir pc = 
-  (match (code mbir).(pc) with
-   | New _ 
-   | NewArray _ -> true
-   | _ -> false)
 
 let rec start prta pbir mstack ms_stack this_ms mbir =
   (* First check if there are any setValue signal class calls in this method using the bir representation! *)
@@ -134,66 +127,96 @@ and vardefpcs map cms mstack ms_stack mbir pc v x =
   ClassMethodMap.add 
     cms [fvardefpcs map cms mstack ms_stack mbir pc v x] map
 
+and hexpr map cms mstack ms_stack mbir pc x = function
+  | Const c -> []
+  | Var (vt, v) -> 
+     fvardefpcs map cms mstack ms_stack mbir pc v x
+  | Unop (_,e) -> 
+     hexpr map cms mstack ms_stack mbir pc x e
+  | Binop (_,e1,e2) -> 
+     (hexpr map cms mstack ms_stack mbir pc x e1)
+     @ (hexpr map cms mstack ms_stack mbir pc x e2)
+  | Field (e,cn,fs) -> 
+     vfielddefpcs map cms mstack ms_stack mbir pc cn fs x
+     |> List.flatten |> List.unique
+  | StaticField (cn,fs) -> 
+     vfielddefpcs map cms mstack ms_stack mbir pc cn fs x
+     |> List.flatten |> List.unique
+
+and others map cms mstack ms_stack mbir x pc = 
+  match (code mbir).(pc) with
+  | AffectVar (_,e) as s -> 
+     hexpr map cms mstack ms_stack mbir pc s e
+  | New _ | NewArray _ -> [(pc_ir2bc mbir).(pc - 1)]
+  | _ as s -> raise (Internal ("Can't handle: " ^ (print_instr s)))
+
 and fvardefpcs map cms mstack ms_stack mbir pc v x =
   let defpcs = du mbir pc v in
-  let lm = List.map (isnew mbir) defpcs in
-  let bcn = pc_ir2bc mbir in
-  if List.fold_left (&&) true lm then 
-    List.map (fun x -> bcn.(x-1)) defpcs
-  else 
-    (* FIXME: this needs to change to do interprocedural analysis *)
-    raise (Not_supported ("new outside of current method: " ^ (print_instr x)))
+  List.map (others map cms mstack ms_stack mbir x) defpcs 
+  |> List.flatten
+  |> List.unique
+
+and getliveness = function
+  | Var (_,v) -> v
+  | _ as s -> raise (Internal ("Currently not supported: " ^ print_expr s))
 
 and vfielddefpcs map cms mstack ms_stack mbir pc cn fs x =
-  let fsl = MyReachDef.collect_fields mbir in
-  let fsl = List.unique fsl in
-  let fsl = List.map (fun x -> let (_,y) = cfs_split x in y) fsl in
-  (* remove the fs from fsl *)
-  let fsl = List.filter (not >> (fs_equal fs)) fsl in
-  (* let () = print_endline "=================" in *)
-  (* let () = (print_endline >> JPrint.field_signature) fs in *)
-  (* let () = List.iter (print_endline >> JPrint.field_signature) fsl in *)
   let fslv = Array.mapi 
 	       (fun pc' x ->
 		match x with
 		| AffectField (e,cn',fs',e')
-		     when List.exists ((=) fs') fsl -> 
+		     when not (fs_equal fs' fs) -> 
 		   let vars = liveness mbir pc' in
-		   if List.length vars = 1 then Some (List.hd vars)
+		   if List.length vars = 1 then Some ((List.hd vars), pc')
 		   else None
 		| AffectStaticField (cn',fs',e')
-		     when List.exists ((=) fs') fsl -> 
+		     when not (fs_equal fs' fs) -> 
 		   let vars = liveness mbir pc' in
-		   if List.length vars = 1 then Some (List.hd vars)
+		   if List.length vars = 1 then Some ((List.hd vars), pc')
 		   else None
 		| _ -> None) (code mbir) in
   let fslv = Array.filter (function | Some _ -> true | None -> false) fslv in
   let fslv = Array.map (function | Some x -> x 
 			| None -> raise (Internal "")) fslv in
-  (* Solve this later, make this more concise *)
   let pcs = duf mbir pc (make_cfs cn fs) in
   if List.length pcs <> 0 then
     Array.fold_left 
       (fun res pc'->
-       (* Give the result back! *)
        match (code mbir).(pc') with
        | AffectField (e,cn',fs',e') as s -> 
-          let vars = liveness mbir pc' in
+          let vars = [getliveness e'] in
 	  let vres = fvardefpcs map cms mstack ms_stack mbir pc' (List.hd vars) x in
           if List.length vars = 1 then
-	    (if Array.exists ((=) (List.hd vars)) fslv then
-	       (List.fold_left (fun r x -> [x] :: r) [] vres) @ res
+	    (if Array.exists (fun (fs'', _) -> (List.hd vars) = fs'') fslv then
+	       let fslvs = Array.filter (fun (fs'', _) -> fs'' = (List.hd vars)) fslv in
+	       let opps = Array.map 
+			    (fun (fs'', pc'') -> fvardefpcs map cms mstack ms_stack mbir pc'' fs'' x) fslvs 
+			  |> Array.fold_left (@) [] 
+			  |> List.fold_left (fun s x -> Ptset.add x s) Ptset.empty in
+	       let vvres = List.fold_left (fun s x -> Ptset.add x s) Ptset.empty vres in
+	       if not (Ptset.equal opps vvres) then
+		 (List.fold_left (fun r x -> [x] :: r) [] vres) @ res
+	       else
+		 [vres] @ res
 	     else
 	       [vres] @ res)
           else
             raise (Internal ("Field being set with more than one var!: " ^ (print_instr s)))
        | AffectStaticField (cn',fs',e') as s -> 
-          let vars = liveness mbir pc' in
+          let vars = [getliveness e'] in
 	  let vres = fvardefpcs map cms mstack ms_stack mbir pc' (List.hd vars) x in
-	  (* let () = List.iter (print_endline >> string_of_int) vres in *)
           if List.length vars = 1 then
-	    (if Array.exists ((=) (List.hd vars)) fslv then
-	       List.fold_left (fun r x -> [x] :: r) [] vres
+	    (if Array.exists (fun (fs'', _) -> (List.hd vars) = fs'') fslv then
+	       let fslvs = Array.filter (fun (fs'', _) -> fs'' = (List.hd vars)) fslv in
+	       let opps = Array.map 
+			    (fun (fs'', pc'') -> fvardefpcs map cms mstack ms_stack mbir pc'' fs'' x) fslvs 
+			  |> Array.fold_left (@) [] 
+			  |> List.fold_left (fun s x -> Ptset.add x s) Ptset.empty in
+	       let vvres = List.fold_left (fun s x -> Ptset.add x s) Ptset.empty vres in
+	       if not (Ptset.equal opps vvres) then
+		 (List.fold_left (fun r x -> [x] :: r) [] vres) @ res
+	       else
+		 [vres] @ res
 	     else
 	       [vres] @ res)
           else
