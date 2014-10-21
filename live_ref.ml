@@ -42,7 +42,12 @@ let find_alli f l =
   Array.map (function Some x -> x | None -> raise (Internal "")) ret
 
 let du t pc v = ReachDef.Lat.get (ReachDef.run t pc) v |> Ptset.elements
-let duf t pc v = MyReachDef.Lat.get (MyReachDef.run t pc) v |> Ptset.elements
+let duf t pc v = 
+  try
+    MyReachDef.Lat.get (MyReachDef.run t pc) v |> Ptset.elements
+  with
+  | _ -> []
+
 
 let liveness t pc = Live_bir.run t pc |> Live_bir.Env.elements 
 
@@ -449,7 +454,7 @@ let main =
 			 ) javacode v
                      else javacode) None prta
 		 ) global_replace prta in
-    JPrint.print_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) JPrint.jcode stdout;
+    (* JPrint.print_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) JPrint.jcode stdout; *)
     unparse_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) (open_out_bin (cn^".class"));
   with 
   | NARGS -> ()

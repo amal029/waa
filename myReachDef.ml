@@ -39,14 +39,13 @@ module Lat = struct
       if i < 0 then "?" else string_of_int i in
     let set_to_string s =
       match List.map print (Ptset.elements s) with
-	| [] -> "{}"
-	| [x] -> Printf.sprintf "{%s}" x
-	| x::q -> Printf.sprintf "{%s%s}" x (List.fold_right (fun x s -> ","^x^s) q "")	 in
+      | [] -> "{}"
+      | [x] -> Printf.sprintf "{%s}" x
+      | x::q -> Printf.sprintf "{%s%s}" x (List.fold_right (fun x s -> ","^x^s) q "")	 in
     Ptmap.fold (fun i set ->
 		Printf.sprintf "%s:%s %s"
 			       (cfs_name (Array.of_list !pp).(i))
-	       		       (set_to_string set)
-	       ) ab ""
+	       		       (set_to_string set)) ab ""
 end
 
 
@@ -55,7 +54,7 @@ let foldi f x0 t =
   let rec aux i = 
     if i>=n then x0
     else f i t.(i) (aux (i+1)) in
-    aux 0
+  aux 0
 
 type pc = int
 type transfer = 
@@ -67,7 +66,7 @@ let transfer_to_string = function
   | KillGen (x,i) -> 
      let (x,y) = cfs_split x in
      Printf.sprintf "KillGen(%s.%s,%d)" (cn_name x) (fs_name y) i
-      
+		    
 let eval_transfer = function
   | Nop -> (fun ab -> ab)
   | KillGen (x,i) -> 
@@ -129,21 +128,21 @@ let collect_fields m =
 
 let run m =
   pp := collect_fields m; 
-    Iter.run 
-      {
-	Iter.bot = Lat.bot ;
-	Iter.join = Lat.join;
-	Iter.leq = Lat.order;
-	Iter.eval = eval_transfer;
-	Iter.normalize = (fun x -> x);
-	Iter.size = Array.length (JBir.code m);
-	Iter.workset_strategy = Iter.Incr;
-	Iter.cstrs = gen_symbolic m;
-	Iter.init_points = [0];
-	Iter.init_value = (fun _ -> Ptmap.empty);
-	Iter.verbose = false;
-	Iter.dom_to_string = Lat.to_string m;
-	Iter.transfer_to_string = transfer_to_string
-      }
+  Iter.run 
+    {
+      Iter.bot = Lat.bot ;
+      Iter.join = Lat.join;
+      Iter.leq = Lat.order;
+      Iter.eval = eval_transfer;
+      Iter.normalize = (fun x -> x);
+      Iter.size = Array.length (JBir.code m);
+      Iter.workset_strategy = Iter.Incr;
+      Iter.cstrs = gen_symbolic m;
+      Iter.init_points = [0];
+      Iter.init_value = (fun _ -> Ptmap.empty);
+      Iter.verbose = false;
+      Iter.dom_to_string = Lat.to_string m;
+      Iter.transfer_to_string = transfer_to_string
+    }
 
 
