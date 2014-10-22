@@ -259,14 +259,6 @@ and vfielddefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x =
        | _ as s -> raise (Internal (print_instr s))
       ) [] (Array.of_list pcs)
   else
-    raise (Field_not_in_method (cn,fs))
-
-and fielddefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x =
-  try
-    let rr = vfielddefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x in
-    ClassMethodMap.add cms rr map
-  with
-  | Field_not_in_method (cn,fs) ->
      if not (Stack.is_empty pp_stack) then
        let pp_stack_c = Stack.copy pp_stack in
        let mstack_c = Stack.copy mstack in
@@ -274,9 +266,16 @@ and fielddefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x =
        let pcc = Stack.pop pp_stack_c in
        let mbirc = Stack.pop mstack_c in
        let cmsc = Stack.pop ms_stack_c in
-       fielddefpcs pp_stack_c (Stack.create ()) map cmsc mstack_c ms_stack_c mbirc pcc cn fs x
+       let rr = vfielddefpcs pp_stack_c (Stack.create ()) map cmsc mstack_c ms_stack_c mbirc pcc cn fs x in
+       (* Check: Is this correct?? *)
+       global_replace := (ClassMethodMap.add cmsc rr map) :: !global_replace;
+       []
      else
        raise (Uninitialized ("Field: " ^ (fs_name fs))) 
+
+and fielddefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x =
+  let rr = vfielddefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x in
+  ClassMethodMap.add cms rr map
 
 and invoke_method pp pp_stack prta pbir cn ms mbir mstack ms_stack this_ms = 
   let cmi = JProgram.get_concrete_method (JProgram.get_node pbir cn) ms in
