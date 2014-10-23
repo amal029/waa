@@ -19,15 +19,13 @@ let usage_msg = "Usage: live_ref class-path class-name
 (* The global list of new bytecodes program points to replace *)
 let global_replace = ref []
 
-let mtab_len = 5
+let mtab_len = 3
 let hADDRESS = ref (57536+8000)
-(* let hADDRESS = ref 8388608 *)
 
 exception Internal of string
 exception NARGS
 exception Not_supported of string
 exception Uninitialized of string
-exception Field_not_in_method of class_name * field_signature
 
 let signal_class_name = make_cn "systemj.lib.Signal"
 let signal_set_value_ms = "setValue"
@@ -70,28 +68,30 @@ let rec isSignalSetValue ms = function
   | Unop (_,e1) -> isSignalSetValue ms e1 
   | Const _ -> false
 
+let isCorrectField cn fs = function
+  | Some cnfs ->
+     let ifs = FieldMap.value_elements cnfs in
+     let cnfs = make_cfs cn fs in
+     let ifs = List.map (function 
+			  | InterfaceField ii -> ii.if_class_signature 
+			  | ClassField ic -> ic.cf_class_signature) ifs in
+     List.exists (cfs_equal cnfs) ifs
+  | None -> raise (Internal "")
+
 let rec getargs = function
   | Unop (_,x) -> getargs x
   | Binop (_,x,y) -> (getargs x) @ (getargs y)
   | _ as s -> [s]
 
-let rec start pp_stack prta pbir mstack ms_stack this_ms mbir =
-  (* First check if there are any setValue signal class calls in this method using the bir representation! *)
-  let instrs = code mbir in
-  let setSigs = Array.mapi (fun pc x ->
-			    (match x with
-			     | InvokeVirtual (None,e1,vk,ms,el) as s -> 
-				if (isSignalSetValue ms e1) then Some (s,pc) else None
-			     | _ -> None)) instrs in
-  let setValuepcs = Array.filter (function | Some _ -> true | None -> false) setSigs in
-  let setValuepcs = Array.map (function | Some (x,y) -> (x,y) | _ -> raise (Internal "")) setValuepcs in
+let rec scommon cnfs sors2 instrs setValuepcs pp_stack prta pbir mstack ms_stack this_ms mbir =
   let nmap =
     Array.fold_left 
       (fun elist (x,pc) ->
        (* Get the argument of the setValue method *)
-       let (e1,k,ms,arg) = (match x with 
-			    | InvokeVirtual (None,e1,vk,ms,el) -> (e1,vk,ms,el) 
-			    | _ as s -> raise (Internal ("Set value not of type InvokeVirtual!: " ^ (print_instr s)))) in
+       let arg = (match x with 
+		  | InvokeVirtual (None,e1,vk,ms,el) -> el 
+		  | AffectField (_,_,_,e) -> [e]
+		  | _ as s -> raise (Internal ("Set value not of type InvokeVirtual!: " ^ (print_instr s)))) in
        (* If arg is a local variable *)
        let arg = if List.length arg = 1 then List.hd arg else raise (Internal "") in
        let arg = getargs arg in
@@ -101,18 +101,18 @@ let rec start pp_stack prta pbir mstack ms_stack this_ms mbir =
 		   | StaticField (cn,fs) -> 
 		      let fs_stack = Stack.create () in
 		      let () = Stack.push fs fs_stack in
-		      let ret = fielddefpcs pp_stack fs_stack elist this_ms mstack ms_stack mbir pc cn fs x in
+		      let ret = fielddefpcs this_ms prta (fs_type fs) pbir pp_stack fs_stack elist this_ms mstack ms_stack mbir pc cn fs x in
 		      ignore(Stack.pop fs_stack); 
 		      ret
 		   | Field (e,cn,fs) -> 
 		      let fs_stack = Stack.create () in
 		      let () = Stack.push fs fs_stack in
-		      let ret = fielddefpcs pp_stack fs_stack elist this_ms mstack ms_stack mbir pc cn fs x in
+		      let ret = fielddefpcs this_ms prta (fs_type fs) pbir pp_stack fs_stack elist this_ms mstack ms_stack mbir pc cn fs x in
 		      ignore(Stack.pop fs_stack); 
 		      ret
 		   | Var (vt,v) -> 
 		      let fs_stack = Stack.create () in
-		      vardefpcs pp_stack fs_stack elist this_ms mstack ms_stack mbir pc v x
+		      vardefpcs prta vt pbir pp_stack fs_stack elist this_ms mstack ms_stack mbir pc v x
 		   | Const x -> elist
 		   | _ as s -> 
 		      raise (Internal ("Setting a non-field, var type value in setValue: " ^ (print_expr s)))
@@ -126,39 +126,99 @@ let rec start pp_stack prta pbir mstack ms_stack this_ms mbir =
   Array.iteri (fun i xx ->
 	       match xx with
 	       | InvokeStatic (_,cn,ms,_) -> 
-		  invoke_method i pp_stack prta pbir cn ms mbir mstack ms_stack this_ms
+		  invoke_method cnfs sors2 i pp_stack prta pbir cn ms mbir mstack ms_stack this_ms
 	       | InvokeVirtual (_,_,VirtualCall (TClass cn),ms,el) -> 
-		  invoke_method i pp_stack prta pbir cn ms mbir mstack ms_stack this_ms
+		  invoke_method cnfs sors2 i pp_stack prta pbir cn ms mbir mstack ms_stack this_ms
 	       | InvokeVirtual (_,_,VirtualCall (TArray cn),ms,el) -> raise (Internal "")
 	       | InvokeVirtual (_,_,InterfaceCall cn,ms,el) -> 
-		  invoke_method i pp_stack prta pbir cn ms mbir mstack ms_stack this_ms
+		  invoke_method cnfs sors2 i pp_stack prta pbir cn ms mbir mstack ms_stack this_ms
 	       | InvokeNonVirtual(_,_,cn,ms,_) ->
-		  invoke_method i pp_stack prta pbir cn ms mbir mstack ms_stack this_ms
+		  invoke_method cnfs sors2 i pp_stack prta pbir cn ms mbir mstack ms_stack this_ms
 	       | _ -> ()) instrs
+
+and start2 cnfs pp_stack prta pbir mstack ms_stack this_ms mbir =
+  let instrs = code mbir in
+  let setSigs = Array.mapi (fun pc x ->
+			    (match x with
+			     | AffectField (le,cn,fs,re) as s -> 
+				if (isCorrectField cn fs cnfs) then Some (s,pc) else None
+			     | _ -> None)) instrs in
+  let setValuepcs = Array.filter (function | Some _ -> true | None -> false) setSigs in
+  let setValuepcs = Array.map (function | Some (x,y) -> (x,y) | _ -> raise (Internal "")) setValuepcs in
+  scommon cnfs false instrs setValuepcs pp_stack prta pbir mstack ms_stack this_ms mbir 
+
+and start _ pp_stack prta pbir mstack ms_stack this_ms mbir =
+  let instrs = code mbir in
+  let setSigs = Array.mapi (fun pc x ->
+			    (match x with
+			     | InvokeVirtual (None,e1,vk,ms,el) as s -> 
+				if (isSignalSetValue ms e1) then Some (s,pc) else None
+			     | _ -> None)) instrs in
+  let setValuepcs = Array.filter (function | Some _ -> true | None -> false) setSigs in
+  let setValuepcs = Array.map (function | Some (x,y) -> (x,y) | _ -> raise (Internal "")) setValuepcs in
+  scommon None true instrs setValuepcs pp_stack prta pbir mstack ms_stack this_ms mbir 
+
+and get_object_size pbir = function
+  | TClass cn ->
+     let pnode = JProgram.get_node pbir cn in
+     let fields = JProgram.get_fields pnode in
+     let fields = FieldMap.filter (not >> is_static_field) fields in
+     let fields = FieldMap.key_elements fields in
+     let vts = List.map fs_type fields in
+     List.fold_left (fun v x -> (get_size pbir x + v)) 1 vts			(* Give the total size back *)
+  | TArray vt -> raise (Not_supported "Array as signal values") (* FIXME *)
+
+and get_size pbir = function
+  | TBasic (`Bool) -> 1
+  | TBasic (`Int) -> 1
+  | TBasic (`Byte) -> 1
+  | TBasic (`Char) -> 1
+  | TBasic (`Float) -> 1
+  | TBasic (`Short) -> 1
+  | TBasic (`Long) -> 2
+  | TBasic (`Double) -> 2 
+  | TObject x -> get_object_size pbir x
+
+and ifields pbir = function
+  | TObject (TClass cn) -> 
+     let pnode = JProgram.get_node pbir cn in
+     let fields = JProgram.get_fields pnode in
+     let fields = FieldMap.filter (not >> is_static_field) fields in
+     FieldMap.filter (function 
+		       | InterfaceField x -> 
+			  (match fs_type (x.if_signature) with 
+			   | TObject (TClass _) -> true 
+			   | _ -> false) 
+		       | ClassField x -> 
+			  (match fs_type (x.cf_signature) with 
+			   | TObject (TClass _) -> true 
+			   | _ -> false)) fields
+  | _ -> FieldMap.empty
 
 (* FIXME:
    1.) Need to consider if the var is an argument and not a local var
-   2.) Need to consider if the var itself is being set from a field or another var.
  *)
-and vardefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc v x = 
-  ClassMethodMap.add 
-    cms [fvardefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc v x] map
+and vardefpcs prta vt pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x = 
+  let rr = [fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x] in
+  let size = get_size pbir vt in
+  let rr = List.map (fun x -> List.map (fun x -> (x,size)) x) rr in
+  ClassMethodMap.add cms rr map
 
-and hexpr pp_stack fs_stack map cms mstack ms_stack mbir pc x = function
+and hexpr prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc x = function
   | Const c -> []
   | Var (vt, v) -> 
-     fvardefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc v x
+     fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x
   | Unop (_,e) -> 
-     hexpr pp_stack fs_stack map cms mstack ms_stack mbir pc x e
+     hexpr prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc x e
   | Binop (_,e1,e2) -> 
-     (hexpr pp_stack fs_stack map cms mstack ms_stack mbir pc x e1)
-     @ (hexpr pp_stack fs_stack map cms mstack ms_stack mbir pc x e2)
+     (hexpr prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc x e1)
+     @ (hexpr prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc x e2)
   (* FIXME: Are the below two correct?? *)
   | Field (e,cn,fs) -> 
      if not (Enum.exists (fs_equal fs) (Stack.enum fs_stack)) then 
        let () = Stack.push fs fs_stack in
        let ret = 
-	 vfielddefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x
+	 vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x
 	 |> List.flatten |> List.unique in
        ignore(Stack.pop fs_stack);
        ret
@@ -167,26 +227,26 @@ and hexpr pp_stack fs_stack map cms mstack ms_stack mbir pc x = function
      if not (Enum.exists (fs_equal fs) (Stack.enum fs_stack)) then 
        let () = Stack.push fs fs_stack in
        let ret =
-	 vfielddefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x
+	 vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x
 	 |> List.flatten |> List.unique in
        ignore(Stack.pop fs_stack);
        ret
      else []
 
-and others pp_stack fs_stack map cms mstack ms_stack mbir x pc = 
+and others prta pbir pp_stack fs_stack map cms mstack ms_stack mbir x pc = 
   if pc >= 0 then
     match (code mbir).(pc) with
     | New _ 
     | NewArray _ -> [(pc_ir2bc mbir).(pc - 1)]
     | AffectVar (_,e) as s -> 
-       hexpr pp_stack fs_stack map cms mstack ms_stack mbir pc s e
+       hexpr prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc s e
     | _ as s -> raise (Internal ("Can't handle: " ^ (print_instr s)))
   else
     raise (Internal ("New outside the current method" ^ (print_instr x)))
 
-and fvardefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc v x =
+and fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x =
   let defpcs = du mbir pc v in
-  List.map (others pp_stack fs_stack map cms mstack ms_stack mbir x) defpcs 
+  List.map (others prta pbir pp_stack fs_stack map cms mstack ms_stack mbir x) defpcs 
   |> List.flatten
   |> List.unique
 
@@ -194,7 +254,7 @@ and getliveness = function
   | Var (_,v) -> v
   | _ as s -> raise (Internal ("Currently not supported: " ^ print_expr s))
 
-and vfielddefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x =
+and vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x =
   let fslv = Array.mapi 
 	       (fun pc' x ->
 		match x with
@@ -219,12 +279,12 @@ and vfielddefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x =
        match (code mbir).(pc') with
        | AffectField (e,cn',fs',e') as s -> 
           let vars = [getliveness e'] in
-	  let vres = fvardefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc' (List.hd vars) x in
+	  let vres = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc' (List.hd vars) x in
           if List.length vars = 1 then
 	    (if Array.exists (fun (fs'', _) -> (List.hd vars) = fs'') fslv then
 	       let fslvs = Array.filter (fun (fs'', _) -> fs'' = (List.hd vars)) fslv in
 	       let opps = Array.map 
-			    (fun (fs'', pc'') -> fvardefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc'' fs'' x) fslvs 
+			    (fun (fs'', pc'') -> fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc'' fs'' x) fslvs 
 			  |> Array.fold_left (@) [] 
 			  |> List.fold_left (fun s x -> Ptset.add x s) Ptset.empty in
 	       let vvres = List.fold_left (fun s x -> Ptset.add x s) Ptset.empty vres in
@@ -238,13 +298,13 @@ and vfielddefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x =
             raise (Internal ("Field being set with more than one var!: " ^ (print_instr s)))
        | AffectStaticField (cn',fs',e') as s -> 
           let vars = [getliveness e'] in
-	  let vres = fvardefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc' (List.hd vars) x in
+	  let vres = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc' (List.hd vars) x in
           if List.length vars = 1 then
 	    (if Array.exists (fun (fs'', _) -> (List.hd vars) = fs'') fslv then
 	       let fslvs = Array.filter (fun (fs'', _) -> fs'' = (List.hd vars)) fslv in
 	       let opps = Array.map 
 			    (fun (fs'', pc'') -> 
-			     fvardefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc'' fs'' x) fslvs 
+			     fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc'' fs'' x) fslvs 
 			  |> Array.fold_left (@) [] 
 			  |> List.fold_left (fun s x -> Ptset.add x s) Ptset.empty in
 	       let vvres = List.fold_left (fun s x -> Ptset.add x s) Ptset.empty vres in
@@ -259,32 +319,46 @@ and vfielddefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x =
        | _ as s -> raise (Internal (print_instr s))
       ) [] (Array.of_list pcs)
   else
-     if not (Stack.is_empty pp_stack) then
-       let pp_stack_c = Stack.copy pp_stack in
-       let mstack_c = Stack.copy mstack in
-       let ms_stack_c = Stack.copy ms_stack in
-       let pcc = Stack.pop pp_stack_c in
-       let mbirc = Stack.pop mstack_c in
-       let cmsc = Stack.pop ms_stack_c in
-       let rr = vfielddefpcs pp_stack_c (Stack.create ()) map cmsc mstack_c ms_stack_c mbirc pcc cn fs x in
-       (* Check: Is this correct?? *)
-       global_replace := (ClassMethodMap.add cmsc rr map) :: !global_replace;
-       []
-     else
-       raise (Uninitialized ("Field: " ^ (fs_name fs))) 
+    if not (Stack.is_empty pp_stack) then
+      let pp_stack_c = Stack.copy pp_stack in
+      let mstack_c = Stack.copy mstack in
+      let ms_stack_c = Stack.copy ms_stack in
+      let pcc = Stack.pop pp_stack_c in
+      let mbirc = Stack.pop mstack_c in
+      let cmsc = Stack.pop ms_stack_c in
+      let rr = vfielddefpcs prta pbir pp_stack_c (Stack.create ()) map cmsc mstack_c ms_stack_c mbirc pcc cn fs x in
+      let size = get_size pbir (fs_type fs) in
+      let rr = List.map (fun x -> List.map (fun x -> (x,size)) x) rr in
+      ignore(
+	  let ifs = ifields pbir (fs_type fs) in
+	  if not (FieldMap.is_empty ifs) 
+	  then 
+	    (* FIXME: Check that the below is correct. *)
+	    start2 (Some ifs) pp_stack prta pbir mstack_c ms_stack_c cmsc mbirc 
+	  else ());
+      (* FIXME: Is this correct?? *)
+      global_replace := (ClassMethodMap.add cmsc rr map) :: !global_replace;
+      []
+    else
+      raise (Uninitialized ("Field: " ^ (fs_name fs))) 
 
-and fielddefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x =
-  let rr = vfielddefpcs pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x in
+and fielddefpcs this_ms prta vt pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x =
+  let rr = vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x in
+  let size = get_size pbir vt in
+  let rr = List.map (fun x -> List.map (fun x -> (x,size)) x) rr in
   ClassMethodMap.add cms rr map
 
-and invoke_method pp pp_stack prta pbir cn ms mbir mstack ms_stack this_ms = 
+and invoke_method cnfs sors2 pp pp_stack prta pbir cn ms mbir mstack ms_stack this_ms = 
   let cmi = JProgram.get_concrete_method (JProgram.get_node pbir cn) ms in
   let () = Stack.push pp pp_stack in
   let () = Stack.push mbir mstack in
   let () = Stack.push this_ms ms_stack in
   let _ = 
     try
-      ignore(map_concrete_method ~force:true (start pp_stack prta pbir mstack ms_stack (cmi.cm_class_method_signature)) cmi) 
+      if sors2 then
+	ignore(map_concrete_method ~force:true (start cnfs pp_stack prta pbir mstack ms_stack (cmi.cm_class_method_signature)) cmi) 
+      else
+	ignore(map_concrete_method ~force:true (start2 cnfs pp_stack prta pbir mstack ms_stack (cmi.cm_class_method_signature)) cmi) 
     with Not_found -> () in
   let _ = Stack.pop pp_stack in 
   let _ = Stack.pop mstack in 
@@ -294,7 +368,7 @@ let rec signals prta pbir mstack ms_stack this_ms mbir =
   (* These are all the new statements for some objects *)
   let snpcs = find_alli (function New (_,cn,_,_) -> cn_equal cn signal_class_name | _ -> false) (code mbir) in
   let bcn = pc_ir2bc mbir in
-  let snpcs = Array.map (fun x -> [bcn.(x-1)]) snpcs |> Array.rev in
+  let snpcs = Array.map (fun x -> [(bcn.(x-1),2)]) snpcs |> Array.rev in
   let nmap = Array.map (fun x -> ClassMethodMap.add this_ms [x] ClassMethodMap.empty) snpcs in
   let nmap = Array.fold_left (fun r x -> ClassMethodMap.merge (@) x r) ClassMethodMap.empty nmap in
   global_replace := nmap :: !global_replace;
@@ -357,7 +431,7 @@ let main =
         3.) We do not support objects that themselves have references to other objects, we don't check for this either!
      *)
     JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout;
-    ignore(map_concrete_method ~force:true (start pp_stack prta pbir ss ms_ss (mobj.cm_class_method_signature)) mobj);
+    ignore(map_concrete_method ~force:true (start None pp_stack prta pbir ss ms_ss (mobj.cm_class_method_signature)) mobj);
 
     (* JPrint.print_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) JPrint.jcode stdout; *)
     (* Now we are ready to replace the bytecodes!! *)
@@ -376,7 +450,6 @@ let main =
 			 (fun jt rl ->
 			  (* Extend the constant pool!! *)
 			  let pc = (match JProgram.to_ioc pnode with | JClass x -> x | _ -> raise (Internal "")) in
-			  hADDRESS := !hADDRESS - 5; (* Get rid of 5 words *)
 			  let pool = Array.append pc.c_consts [|ConstValue (ConstInt (Int32.of_int !hADDRESS))|] in
 			  pc.c_consts <- pool;
 			  let lnt = match jt.JCode.c_line_number_table with 
@@ -386,12 +459,13 @@ let main =
 			  in
 			  let (r,lnt) =
                             List.fold_left
-                              (fun (r,lnt) x ->
+                              (fun (r,lnt) (x,size) ->
 			       if not (List.exists ((=) x) !ndone) then
 				 let cpool1 = DynArray.init (Array.length pool) (fun i -> pool.(i)) in
 				 let ox = x in
 				 let x = List.fold_left (fun x t -> if ox > t then x + 12 else x) x !ndone in
 				 ndone := ox :: !ndone;
+				 hADDRESS := !hADDRESS - (size+mtab_len);
 
 				 (* Increasing line numbers *)
 				 let lnt = List.map (fun ((bll,sll) as y) -> if bll > x then (bll+12,sll) else y ) lnt in
@@ -455,7 +529,7 @@ let main =
                                      JInstruction.opcode2instruction pc.c_consts (JClassLow.OpLdc1 poolindex); 
                                      OpInvalid; (* 2 bytes *)
 
-                                     OpConst (`Byte mtab_len); OpInvalid; (* 2 bytes *)
+                                     OpConst (`Byte (size+mtab_len)); OpInvalid; (* 2 bytes *)
 
                                      OpAdd `Int2Bool; (* 1 byte *)
 
