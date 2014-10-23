@@ -334,7 +334,7 @@ and vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn 
 	  if not (FieldMap.is_empty ifs) 
 	  then 
 	    (* FIXME: Check that the below is correct. *)
-	    start2 (Some ifs) pp_stack prta pbir mstack_c ms_stack_c cmsc mbirc 
+	    start2 (Some ifs) pp_stack_c prta pbir mstack_c ms_stack_c cmsc mbirc 
 	  else ());
       (* FIXME: Is this correct?? *)
       global_replace := (ClassMethodMap.add cmsc rr map) :: !global_replace;
