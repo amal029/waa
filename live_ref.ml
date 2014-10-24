@@ -19,7 +19,9 @@ let usage_msg = "Usage: live_ref class-path class-name
 (* The global list of new bytecodes program points to replace *)
 let global_replace = ref []
 
-let mtab_len = 3
+let pipi = 12 + 9
+
+let mtab_len = 5
 let hADDRESS = ref (57536+8000)
 
 exception Internal of string
@@ -68,15 +70,25 @@ let rec isSignalSetValue ms = function
   | Unop (_,e1) -> isSignalSetValue ms e1 
   | Const _ -> false
 
-let isCorrectField cn fs = function
-  | Some cnfs ->
-     let ifs = FieldMap.value_elements cnfs in
-     let cnfs = make_cfs cn fs in
-     let ifs = List.map (function 
-			  | InterfaceField ii -> ii.if_class_signature 
-			  | ClassField ic -> ic.cf_class_signature) ifs in
-     List.exists (cfs_equal cnfs) ifs
-  | None -> raise (Internal "")
+let isCorrectField2 vvt = function
+  | Var (vt,v) -> 
+     (* FIXME: This is not good enough. It allocates memory in the
+     permanent-heap even though it should not go there. So we have
+     pointers from normal heap to permanent heap space. It is sound, but
+     excessive memory consumption can happen. We need to get the actual
+     field that this variable is pointing to.*)
+     vvt = vt
+  | _ -> false
+
+let isCorrectField tfs le cn fs cnfs = 
+  let ifs = FieldMap.value_elements cnfs in
+  let cnfs = make_cfs cn fs in
+  let ifs = List.map (function 
+		       | InterfaceField ii -> ii.if_class_signature 
+		       | ClassField ic -> ic.cf_class_signature) ifs in
+  let r1 = List.exists (cfs_equal cnfs) ifs in
+  let r2 = isCorrectField2 tfs le in
+  r1 && r2
 
 let rec getargs = function
   | Unop (_,x) -> getargs x
@@ -101,13 +113,13 @@ let rec scommon cnfs sors2 instrs setValuepcs pp_stack prta pbir mstack ms_stack
 		   | StaticField (cn,fs) -> 
 		      let fs_stack = Stack.create () in
 		      let () = Stack.push fs fs_stack in
-		      let ret = fielddefpcs this_ms prta (fs_type fs) pbir pp_stack fs_stack elist this_ms mstack ms_stack mbir pc cn fs x in
+		      let ret = fielddefpcs prta (fs_type fs) pbir pp_stack fs_stack elist this_ms mstack ms_stack mbir pc cn fs x in
 		      ignore(Stack.pop fs_stack); 
 		      ret
 		   | Field (e,cn,fs) -> 
 		      let fs_stack = Stack.create () in
 		      let () = Stack.push fs fs_stack in
-		      let ret = fielddefpcs this_ms prta (fs_type fs) pbir pp_stack fs_stack elist this_ms mstack ms_stack mbir pc cn fs x in
+		      let ret = fielddefpcs prta (fs_type fs) pbir pp_stack fs_stack elist this_ms mstack ms_stack mbir pc cn fs x in
 		      ignore(Stack.pop fs_stack); 
 		      ret
 		   | Var (vt,v) -> 
@@ -136,16 +148,23 @@ let rec scommon cnfs sors2 instrs setValuepcs pp_stack prta pbir mstack ms_stack
 		  invoke_method cnfs sors2 i pp_stack prta pbir cn ms mbir mstack ms_stack this_ms
 	       | _ -> ()) instrs
 
-and start2 cnfs pp_stack prta pbir mstack ms_stack this_ms mbir =
+and start2 (cnfs as ffs) pp_stack prta pbir mstack ms_stack this_ms mbir =
+  let (tfs,cnfs) = (match cnfs with 
+		   | Some (tfs,cnfs) -> (tfs,cnfs) 
+		   | None -> raise (Internal "")) in
   let instrs = code mbir in
+  (* VIMP: This has to be flow insensitive to be conservative *)
+  (* That this means is that I am not checking just below this program
+  points, but also above it, for conservative estimates. *)
   let setSigs = Array.mapi (fun pc x ->
 			    (match x with
 			     | AffectField (le,cn,fs,re) as s -> 
-				if (isCorrectField cn fs cnfs) then Some (s,pc) else None
-			     | _ -> None)) instrs in
+				if (isCorrectField tfs le cn fs cnfs) then Some (s,pc) else None
+			     | _ -> None)
+			   ) instrs in
   let setValuepcs = Array.filter (function | Some _ -> true | None -> false) setSigs in
   let setValuepcs = Array.map (function | Some (x,y) -> (x,y) | _ -> raise (Internal "")) setValuepcs in
-  scommon cnfs false instrs setValuepcs pp_stack prta pbir mstack ms_stack this_ms mbir 
+  scommon ffs false instrs setValuepcs pp_stack prta pbir mstack ms_stack this_ms mbir 
 
 and start _ pp_stack prta pbir mstack ms_stack this_ms mbir =
   let instrs = code mbir in
@@ -159,14 +178,15 @@ and start _ pp_stack prta pbir mstack ms_stack this_ms mbir =
   scommon None true instrs setValuepcs pp_stack prta pbir mstack ms_stack this_ms mbir 
 
 and get_object_size pbir = function
-  | TClass cn ->
+  | TObject (TClass cn) ->
      let pnode = JProgram.get_node pbir cn in
      let fields = JProgram.get_fields pnode in
      let fields = FieldMap.filter (not >> is_static_field) fields in
      let fields = FieldMap.key_elements fields in
      let vts = List.map fs_type fields in
-     List.fold_left (fun v x -> (get_size pbir x + v)) 1 vts			(* Give the total size back *)
-  | TArray vt -> raise (Not_supported "Array as signal values") (* FIXME *)
+     List.fold_left (fun v x -> (get_size pbir x + v)) 0 vts 
+  | TObject(TArray vt) -> raise (Not_supported "Array as signal values") (* FIXME *)
+  | _ -> raise (Internal "Got a basic valutype for size!")
 
 and get_size pbir = function
   | TBasic (`Bool) -> 1
@@ -177,7 +197,8 @@ and get_size pbir = function
   | TBasic (`Short) -> 1
   | TBasic (`Long) -> 2
   | TBasic (`Double) -> 2 
-  | TObject x -> get_object_size pbir x
+  | TObject (TClass _) -> 1
+  | TObject (TArray _) -> raise (Not_supported "Array as signal values") (* FIXME *)
 
 and ifields pbir = function
   | TObject (TClass cn) -> 
@@ -195,13 +216,41 @@ and ifields pbir = function
 			   | _ -> false)) fields
   | _ -> FieldMap.empty
 
+and var_escape mbir v = 
+  Array.iter 
+    (function
+      | Return (Some e) -> 
+	 (match e with
+	  | Var (_,v1) -> if (var_equal v v1) 
+			  then 
+			    raise (Not_supported ("Return of variable: " ^ (var_name v)))
+	  | _ -> ())
+      | _ -> ()
+    )(code mbir)
+
 (* FIXME:
    1.) Need to consider if the var is an argument and not a local var
+   -- Can handle primitive argument var, but not Object type argument var.
  *)
 and vardefpcs prta vt pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x = 
-  let rr = [fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x] in
-  let size = get_size pbir vt in
+  let rrp = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x in
+  let rr = [rrp] in
+  (* Getting the size is not that easy for variables. *)
+  (* TODO: Get the real-class name from the constant pool, because
+  variable might have Object as the class name!*)
+  let size = get_object_size pbir vt in
   let rr = List.map (fun x -> List.map (fun x -> (x,size)) x) rr in
+  (* Check that v does not escape from this method *)
+  ignore(
+      let ifs = ifields pbir vt in
+      if not (FieldMap.is_empty ifs) 
+      then 
+	start2 (Some (vt,ifs)) pp_stack
+	       prta pbir mstack
+	       ms_stack cms mbir
+      else ());
+  let () = var_escape mbir v in 
+  (* Return if everything is A-OK *)
   ClassMethodMap.add cms rr map
 
 and hexpr prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc x = function
@@ -213,7 +262,6 @@ and hexpr prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc x = functi
   | Binop (_,e1,e2) -> 
      (hexpr prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc x e1)
      @ (hexpr prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc x e2)
-  (* FIXME: Are the below two correct?? *)
   | Field (e,cn,fs) -> 
      if not (Enum.exists (fs_equal fs) (Stack.enum fs_stack)) then 
        let () = Stack.push fs fs_stack in
@@ -236,8 +284,7 @@ and hexpr prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc x = functi
 and others prta pbir pp_stack fs_stack map cms mstack ms_stack mbir x pc = 
   if pc >= 0 then
     match (code mbir).(pc) with
-    | New _ 
-    | NewArray _ -> [(pc_ir2bc mbir).(pc - 1)]
+    | New _ -> [(pc_ir2bc mbir).(pc - 1)]
     | AffectVar (_,e) as s -> 
        hexpr prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc s e
     | _ as s -> raise (Internal ("Can't handle: " ^ (print_instr s)))
@@ -327,25 +374,44 @@ and vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn 
       let mbirc = Stack.pop mstack_c in
       let cmsc = Stack.pop ms_stack_c in
       let rr = vfielddefpcs prta pbir pp_stack_c (Stack.create ()) map cmsc mstack_c ms_stack_c mbirc pcc cn fs x in
-      let size = get_size pbir (fs_type fs) in
+      let size = get_object_size pbir (fs_type fs) in
       let rr = List.map (fun x -> List.map (fun x -> (x,size)) x) rr in
       ignore(
 	  let ifs = ifields pbir (fs_type fs) in
 	  if not (FieldMap.is_empty ifs) 
 	  then 
-	    (* FIXME: Check that the below is correct. *)
-	    start2 (Some ifs) pp_stack_c prta pbir mstack_c ms_stack_c cmsc mbirc 
+	    start2_others ifs prta pbir (Stack.copy pp_stack_c) cmsc 
+			  (Stack.copy mstack_c) 
+			  (Stack.copy ms_stack_c) mbirc pcc cn fs
 	  else ());
-      (* FIXME: Is this correct?? *)
       global_replace := (ClassMethodMap.add cmsc rr map) :: !global_replace;
       []
     else
       raise (Uninitialized ("Field: " ^ (fs_name fs))) 
 
-and fielddefpcs this_ms prta vt pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x =
+and start2_others ifs prta pbir pp_stack cms mstack ms_stack mbir pc cn fs =
+  let () = start2 (Some ((fs_type fs),ifs)) pp_stack
+		  prta pbir mstack
+		  ms_stack cms mbir in
+  if not (Stack.is_empty pp_stack) then
+    let cmsc = Stack.pop ms_stack in
+    let mbirc = Stack.pop mstack in
+    ignore(Stack.pop pp_stack);
+    start2_others ifs prta pbir pp_stack cmsc mstack ms_stack mbirc pc cn fs
+
+and fielddefpcs prta vt pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x =
   let rr = vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x in
-  let size = get_size pbir vt in
+  let size = get_object_size pbir vt in
   let rr = List.map (fun x -> List.map (fun x -> (x,size)) x) rr in
+  ignore(
+      let ifs = ifields pbir (fs_type fs) in
+      if not (FieldMap.is_empty ifs) 
+      then 
+	start2_others ifs prta pbir 
+		      (Stack.copy pp_stack) cms 
+		      (Stack.copy mstack) 
+		      (Stack.copy ms_stack) mbir pc cn fs
+      else ());
   ClassMethodMap.add cms rr map
 
 and invoke_method cnfs sors2 pp pp_stack prta pbir cn ms mbir mstack ms_stack this_ms = 
@@ -425,11 +491,6 @@ let main =
 
 
     (* From here on we use dataflow analysis to replace new opcodes being passed to signal object's setValue method *)
-    (* NOTE: 
-        1.) Currently we give block space of 5 words (20 bytes) for each new opcode
-        2.) We do not check the worst case object size
-        3.) We do not support objects that themselves have references to other objects, we don't check for this either!
-     *)
     JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout;
     ignore(map_concrete_method ~force:true (start None pp_stack prta pbir ss ms_ss (mobj.cm_class_method_signature)) mobj);
 
@@ -448,10 +509,6 @@ let main =
                        (* Changing the new instruction here!! *)
                        List.fold_left
 			 (fun jt rl ->
-			  (* Extend the constant pool!! *)
-			  let pc = (match JProgram.to_ioc pnode with | JClass x -> x | _ -> raise (Internal "")) in
-			  let pool = Array.append pc.c_consts [|ConstValue (ConstInt (Int32.of_int !hADDRESS))|] in
-			  pc.c_consts <- pool;
 			  let lnt = match jt.JCode.c_line_number_table with 
                             | Some x -> x 
                             | None -> failwith  
@@ -461,14 +518,19 @@ let main =
                             List.fold_left
                               (fun (r,lnt) (x,size) ->
 			       if not (List.exists ((=) x) !ndone) then
+				 (* Extend the constant pool!! *)
+				 let pc = (match JProgram.to_ioc pnode with | JClass x -> x | _ -> raise (Internal "")) in
+				 hADDRESS := !hADDRESS - (size+2);
+				 let pool = Array.append pc.c_consts [|ConstValue (ConstInt (Int32.of_int !hADDRESS))|] in
+				 pc.c_consts <- pool;
 				 let cpool1 = DynArray.init (Array.length pool) (fun i -> pool.(i)) in
 				 let ox = x in
-				 let x = List.fold_left (fun x t -> if ox > t then x + 12 else x) x !ndone in
+				 let x = List.fold_left (fun x t -> if ox > t then x + pipi else x) x !ndone in
 				 ndone := ox :: !ndone;
-				 hADDRESS := !hADDRESS - (size+mtab_len);
+				 (* hADDRESS := !hADDRESS - (size+mtab_len); *)
 
 				 (* Increasing line numbers *)
-				 let lnt = List.map (fun ((bll,sll) as y) -> if bll > x then (bll+12,sll) else y ) lnt in
+				 let lnt = List.map (fun ((bll,sll) as y) -> if bll > x then (bll+pipi,sll) else y ) lnt in
 				 (* ------ done *)
 
 				 let newinstr = r.(x) in
@@ -485,13 +547,13 @@ let main =
 					    (fun rr ff ->
 					     (match ff with
 					      | OpIfCmp (xx,target) as s -> if (rr + target) = x then s 
-									    else if (rr+target) > x then OpIfCmp (xx,(target+12))
+									    else if (rr+target) > x then OpIfCmp (xx,(target+pipi))
 									    else s
 					      | OpIf (xx,target) as s -> if (rr+target) = x then s 
-									 else if (rr+target) > x then OpIf (xx,(target+12))
+									 else if (rr+target) > x then OpIf (xx,(target+pipi))
 									 else s
 					      | OpGoto target as s -> if (rr+target) = x then s 
-								      else if (rr+target) > x then OpGoto (target + 12)
+								      else if (rr+target) > x then OpGoto (target + pipi)
 								      else s
 					      | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
 					      | _ as s -> s
@@ -502,14 +564,14 @@ let main =
 					     let mindex = x + 3 + rr in
 					     (match ff with
 					      | OpIfCmp (xx,target) as s -> if (mindex + target) = x then s 
-									    else if (mindex + target) < x then OpIfCmp (xx,(target-12))
+									    else if (mindex + target) < x then OpIfCmp (xx,(target-pipi))
 									    else s
 					      | OpIf (xx,target) as s -> if (mindex + target) = x then s 
-									 else if (mindex + target) < x then OpIf (xx,(target-12))
+									 else if (mindex + target) < x then OpIf (xx,(target-pipi))
 									 else s
 					      | OpGoto target as s -> 
 						 if (mindex + target) = x then s 
-						 else if (mindex + target) < x then OpGoto (target - 12)
+						 else if (mindex + target) < x then OpGoto (target - pipi)
 						 else s
 					      | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
 					      | _ as s -> s
@@ -522,6 +584,20 @@ let main =
 
                                      OpDup; (* 1 byte *)
 
+                                     OpDup; (* 1 byte *)
+
+                                     OpConst (`Byte 2); OpInvalid; (* 2 byte *)
+
+                                     OpAdd `Int2Bool; (* 1 byte *)
+
+                                     OpSwap; (* 1 byte *)
+
+                                     OpInvoke ((`Static (make_cn "com.jopdesign.sys.Native")),
+                                               (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
+                                     OpInvalid; OpInvalid; (* 3 bytes *)
+
+                                     OpDup; (* 1 byte *)
+
                                      OpConst (`Byte 1); OpInvalid; (* 2 byte *)
 
                                      OpAdd `Int2Bool; (* 1 byte *)
@@ -529,7 +605,8 @@ let main =
                                      JInstruction.opcode2instruction pc.c_consts (JClassLow.OpLdc1 poolindex); 
                                      OpInvalid; (* 2 bytes *)
 
-                                     OpConst (`Byte (size+mtab_len)); OpInvalid; (* 2 bytes *)
+                                     (* OpConst (`Byte (size+mtab_len)); OpInvalid; (\* 2 bytes *\) *)
+                                     OpConst (`Byte mtab_len); OpInvalid; (* 2 bytes *)
 
                                      OpAdd `Int2Bool; (* 1 byte *)
 
