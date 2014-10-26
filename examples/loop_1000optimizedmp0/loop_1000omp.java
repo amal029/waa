@@ -36,7 +36,55 @@ public class loop_1000omp{
   public boolean cbackcall0_0(int var){
     MethodCall0_0();		/*Simple tests*/
     MethodCall0_1(); 		/*Reuse of space test*/
+    MethodCall0_3();
     return MethodCall0_2(); 	/*No reuse of space test*/
+  }
+  
+  /* Polymorphism tests */
+  public boolean MethodCall0_3(){
+    /* B and C should share the heap and should be the max of the two sizes */
+    b B; 
+    c C;
+    B = new b();
+    C = new c();
+    B.bb = 10;
+    C.cc = 1000;
+    C.ccc = 100;
+    
+    a t;
+    /* Use polymorphism for equality */
+    a_thread_2 = false;
+    if (a_thread_2) t = B;
+    else t = C;
+
+    S_1.setValue(t);
+
+    /* Print */
+    if(a_thread_2) {
+      System.out.println(((b)S_1.getValue()).bb);
+    }
+    else { 
+      System.out.println(((c)S_1.getValue()).cc);
+      System.out.println(((c)S_1.getValue()).ccc);
+    }
+    
+    a_thread_2 = true;
+    if (a_thread_2) t = B;
+    else t = C;
+
+    S_1.setValue(t);
+
+    /* Print */
+    if(a_thread_2) {
+      System.out.println(((b)S_1.getValue()).bb);
+    }
+    else { 
+      System.out.println(((c)S_1.getValue()).cc);
+      System.out.println(((c)S_1.getValue()).ccc);
+    }
+    
+
+    return true;
   }
 
   public boolean MethodCall0_2(){

@@ -316,11 +316,12 @@ and fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x =
   let cn = List.hd cns in
   if List.for_all ((=) cn) cns then
     (cn, pp |> List.flatten |> List.unique)
-  else 
-    let () = List.iter (print_endline >> 
-			  (function | Some x -> cn_name x 
-			   | None -> "No class name!")) cns in
-    raise (Internal ("Class types in new not the same"))
+  else
+    let cns = List.map (function | Some x -> x | None -> raise (Internal "No class name for new!")) cns in
+    let sizes = List.map (fun x -> get_object_size pbir (TObject (TClass x))) cns in
+    let mmax = List.max sizes in
+    let (index,_) = List.findi (fun i x -> mmax = x) sizes in
+    (Some (List.nth cns index), pp |> List.flatten |> List.unique)
 
 and getliveness = function
   | Var (_,v) -> v
