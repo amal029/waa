@@ -19,9 +19,21 @@ let usage_msg = "Usage: live_ref class-path class-name
 (* The global list of new bytecodes program points to replace *)
 let global_replace = ref []
 
-let pipi = 12 + 9
+let pipi = 12 + 7
 
-let mtab_len = 5
+let class_header = 5
+
+(* Object handle offsets *)
+let handle_size = 9
+let mtab_off = 1 		(* Only this word is used!! *)
+let size_off = 3
+let type_off = 4
+let ptr_to_next_off = 5
+let gray_list_off = 6
+let space_off = 7
+let waste_1_off = 8
+let waste_2_off = 9
+
 let hADDRESS = ref (57536+8000)
 
 exception Internal of string
@@ -300,10 +312,15 @@ and fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x =
   let pp = List.map (others prta pbir pp_stack fs_stack map cms mstack ms_stack mbir x) defpcs in
   let cns = List.map (fun (x,_) -> x) pp in
   let pp = List.map (fun (_,y) -> y) pp in
+  let cns = List.filter (function | Some x -> true | None -> false) cns in
   let cn = List.hd cns in
   if List.for_all ((=) cn) cns then
     (cn, pp |> List.flatten |> List.unique)
-  else raise (Internal ("Class types in new not the same"))
+  else 
+    let () = List.iter (print_endline >> 
+			  (function | Some x -> cn_name x 
+			   | None -> "No class name!")) cns in
+    raise (Internal ("Class types in new not the same"))
 
 and getliveness = function
   | Var (_,v) -> v
@@ -363,7 +380,8 @@ and vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn 
 		 let fslvs = Array.filter (fun (fs'', _) -> fs'' = (List.hd vars)) fslv in
 		 let opps = Array.map 
 			      (fun (fs'', pc'') -> 
-			       let (_,r) = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc'' fs'' x in r) fslvs 
+			       let (_,r) = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc'' fs'' x in 
+			       r) fslvs 
 			    |> Array.fold_left (@) [] 
 			    |> List.fold_left (fun s x -> Ptset.add x s) Ptset.empty in
 		 let vvres = List.fold_left (fun s x -> Ptset.add x s) Ptset.empty vres in
@@ -418,6 +436,7 @@ and fielddefpcs prta vt pbir pp_stack fs_stack map cms mstack ms_stack mbir pc c
   let (_,rr) = vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x in
   let size = get_object_size pbir vt in
   let rr = List.map (fun x -> List.map (fun x -> (x,size)) x) rr in
+  (* let () = List.iter (fun x -> List.iter (fun (x,_) -> print_int x; print_string " ") x; print_endline "\n") rr in *)
   ignore(
       let ifs = ifields pbir (fs_type fs) in
       if not (FieldMap.is_empty ifs) 
@@ -449,7 +468,7 @@ let rec signals prta pbir mstack ms_stack this_ms mbir =
   (* These are all the new statements for some objects *)
   let snpcs = find_alli (function New (_,cn,_,_) -> cn_equal cn signal_class_name | _ -> false) (code mbir) in
   let bcn = pc_ir2bc mbir in
-  let snpcs = Array.map (fun x -> [(bcn.(x-1),2)]) snpcs |> Array.rev in
+  let snpcs = Array.map (fun x -> [(bcn.(x-1),(get_object_size pbir (TObject (TClass signal_class_name))))]) snpcs |> Array.rev in
   let nmap = Array.map (fun x -> ClassMethodMap.add this_ms [x] ClassMethodMap.empty) snpcs in
   let nmap = Array.fold_left (fun r x -> ClassMethodMap.merge (@) x r) ClassMethodMap.empty nmap in
   global_replace := nmap :: !global_replace;
@@ -520,29 +539,37 @@ let main =
 		    (fun pnode cm javacode -> 
                      if (cms_equal k cm.cm_class_method_signature) 
                      then
+		       (* let () = print_endline (JPrint.class_method_signature k) in *)
 		       let ndone = ref [] in
                        (* Changing the new instruction here!! *)
                        List.fold_left
 			 (fun jt rl ->
+			  (* let () = List.iter (fun (x,_) -> print_int x; print_string " ") rl in  *)
+			  (* let () = print_endline "\n" in *)
 			  let lnt = match jt.JCode.c_line_number_table with 
                             | Some x -> x 
                             | None -> failwith  
 					("Could not find the line number table of "^(JPrint.class_method_signature cm.Javalib.cm_class_method_signature))
 			  in
+			  let doonce = ref true in
 			  let (r,lnt) =
                             List.fold_left
                               (fun (r,lnt) (x,size) ->
 			       if not (List.exists ((=) x) !ndone) then
 				 (* Extend the constant pool!! *)
 				 let pc = (match JProgram.to_ioc pnode with | JClass x -> x | _ -> raise (Internal "")) in
-				 hADDRESS := !hADDRESS - (size+2);
-				 let pool = Array.append pc.c_consts [|ConstValue (ConstInt (Int32.of_int !hADDRESS))|] in
-				 pc.c_consts <- pool;
-				 let cpool1 = DynArray.init (Array.length pool) (fun i -> pool.(i)) in
+				 let () = 
+				   if(!doonce) then
+				     let () = hADDRESS := !hADDRESS - (size+handle_size) in
+				     let pool = Array.append pc.c_consts [|ConstValue (ConstInt (Int32.of_int (!hADDRESS+9)))|] in
+				     let pool = Array.append pool [|ConstValue (ConstInt (Int32.of_int !hADDRESS))|] in
+				     pc.c_consts <- pool;
+				     doonce := false; 
+				 in
+				 let cpool1 = DynArray.init (Array.length pc.c_consts) (fun i -> pc.c_consts.(i)) in
 				 let ox = x in
 				 let x = List.fold_left (fun x t -> if ox > t then x + pipi else x) x !ndone in
 				 ndone := ox :: !ndone;
-				 (* hADDRESS := !hADDRESS - (size+mtab_len); *)
 
 				 (* Increasing line numbers *)
 				 let lnt = List.map (fun ((bll,sll) as y) -> if bll > x then (bll+pipi,sll) else y ) lnt in
@@ -599,21 +626,26 @@ let main =
 
                                      OpDup; (* 1 byte *)
 
-                                     OpDup; (* 1 byte *)
+                                     (* OpDup; (\* 1 byte *\) *)
 
-                                     OpConst (`Byte 2); OpInvalid; (* 2 byte *)
+                                     JInstruction.opcode2instruction
+                                       pc.c_consts (JClassLow.OpLdc1 ((Array.length pc.c_consts) - 2));
+                                     OpInvalid; (* 2 bytes *)
 
-                                     OpAdd `Int2Bool; (* 1 byte *)
+                                     (* OpConst (`Byte handle_size); OpInvalid; (\* 2 byte *\) *)
+
+                                     (* OpAdd `Int2Bool; (\* 1 byte *\) *)
 
                                      OpSwap; (* 1 byte *)
 
+				     (* Write the pointer to start of data *)
                                      OpInvoke ((`Static (make_cn "com.jopdesign.sys.Native")),
                                                (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
                                      OpInvalid; OpInvalid; (* 3 bytes *)
 
                                      OpDup; (* 1 byte *)
 
-                                     OpConst (`Byte 1); OpInvalid; (* 2 byte *)
+                                     OpConst (`Byte mtab_off); OpInvalid; (* 2 byte *)
 
                                      OpAdd `Int2Bool; (* 1 byte *)
 
@@ -621,15 +653,21 @@ let main =
                                      OpInvalid; (* 2 bytes *)
 
                                      (* OpConst (`Byte (size+mtab_len)); OpInvalid; (\* 2 bytes *\) *)
-                                     OpConst (`Byte mtab_len); OpInvalid; (* 2 bytes *)
+                                     OpConst (`Byte class_header); OpInvalid; (* 2 bytes *)
 
                                      OpAdd `Int2Bool; (* 1 byte *)
 
                                      OpSwap; (* 1 byte *)
 
+				     (* Write the pointer to start of method table structure *)
                                      OpInvoke ((`Static (make_cn "com.jopdesign.sys.Native")),
                                                (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
                                      OpInvalid; OpInvalid (* 3 bytes *)
+
+				    (* We write nothing in size_off,
+				    type_off ptr_to_next_off,
+				    gray_list_off, space_off. But we do
+				    give space for it for now! *)
 
 				    |] in
 				 (Array.append (Array.append fa xx) sa,lnt)
