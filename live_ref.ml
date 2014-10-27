@@ -42,6 +42,7 @@ exception Not_supported of string
 exception Uninitialized of string
 
 let signal_class_name = make_cn "systemj.lib.Signal"
+let array_bound_class_name = make_cn "java.lang.ArrayBound"
 let signal_set_value_ms = "setValue"
 
 (* This is the piping operator *)
@@ -194,13 +195,14 @@ and get_object_size pbir = function
      let pnode = JProgram.get_node pbir cn in
      let fields = JProgram.get_fields pnode in
      let fields = FieldMap.filter (not >> is_static_field) fields in
-     let fields = FieldMap.key_elements fields in
-     let vts = List.map fs_type fields in
+     let fields = FieldMap.elements fields in
+     let vts = List.map (fun (x,y) -> (fs_type x,y)) fields in
      List.fold_left (fun v x -> (get_size pbir x + v)) 0 vts 
-  | TObject(TArray vt) -> raise (Not_supported "Array as signal values") (* FIXME *)
+  | TObject(TArray vt) -> raise (Not_supported "Array as signal values, use objects wrapping arrays instead") (* FIXME *)
   | _ -> raise (Internal "Got a basic valutype for size!")
 
-and get_size pbir = function
+and get_size pbir (vt,f) = 
+  match vt with
   | TBasic (`Bool) -> 1
   | TBasic (`Int) -> 1
   | TBasic (`Byte) -> 1
@@ -210,7 +212,24 @@ and get_size pbir = function
   | TBasic (`Long) -> 2
   | TBasic (`Double) -> 2 
   | TObject (TClass _) -> 1
-  | TObject (TArray _) -> raise (Not_supported "Array as signal values") (* FIXME *)
+  | TObject (TArray _) -> 
+     let fa = (match f with
+	       | ClassField x -> x.cf_annotations 
+	       | InterfaceField x -> x.if_annotations) in
+     let evps = List.fold_left 
+		  (fun res {kind;element_value_pairs} -> 
+		   if (cn_equal kind array_bound_class_name) then
+		     (List.filter (fun (x,_) -> x = "bound") element_value_pairs) @ res
+		   else res
+		  ) [] (List.map (fun (x,_) -> x) fa) in
+     if evps <> [] then
+       List.max (List.map (fun (_,x) -> 
+			   match x with
+			   | EVCstString x -> int_of_string x
+			   | _ -> raise (Not_supported "Cannot understand bound annotation on 
+							array type field")) evps)
+     else
+       raise (Not_supported "Unbounded arrays emitted via signals")
 
 and ifields pbir = function
   | TObject (TClass cn) -> 
@@ -251,6 +270,7 @@ and vardefpcs prta vt pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x
 	      | None -> raise (Internal ("Variable v's new type is unknown: " ^ (var_name v)))) in
   let rr = [rrp] in
   let size = get_object_size pbir (TObject (TClass rrcn)) in
+  let size = size + super_size pbir rrcn in
   let rr = List.map (fun x -> List.map (fun x -> (x,size)) x) rr in
   (* Check that v does not escape from this method *)
   ignore(
@@ -318,7 +338,9 @@ and fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x =
     (cn, pp |> List.flatten |> List.unique)
   else
     let cns = List.map (function | Some x -> x | None -> raise (Internal "No class name for new!")) cns in
-    let sizes = List.map (fun x -> get_object_size pbir (TObject (TClass x))) cns in
+    let sizes = List.map (fun x -> 
+			  let mysize = get_object_size pbir (TObject (TClass x)) in
+			  mysize + super_size pbir x) cns in
     let mmax = List.max sizes in
     let (index,_) = List.findi (fun i x -> mmax = x) sizes in
     (Some (List.nth cns index), pp |> List.flatten |> List.unique)
@@ -326,6 +348,16 @@ and fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x =
 and getliveness = function
   | Var (_,v) -> v
   | _ as s -> raise (Internal ("Currently not supported: " ^ print_expr s))
+
+and super_size pbir cnn = 
+  let nnode = JProgram.to_ioc (JProgram.get_node pbir cnn) in
+  (match nnode with
+   | JInterface x -> 0
+   | JClass x -> 
+      (match x.c_super_class with
+       | Some x -> 
+	  (get_object_size pbir (TObject (TClass x))) + super_size pbir x
+       | None -> 0))
 
 and vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x =
   let fslv = Array.mapi 
@@ -405,8 +437,10 @@ and vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn 
       let pcc = Stack.pop pp_stack_c in
       let mbirc = Stack.pop mstack_c in
       let cmsc = Stack.pop ms_stack_c in
-      let (rrcn,rr) = vfielddefpcs prta pbir pp_stack_c (Stack.create ()) map cmsc mstack_c ms_stack_c mbirc pcc cn fs x in
+      let (_,rr) = vfielddefpcs prta pbir pp_stack_c (Stack.create ()) map cmsc mstack_c ms_stack_c mbirc pcc cn fs x in
+      let rrcn = (match (fs_type fs) with | (TObject (TClass x)) -> x | _ -> raise (Not_supported "Fields of non Class type")) in
       let size = get_object_size pbir (fs_type fs) in
+      let size = size + super_size pbir rrcn in
       let rr = List.map (fun x -> List.map (fun x -> (x,size)) x) rr in
       ignore(
 	  let ifs = ifields pbir (fs_type fs) in
@@ -436,6 +470,8 @@ because this is handled at the variable level not at the field level.*)
 and fielddefpcs prta vt pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x =
   let (_,rr) = vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x in
   let size = get_object_size pbir vt in
+  let rrcn = (match vt with | (TObject (TClass x)) -> x | _ -> raise (Not_supported "Fields of non Class type")) in
+  let size = size + super_size pbir rrcn in
   let rr = List.map (fun x -> List.map (fun x -> (x,size)) x) rr in
   (* let () = List.iter (fun x -> List.iter (fun (x,_) -> print_int x; print_string " ") x; print_endline "\n") rr in *)
   ignore(

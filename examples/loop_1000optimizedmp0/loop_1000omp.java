@@ -36,8 +36,8 @@ public class loop_1000omp{
   public boolean cbackcall0_0(int var){
     MethodCall0_0();		/*Simple tests*/
     MethodCall0_1(); 		/*Reuse of space test*/
-    MethodCall0_3();
-    return MethodCall0_2(); 	/*No reuse of space test*/
+    MethodCall0_2(); 	/*No reuse of space test*/
+    return MethodCall0_3();
   }
   
   /* Polymorphism tests */
@@ -47,7 +47,7 @@ public class loop_1000omp{
     c C;
     B = new b();
     C = new c();
-    B.bb = 10;
+    B.bb = 33;
     C.cc = 1000;
     C.ccc = 100;
     
@@ -60,28 +60,15 @@ public class loop_1000omp{
     S_1.setValue(t);
 
     /* Print */
-    if(a_thread_2) {
-      System.out.println(((b)S_1.getValue()).bb);
-    }
-    else { 
-      System.out.println(((c)S_1.getValue()).cc);
-      System.out.println(((c)S_1.getValue()).ccc);
-    }
+    System.out.println(((c)S_1.getValue()).cc);
+    System.out.println(((c)S_1.getValue()).ccc);
     
-    a_thread_2 = true;
-    if (a_thread_2) t = B;
-    else t = C;
-
+    /* Now do the other branch */
+    t = B;
     S_1.setValue(t);
 
     /* Print */
-    if(a_thread_2) {
-      System.out.println(((b)S_1.getValue()).bb);
-    }
-    else { 
-      System.out.println(((c)S_1.getValue()).cc);
-      System.out.println(((c)S_1.getValue()).ccc);
-    }
+    System.out.println(((b)S_1.getValue()).bb);
     
 
     return true;
@@ -167,6 +154,13 @@ public class loop_1000omp{
     System.out.println(S_1.getValue()); /*Result: 10*/
     
     
+    /* Test 5: array test */
+    /* This works, because inside the java.lang.String class the
+       character array is wrapped with a ava.lang.ArrayBound type
+       annotation*/
+    String s = new String("Hello, world");
+    S_1.setValue(s);
+    System.out.println(S_1.getValue()); /*Result: 10*/
     return false;
   }
 }
