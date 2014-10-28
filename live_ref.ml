@@ -337,7 +337,7 @@ and fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x =
   let pp = List.map (others prta pbir pp_stack fs_stack map cms mstack ms_stack mbir x) defpcs in
   let cns = List.map (fun (x,_) -> x) pp in
   let pp = List.map (fun (_,y) -> y) pp in
-  let rpp = ((List.map (fun (x,_) -> x)) (pp |> List.flatten)) |> List.unique  in
+  let rpp = ((List.map (fun (x,_) -> x)) (pp |> List.flatten)) |> (List.sort_unique compare) in
   let pp = pp |> List.flatten |> List.unique  in
   let cns = List.filter (function | Some x -> true | None -> false) cns in
   let cn = List.hd cns in
@@ -348,7 +348,7 @@ and fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x =
       else
 	let () = print_endline ("Check program points in class file method<" ^JPrint.class_method_signature cms^">: ") in
 	List.iter (print_endline >> string_of_int) (List.map (fun (_,x)->x) pp);
-	raise (Not_supported "Bad code with excess memory usage")
+	raise (Not_supported "Bad code with excess memory usage and excess calls to \"new\"")
     else
       (cn,pp)
   else
@@ -363,7 +363,7 @@ and fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x =
     else
       let () = print_endline ("Check program points in class file method<" ^JPrint.class_method_signature cms^">: ") in
       List.iter (print_endline >> string_of_int) (List.map (fun (_,x)->x) pp);
-      raise (Not_supported "Bad code with excess memory usage")
+      raise (Not_supported "Bad code with excess memory usage and excess calls to \"new\"")
 
 and reachable pbir (cn,ms) = function
   | [] -> false

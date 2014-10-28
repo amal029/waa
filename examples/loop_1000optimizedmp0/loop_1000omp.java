@@ -35,7 +35,7 @@ public class loop_1000omp{
   /* Shows the traversing of call graph */
   public boolean cbackcall0_0(int var){
     MethodCall0_0();		/*Simple tests*/
-    MethodCall0_1(); 		/*Reuse of space test*/
+    MethodCall0_1(); 		/* Reuse of space test */
     MethodCall0_2(); 	/*No reuse of space test*/
     return MethodCall0_3();
   }
@@ -72,17 +72,19 @@ public class loop_1000omp{
   public boolean MethodCall0_2(){
     Integer t;
     /* y and r should *not* share the space in heap space */
-    Integer r = new Integer(10);
-    Integer y = new Integer (100);
-    Integer r1 = r;
 
     /* Test 1 */
     a_thread_2 = true;
     if(a_thread_2) {
+      Integer y = new Integer (100);
       t = y;
       m_thread_1 = t;
     }
-    else t = r1;
+    else {
+      Integer r = new Integer(10);
+      Integer r1 = r;
+      t = r1;
+    }
     r_thread_1 = t;
 
     S_1.setValue(m_thread_1);
@@ -96,16 +98,18 @@ public class loop_1000omp{
   public boolean MethodCall0_1(){
     Integer t;
     /* y and r should also share the space in heap space */
-    Integer r = new Integer(10);
-    Integer y = new Integer (70);
-    Integer r1 = r;
 
     /* Test 1 */
     a_thread_2 = true;
     if(a_thread_2) {
+      Integer y = new Integer (70);
       t = y;
     }
-    else t = r1;
+    else {
+      Integer r = new Integer(10);
+      Integer r1 = r;
+      t = r1;
+    }
     r_thread_1 = t;
     m_thread_1 = t;
 
