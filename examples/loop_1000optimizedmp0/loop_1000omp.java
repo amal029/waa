@@ -43,33 +43,28 @@ public class loop_1000omp{
   /* Polymorphism tests */
   public boolean MethodCall0_3(){
     /* B and C should share the heap and should be the max of the two sizes */
-    b B; 
-    c C;
-    B = new b();
-    C = new c();
-    B.bb = 33;
-    C.cc = 1000;
-    C.ccc = 100;
-    
     a t;
+
     /* Use polymorphism for equality */
-    a_thread_2 = false;
-    if (a_thread_2) t = B;
-    else t = C;
+    a_thread_2 = true;
+    if (a_thread_2){
+      t = new b(33);
+    }
+    else {
+      t = new c(1000,100);
+    }
 
+    /* Emit t via S_1 */
     S_1.setValue(t);
 
-    /* Print */
-    System.out.println(((c)S_1.getValue()).cc);
-    System.out.println(((c)S_1.getValue()).ccc);
-    
-    /* Now do the other branch */
-    t = B;
-    S_1.setValue(t);
-
-    /* Print */
-    System.out.println(((b)S_1.getValue()).bb);
-    
+    if (a_thread_2)
+      /* Print */
+      System.out.println(((b)S_1.getValue()).bb);
+    else {
+      /* Print */
+      System.out.println(((c)S_1.getValue()).cc);
+      System.out.println(((c)S_1.getValue()).ccc);
+    }
 
     return true;
   }

@@ -4,6 +4,7 @@ open JBasics
 open JCode
 open Sawja_pack
 open JBir
+open JControlFlow
 module Stack = BatStack
 module Array = BatArray
 module List = BatList
@@ -15,6 +16,10 @@ let usage_msg = "Usage: live_ref class-path class-name
 		 1.) Class-name should be given without the .class extension
 		 2.) Should be a fully qualified name, .e.g,: java.lang.Object
 		 3.) Should have the main function]";;
+
+(* module JCodePPSet = Set.Make(struct *)
+(*                               type t = JCodePP.t  *)
+(*                               let compare = compare end) *)
 
 (* The global list of new bytecodes program points to replace *)
 let global_replace = ref []
@@ -288,7 +293,7 @@ and vardefpcs prta vt pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x
 and others prta pbir pp_stack fs_stack map cms mstack ms_stack mbir x pc = 
   if pc >= 0 then
     match (code mbir).(pc) with
-    | New (_,cn,_,_) -> (Some cn,[(pc_ir2bc mbir).(pc - 1)])
+    | New (_,cn,_,_) -> (Some cn,[(pc,(pc_ir2bc mbir).(pc - 1))])
     | AffectVar (_,e) as s -> 
        hexpr prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc s e
     | _ as s -> raise (Internal ("Can't handle: " ^ (print_instr s)))
@@ -332,18 +337,46 @@ and fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x =
   let pp = List.map (others prta pbir pp_stack fs_stack map cms mstack ms_stack mbir x) defpcs in
   let cns = List.map (fun (x,_) -> x) pp in
   let pp = List.map (fun (_,y) -> y) pp in
+  let rpp = ((List.map (fun (x,_) -> x)) (pp |> List.flatten)) |> List.unique  in
+  let pp = pp |> List.flatten |> List.unique  in
   let cns = List.filter (function | Some x -> true | None -> false) cns in
   let cn = List.hd cns in
   if List.for_all ((=) cn) cns then
-    (cn, pp |> List.flatten |> List.unique)
+    if (List.length (List.map (fun (_,x)->x) pp) > 1) then 
+      if not (reachable pbir (cms_split cms) rpp) then 
+	(cn, pp)
+      else
+	let () = print_endline ("Check program points in class file method<" ^JPrint.class_method_signature cms^">: ") in
+	List.iter (print_endline >> string_of_int) (List.map (fun (_,x)->x) pp);
+	raise (Not_supported "Bad code with excess memory usage")
+    else
+      (cn,pp)
   else
-    let cns = List.map (function | Some x -> x | None -> raise (Internal "No class name for new!")) cns in
-    let sizes = List.map (fun x -> 
-			  let mysize = get_object_size pbir (TObject (TClass x)) in
-			  mysize + super_size pbir x) cns in
-    let mmax = List.max sizes in
-    let (index,_) = List.findi (fun i x -> mmax = x) sizes in
-    (Some (List.nth cns index), pp |> List.flatten |> List.unique)
+    if (List.length (List.map (fun (_,x)->x) pp) > 1) && (not (reachable pbir (cms_split cms) rpp)) then
+      let cns = List.map (function | Some x -> x | None -> raise (Internal "No class name for new!")) cns in
+      let sizes = List.map (fun x -> 
+			    let mysize = get_object_size pbir (TObject (TClass x)) in
+			    mysize + super_size pbir x) cns in
+      let mmax = List.max sizes in
+      let (index,_) = List.findi (fun i x -> mmax = x) sizes in
+      (Some (List.nth cns index), pp)
+    else
+      let () = print_endline ("Check program points in class file method<" ^JPrint.class_method_signature cms^">: ") in
+      List.iter (print_endline >> string_of_int) (List.map (fun (_,x)->x) pp);
+      raise (Not_supported "Bad code with excess memory usage")
+
+and reachable pbir (cn,ms) = function
+  | [] -> false
+  | h::t ->
+     (reachable2 pbir h t (cn,ms))
+     || (reachable pbir (cn,ms) t)
+
+and reachable2 pbir h pps (cn,ms) = 
+  let pp = JBirPP.get_first_pp pbir cn ms in
+  let pp = JBirPP.goto_absolute pp h in
+  let rpp = JBirPP.reachable_pp pp in
+  let rpp = List.map JBirPP.get_pc rpp in
+  List.fold_left (fun v x -> v || (List.exists ((=) x) rpp)) false pps
 
 and getliveness = function
   | Var (_,v) -> v
@@ -387,15 +420,17 @@ and vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn 
 	 | AffectField (e,cn',fs',e') as s -> 
             let vars = [getliveness e'] in
 	    let (vrescn, vres) = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc' (List.hd vars) x in
+	    let vress = List.map (fun (_,x) -> x) vres in
 	    rescn := vrescn;
             if List.length vars = 1 then
 	      (if Array.exists (fun (fs'', _) -> (List.hd vars) = fs'') fslv then
 		 let fslvs = Array.filter (fun (fs'', _) -> fs'' = (List.hd vars)) fslv in
 		 let opps = Array.map 
 			      (fun (fs'', pc'') -> 
-			       let (_,r) = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc'' fs'' x in r) fslvs in
+			       let (_,r) = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc'' fs'' x in
+			       List.map (fun (_,x) -> x) r) fslvs in
 		 let opps = opps |> Array.fold_left (@) [] |> List.fold_left (fun s x -> Ptset.add x s) Ptset.empty in
-		 let vvres = List.fold_left (fun s x -> Ptset.add x s) Ptset.empty vres in
+		 let vvres = List.fold_left (fun s x -> Ptset.add x s) Ptset.empty vress in
 		 if not (Ptset.equal opps vvres) then
 		   (List.fold_left (fun r x -> [x] :: r) [] vres) @ res
 		 else
@@ -407,6 +442,7 @@ and vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn 
 	 | AffectStaticField (cn',fs',e') as s -> 
             let vars = [getliveness e'] in
 	    let (vrescn,vres) = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc' (List.hd vars) x in
+	    let vress = List.map (fun (_,x) -> x) vres in
 	    rescn := vrescn;
             if List.length vars = 1 then
 	      (if Array.exists (fun (fs'', _) -> (List.hd vars) = fs'') fslv then
@@ -414,10 +450,10 @@ and vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn 
 		 let opps = Array.map 
 			      (fun (fs'', pc'') -> 
 			       let (_,r) = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc'' fs'' x in 
-			       r) fslvs 
+			       List.map (fun (_,x) -> x) r) fslvs 
 			    |> Array.fold_left (@) [] 
 			    |> List.fold_left (fun s x -> Ptset.add x s) Ptset.empty in
-		 let vvres = List.fold_left (fun s x -> Ptset.add x s) Ptset.empty vres in
+		 let vvres = List.fold_left (fun s x -> Ptset.add x s) Ptset.empty vress in
 		 if not (Ptset.equal opps vvres) then
 		   (List.fold_left (fun r x -> [x] :: r) [] vres) @ res
 		 else
@@ -505,7 +541,7 @@ let rec signals prta pbir mstack ms_stack this_ms mbir =
   (* These are all the new statements for some objects *)
   let snpcs = find_alli (function New (_,cn,_,_) -> cn_equal cn signal_class_name | _ -> false) (code mbir) in
   let bcn = pc_ir2bc mbir in
-  let snpcs = Array.map (fun x -> [(bcn.(x-1),(get_object_size pbir (TObject (TClass signal_class_name))))]) snpcs |> Array.rev in
+  let snpcs = Array.map (fun x -> [((x,bcn.(x-1)),(get_object_size pbir (TObject (TClass signal_class_name))))]) snpcs |> Array.rev in
   let nmap = Array.map (fun x -> ClassMethodMap.add this_ms [x] ClassMethodMap.empty) snpcs in
   let nmap = Array.fold_left (fun r x -> ClassMethodMap.merge (@) x r) ClassMethodMap.empty nmap in
   global_replace := nmap :: !global_replace;
@@ -591,7 +627,7 @@ let main =
 			  let doonce = ref true in
 			  let (r,lnt) =
                             List.fold_left
-                              (fun (r,lnt) (x,size) ->
+                              (fun (r,lnt) ((_,x),size) ->
 			       if not (List.exists ((=) x) !ndone) then
 				 (* Extend the constant pool!! *)
 				 let pc = (match JProgram.to_ioc pnode with | JClass x -> x | _ -> raise (Internal "")) in
