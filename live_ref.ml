@@ -24,7 +24,6 @@ let usage_msg = "Usage: live_ref class-path class-name
 (* The global list of new bytecodes program points to replace *)
 let global_replace = ref []
 
-let pipi = 12 + 7
 
 let class_header = 5
 
@@ -204,7 +203,19 @@ and get_object_size pbir = function
      let vts = List.map (fun (x,y) -> (fs_type x,y)) fields in
      List.fold_left (fun v x -> (get_size pbir x + v)) 0 vts 
   | TObject(TArray vt) -> raise (Not_supported "Array as signal values, use objects wrapping arrays instead") (* FIXME *)
-  | _ -> raise (Internal "Got a basic valutype for size!")
+  | _ -> raise (Internal "Got a basic value type for size!")
+
+and get_object_size_array = function
+  | TBasic (`Bool) -> 1
+  | TBasic (`Int) -> 1
+  | TBasic (`Byte) -> 1
+  | TBasic (`Char) -> 1
+  | TBasic (`Float) -> 1
+  | TBasic (`Short) -> 1
+  | TBasic (`Long) -> 2
+  | TBasic (`Double) -> 2 
+  | TObject (TClass _) -> 1
+  | _ -> raise (Internal "Array inside an array??")
 
 and get_size pbir (vt,f) = 
   match vt with
@@ -217,38 +228,40 @@ and get_size pbir (vt,f) =
   | TBasic (`Long) -> 2
   | TBasic (`Double) -> 2 
   | TObject (TClass _) -> 1
-  | TObject (TArray _) -> 
-     let fa = (match f with
-	       | ClassField x -> x.cf_annotations 
-	       | InterfaceField x -> x.if_annotations) in
-     let evps = List.fold_left 
-		  (fun res {kind;element_value_pairs} -> 
-		   if (cn_equal kind array_bound_class_name) then
-		     (List.filter (fun (x,_) -> x = "bound") element_value_pairs) @ res
-		   else res
-		  ) [] (List.map (fun (x,_) -> x) fa) in
-     if evps <> [] then
-       List.max (List.map (fun (_,x) -> 
-			   match x with
-			   | EVCstString x -> int_of_string x
-			   | _ -> raise (Not_supported "Cannot understand bound annotation on 
-							array type field")) evps)
-     else
-       raise (Not_supported "Unbounded arrays emitted via signals")
+  | TObject (TArray _) -> 1
+(* let fa = (match f with *)
+(* 	       | ClassField x -> x.cf_annotations  *)
+(* 	       | InterfaceField x -> x.if_annotations) in *)
+(* let evps = List.fold_left  *)
+(* 		  (fun res {kind;element_value_pairs} ->  *)
+(* 		   if (cn_equal kind array_bound_class_name) then *)
+(* 		     (List.filter (fun (x,_) -> x = "bound") element_value_pairs) @ res *)
+(* 		   else res *)
+(* 		  ) [] (List.map (fun (x,_) -> x) fa) in *)
+(* if evps <> [] then *)
+(*   List.max (List.map (fun (_,x) ->  *)
+(* 			   match x with *)
+(* 			   | EVCstString x -> int_of_string x *)
+(* 			   | _ -> raise (Not_supported "Cannot understand bound annotation on  *)
+(* 							array type field")) evps) *)
+(* else *)
+(*   raise (Not_supported "Unbounded arrays emitted via signals") *)
 
 and ifields pbir = function
   | TObject (TClass cn) -> 
      let pnode = JProgram.get_node pbir cn in
      let fields = JProgram.get_fields pnode in
      let fields = FieldMap.filter (not >> is_static_field) fields in
-     FieldMap.filter (function 
+     FieldMap.filter (function
 		       | InterfaceField x -> 
 			  (match fs_type (x.if_signature) with 
 			   | TObject (TClass _) -> true 
+			   | TObject (TArray vt) -> true
 			   | _ -> false) 
 		       | ClassField x -> 
 			  (match fs_type (x.cf_signature) with 
 			   | TObject (TClass _) -> true 
+			   | TObject (TArray vt) -> true
 			   | _ -> false)) fields
   | _ -> FieldMap.empty
 
@@ -264,6 +277,22 @@ and var_escape mbir v =
       | _ -> ()
     )(code mbir)
 
+and gets mbir pbir vvt pc = 
+  match (code mbir).(pc) with
+  | NewArray(_,vt,els) -> 
+     (* Check that all els have constant dimensions *)
+     let dims = List.map (function 
+			      | Const (`Int x) -> 
+				 let ret = Int32.to_int x in
+				 if ret >= 0 then ret else raise (Not_supported ("Negative dimension arrays: " ^ (string_of_int ret)))
+			      | _ as s -> raise (Not_supported ("Non constant array dimensions" ^ (print_expr s)))
+			    ) els in
+     let dim = List.fold_left ( * ) 1 dims in
+     dim * (get_object_size_array vt)
+  | New _ -> (get_object_size pbir vvt) + (super_size pbir vvt)
+  | _ as s -> raise (Internal ("Wrong instruction!: "^ (print_instr s)))
+
+
 (* FIXME:
    1.) Need to consider if the var is an argument and not a local var
    -- Can handle primitive argument var, but not Object type argument var.
@@ -274,12 +303,12 @@ and vardefpcs prta vt pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x
 	      | Some x -> x 
 	      | None -> raise (Internal ("Variable v's new type is unknown: " ^ (var_name v)))) in
   let rr = [rrp] in
-  let size = get_object_size pbir (TObject (TClass rrcn)) in
-  let size = size + super_size pbir rrcn in
+  let sizes = List.map (fun (pp,_) -> gets mbir pbir rrcn pp) rrp in
+  let size = List.max sizes in
   let rr = List.map (fun x -> List.map (fun x -> (x,size)) x) rr in
   (* Check that v does not escape from this method *)
   ignore(
-      let ifs = ifields pbir vt in
+      let ifs = ifields pbir rrcn in
       if not (FieldMap.is_empty ifs) 
       then 
 	start2 (Some (vt,ifs)) pp_stack
@@ -293,7 +322,9 @@ and vardefpcs prta vt pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x
 and others prta pbir pp_stack fs_stack map cms mstack ms_stack mbir x pc = 
   if pc >= 0 then
     match (code mbir).(pc) with
-    | New (_,cn,_,_) -> (Some cn,[(pc,(pc_ir2bc mbir).(pc - 1))])
+    | New (_,cn,_,_) -> (Some (TObject (TClass cn)),[(pc,(pc_ir2bc mbir).(pc - 1))])
+    | NewArray (_,vt,els) -> 
+       (Some vt, [(pc,(pc_ir2bc mbir).(pc - 1))])
     | AffectVar (_,e) as s -> 
        hexpr prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc s e
     | _ as s -> raise (Internal ("Can't handle: " ^ (print_instr s)))
@@ -338,7 +369,7 @@ and fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x =
   let cns = List.map (fun (x,_) -> x) pp in
   let pp = List.map (fun (_,y) -> y) pp in
   let rpp = ((List.map (fun (x,_) -> x)) (pp |> List.flatten)) |> (List.sort_unique compare) in
-  let pp = pp |> List.flatten |> List.unique  in
+  let pp = pp |> List.flatten |> List.unique in
   let cns = List.filter (function | Some x -> true | None -> false) cns in
   let cn = List.hd cns in
   if List.for_all ((=) cn) cns then
@@ -354,9 +385,7 @@ and fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x =
   else
     if (List.length (List.map (fun (_,x)->x) pp) > 1) && (not (reachable pbir (cms_split cms) rpp)) then
       let cns = List.map (function | Some x -> x | None -> raise (Internal "No class name for new!")) cns in
-      let sizes = List.map (fun x -> 
-			    let mysize = get_object_size pbir (TObject (TClass x)) in
-			    mysize + super_size pbir x) cns in
+      let sizes = List.map2 (fun x (pp,_) -> gets mbir pbir x pp) cns pp in
       let mmax = List.max sizes in
       let (index,_) = List.findi (fun i x -> mmax = x) sizes in
       (Some (List.nth cns index), pp)
@@ -383,14 +412,18 @@ and getliveness = function
   | _ as s -> raise (Internal ("Currently not supported: " ^ print_expr s))
 
 and super_size pbir cnn = 
-  let nnode = JProgram.to_ioc (JProgram.get_node pbir cnn) in
-  (match nnode with
-   | JInterface x -> 0
-   | JClass x -> 
-      (match x.c_super_class with
-       | Some x -> 
-	  (get_object_size pbir (TObject (TClass x))) + super_size pbir x
-       | None -> 0))
+  match cnn with
+  | TObject (TClass cnn) -> 
+     let nnode = JProgram.to_ioc (JProgram.get_node pbir cnn) in
+     (match nnode with
+      | JInterface x -> 0
+      | JClass x -> 
+	 (match x.c_super_class with
+	  | Some x -> 
+	     (get_object_size pbir (TObject (TClass x))) + 
+	       super_size pbir (TObject (TClass x))
+	  | None -> 0))
+  | _ -> 0
 
 and vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x =
   let fslv = Array.mapi 
@@ -474,9 +507,11 @@ and vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn 
       let mbirc = Stack.pop mstack_c in
       let cmsc = Stack.pop ms_stack_c in
       let (_,rr) = vfielddefpcs prta pbir pp_stack_c (Stack.create ()) map cmsc mstack_c ms_stack_c mbirc pcc cn fs x in
-      let rrcn = (match (fs_type fs) with | (TObject (TClass x)) -> x | _ -> raise (Not_supported "Fields of non Class type")) in
+      let () = (match (fs_type fs) with 
+	       | (TObject (TClass x)) -> () 
+	       | _ -> raise (Not_supported "Fields of non Class type")) in
       let size = get_object_size pbir (fs_type fs) in
-      let size = size + super_size pbir rrcn in
+      let size = size + super_size pbir (fs_type fs) in
       let rr = List.map (fun x -> List.map (fun x -> (x,size)) x) rr in
       ignore(
 	  let ifs = ifields pbir (fs_type fs) in
@@ -505,9 +540,11 @@ and start2_others ifs prta pbir pp_stack cms mstack ms_stack mbir pc cn fs =
 because this is handled at the variable level not at the field level.*)
 and fielddefpcs prta vt pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x =
   let (_,rr) = vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x in
+  let () = (match vt with | 
+		     (TObject (TClass x)) -> () 
+		     | _ -> raise (Not_supported "Fields of non Class type")) in
   let size = get_object_size pbir vt in
-  let rrcn = (match vt with | (TObject (TClass x)) -> x | _ -> raise (Not_supported "Fields of non Class type")) in
-  let size = size + super_size pbir rrcn in
+  let size = size + super_size pbir vt in
   let rr = List.map (fun x -> List.map (fun x -> (x,size)) x) rr in
   (* let () = List.iter (fun x -> List.iter (fun (x,_) -> print_int x; print_string " ") x; print_endline "\n") rr in *)
   ignore(
@@ -627,7 +664,7 @@ let main =
 			  let doonce = ref true in
 			  let (r,lnt) =
                             List.fold_left
-                              (fun (r,lnt) ((_,x),size) ->
+                              (fun (r,lnt) ((bpp,x),size) ->
 			       if not (List.exists ((=) x) !ndone) then
 				 (* Extend the constant pool!! *)
 				 let pc = (match JProgram.to_ioc pnode with | JClass x -> x | _ -> raise (Internal "")) in
@@ -639,111 +676,186 @@ let main =
 				     pc.c_consts <- pool;
 				     doonce := false; 
 				 in
-				 let cpool1 = DynArray.init (Array.length pc.c_consts) (fun i -> pc.c_consts.(i)) in
-				 let ox = x in
-				 let x = List.fold_left (fun x t -> if ox > t then x + pipi else x) x !ndone in
-				 ndone := ox :: !ndone;
-
-				 (* Increasing line numbers *)
-				 let lnt = List.map (fun ((bll,sll) as y) -> if bll > x then (bll+pipi,sll) else y ) lnt in
-				 (* ------ done *)
 
 				 let newinstr = r.(x) in
 				 (* Change to low level format to get the index in the constant pool *)
 				 (* Should be encoded in 3 bytes max *)
+				 let cpool1 = DynArray.init (Array.length pc.c_consts) (fun i -> pc.c_consts.(i)) in
 				 let newinstrlow = JInstruction.instruction2opcode cpool1 3 newinstr in
-				 let poolindex = (match newinstrlow with 
-						  | JClassLow.OpNew x -> x
-						  | _ as op -> 
-						     print_endline ("Looking for new opcode, found: " ^ (JDumpLow.opcode op));
-						     raise (Internal ("Encode incorrectly as byte: " ^ (string_of_int x)))) in
-				 let fa = Array.filteri (fun i _ -> (i<x)) r in
-				 let fa = Array.mapi 
-					    (fun rr ff ->
-					     (match ff with
-					      | OpIfCmp (xx,target) as s -> if (rr + target) = x then s 
-									    else if (rr+target) > x then OpIfCmp (xx,(target+pipi))
+				 match newinstrlow with 
+				 | JClassLow.OpNew nx -> 
+				    let pipi = 19 in
+				    let ox = x in
+				    let x = List.fold_left (fun x t -> if ox > t then x + pipi else x) x !ndone in
+				    ndone := ox :: !ndone;
+				    let poolindex = nx in
+				    (* Increasing line numbers *)
+				    let lnt = List.map (fun ((bll,sll) as y) -> if bll > x then (bll+pipi,sll) else y ) lnt in
+				    (* ------ done *)
+
+				    let fa = Array.filteri (fun i _ -> (i<x)) r in
+				    let fa = Array.mapi 
+					       (fun rr ff ->
+						(match ff with
+						 | OpIfCmp (xx,target) as s -> if (rr + target) = x then s 
+									       else if (rr+target) > x then OpIfCmp (xx,(target+pipi))
+									       else s
+						 | OpIf (xx,target) as s -> if (rr+target) = x then s 
+									    else if (rr+target) > x then OpIf (xx,(target+pipi))
 									    else s
-					      | OpIf (xx,target) as s -> if (rr+target) = x then s 
-									 else if (rr+target) > x then OpIf (xx,(target+pipi))
+						 | OpGoto target as s -> if (rr+target) = x then s 
+									 else if (rr+target) > x then OpGoto (target + pipi)
 									 else s
-					      | OpGoto target as s -> if (rr+target) = x then s 
-								      else if (rr+target) > x then OpGoto (target + pipi)
-								      else s
-					      | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
-					      | _ as s -> s
-					    )) fa in
-				 let sa = Array.filteri (fun i _ -> (i>x+2)) r in
-				 let sa = Array.mapi 
-					    (fun rr ff ->
-					     let mindex = x + 3 + rr in
-					     (match ff with
-					      | OpIfCmp (xx,target) as s -> if (mindex + target) = x then s 
-									    else if (mindex + target) < x then OpIfCmp (xx,(target-pipi))
+						 | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
+						 | _ as s -> s
+					       )) fa in
+				    let sa = Array.filteri (fun i _ -> (i>x+2)) r in
+				    let sa = Array.mapi 
+					       (fun rr ff ->
+						let mindex = x + 3 + rr in
+						(match ff with
+						 | OpIfCmp (xx,target) as s -> if (mindex + target) = x then s 
+									       else if (mindex + target) < x then OpIfCmp (xx,(target-pipi))
+									       else s
+						 | OpIf (xx,target) as s -> if (mindex + target) = x then s 
+									    else if (mindex + target) < x then OpIf (xx,(target-pipi))
 									    else s
-					      | OpIf (xx,target) as s -> if (mindex + target) = x then s 
-									 else if (mindex + target) < x then OpIf (xx,(target-pipi))
+						 | OpGoto target as s -> 
+						    if (mindex + target) = x then s 
+						    else if (mindex + target) < x then OpGoto (target - pipi)
+						    else s
+						 | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
+						 | _ as s -> s
+					       )) sa in
+				    let xx = [|
+					(* This is the instruction sequence that replaces new after deleting it *)
+					JInstruction.opcode2instruction
+					  pc.c_consts (JClassLow.OpLdc1 ((Array.length pc.c_consts) - 1));
+					OpInvalid; (* 2 bytes *)
+
+					OpDup; (* 1 byte *)
+
+					JInstruction.opcode2instruction
+					  pc.c_consts (JClassLow.OpLdc1 ((Array.length pc.c_consts) - 2));
+					OpInvalid; (* 2 bytes *)
+
+					OpSwap; (* 1 byte *)
+
+					(* Write the pointer to start of data *)
+					OpInvoke ((`Static (make_cn "com.jopdesign.sys.Native")),
+						  (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
+					OpInvalid; OpInvalid; (* 3 bytes *)
+
+					OpDup; (* 1 byte *)
+
+					OpConst (`Byte mtab_off); OpInvalid; (* 2 byte *)
+
+					OpAdd `Int2Bool; (* 1 byte *)
+
+					JInstruction.opcode2instruction pc.c_consts (JClassLow.OpLdc1 poolindex); 
+					OpInvalid; (* 2 bytes *)
+
+					OpConst (`Byte class_header); OpInvalid; (* 2 bytes *)
+
+					OpAdd `Int2Bool; (* 1 byte *)
+
+					OpSwap; (* 1 byte *)
+
+					(* Write the pointer to start of method table structure *)
+					OpInvoke ((`Static (make_cn "com.jopdesign.sys.Native")),
+						  (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
+					OpInvalid; OpInvalid (* 3 bytes *)
+
+				       |] in
+				    (Array.append (Array.append fa xx) sa,lnt)
+
+				 (* Allocating 1-D primitive arrays with const dimensions *)
+
+				 | JClassLow.OpNewArray vt -> 
+				    let pipi = 17 in (* 17 byte offset *)
+				    let ox = x in
+				    let x = List.fold_left (fun x t -> if ox > t then x + pipi else x) x !ndone in
+				    ndone := ox :: !ndone;
+				    (* Increasing line numbers *)
+				    let lnt = List.map (fun ((bll,sll) as y) -> if bll > x then (bll+pipi,sll) else y ) lnt in
+				    (* ------ done *)
+
+				    let fa = Array.filteri (fun i _ -> (i<x)) r in
+				    let fa = Array.mapi 
+					       (fun rr ff ->
+						(match ff with
+						 | OpIfCmp (xx,target) as s -> if (rr + target) = x then s 
+									       else if (rr+target) > x then OpIfCmp (xx,(target+pipi))
+									       else s
+						 | OpIf (xx,target) as s -> if (rr+target) = x then s 
+									    else if (rr+target) > x then OpIf (xx,(target+pipi))
+									    else s
+						 | OpGoto target as s -> if (rr+target) = x then s 
+									 else if (rr+target) > x then OpGoto (target + pipi)
 									 else s
-					      | OpGoto target as s -> 
-						 if (mindex + target) = x then s 
-						 else if (mindex + target) < x then OpGoto (target - pipi)
-						 else s
-					      | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
-					      | _ as s -> s
-					    )) sa in
-				 let xx = [|
-                                     (* This is the instruction sequence that replaces new after deleting it *)
-                                     JInstruction.opcode2instruction
-                                       pc.c_consts (JClassLow.OpLdc1 ((Array.length pc.c_consts) - 1));
-                                     OpInvalid; (* 2 bytes *)
+						 | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
+						 | _ as s -> s
+					       )) fa in
+				    let sa = Array.filteri (fun i _ -> (i>x+2)) r in
+				    let sa = Array.mapi 
+					       (fun rr ff ->
+						let mindex = x + 3 + rr in
+						(match ff with
+						 | OpIfCmp (xx,target) as s -> if (mindex + target) = x then s 
+									       else if (mindex + target) < x then OpIfCmp (xx,(target-pipi))
+									       else s
+						 | OpIf (xx,target) as s -> if (mindex + target) = x then s 
+									    else if (mindex + target) < x then OpIf (xx,(target-pipi))
+									    else s
+						 | OpGoto target as s -> 
+						    if (mindex + target) = x then s 
+						    else if (mindex + target) < x then OpGoto (target - pipi)
+						    else s
+						 | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
+						 | _ as s -> s
+					       )) sa in
+				    let xx = [|
+					(* This is the instruction sequence that replaces new after deleting it *)
+					OpPop; (* 1 byte *)
 
-                                     OpDup; (* 1 byte *)
+					JInstruction.opcode2instruction
+					  pc.c_consts (JClassLow.OpLdc1 ((Array.length pc.c_consts) - 1));
+					OpInvalid; (* 2 bytes *)
 
-                                     (* OpDup; (\* 1 byte *\) *)
+					OpDup; (* 1 byte *)
 
-                                     JInstruction.opcode2instruction
-                                       pc.c_consts (JClassLow.OpLdc1 ((Array.length pc.c_consts) - 2));
-                                     OpInvalid; (* 2 bytes *)
+					JInstruction.opcode2instruction
+					  pc.c_consts (JClassLow.OpLdc1 ((Array.length pc.c_consts) - 2));
+					OpInvalid; (* 2 bytes *)
 
-                                     (* OpConst (`Byte handle_size); OpInvalid; (\* 2 byte *\) *)
+					OpSwap; (* 1 byte *)
 
-                                     (* OpAdd `Int2Bool; (\* 1 byte *\) *)
+					(* Write the pointer to start of data *)
+					OpInvoke ((`Static (make_cn "com.jopdesign.sys.Native")),
+						  (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
+					OpInvalid; OpInvalid; (* 3 bytes *)
 
-                                     OpSwap; (* 1 byte *)
+					OpDup; (* 1 byte *)
 
-				     (* Write the pointer to start of data *)
-                                     OpInvoke ((`Static (make_cn "com.jopdesign.sys.Native")),
-                                               (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
-                                     OpInvalid; OpInvalid; (* 3 bytes *)
+					OpConst (`Byte mtab_off); OpInvalid; (* 2 byte *)
 
-                                     OpDup; (* 1 byte *)
+					OpAdd `Int2Bool; (* 1 byte *)
 
-                                     OpConst (`Byte mtab_off); OpInvalid; (* 2 byte *)
+					OpConst (`Byte dim); OpInvalid; (* 2 bytes *)
 
-                                     OpAdd `Int2Bool; (* 1 byte *)
+					OpSwap; (* 1 byte *)
 
-                                     JInstruction.opcode2instruction pc.c_consts (JClassLow.OpLdc1 poolindex); 
-                                     OpInvalid; (* 2 bytes *)
+					(* Write the pointer to start of method table structure *)
+					OpInvoke ((`Static (make_cn "com.jopdesign.sys.Native")),
+						  (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
+					OpInvalid; OpInvalid (* 3 bytes *)
 
-                                     (* OpConst (`Byte (size+mtab_len)); OpInvalid; (\* 2 bytes *\) *)
-                                     OpConst (`Byte class_header); OpInvalid; (* 2 bytes *)
-
-                                     OpAdd `Int2Bool; (* 1 byte *)
-
-                                     OpSwap; (* 1 byte *)
-
-				     (* Write the pointer to start of method table structure *)
-                                     OpInvoke ((`Static (make_cn "com.jopdesign.sys.Native")),
-                                               (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
-                                     OpInvalid; OpInvalid (* 3 bytes *)
-
-				    (* We write nothing in size_off,
-				    type_off ptr_to_next_off,
-				    gray_list_off, space_off. But we do
-				    give space for it for now! *)
-
-				    |] in
-				 (Array.append (Array.append fa xx) sa,lnt)
+				       |] in
+				    (Array.append (Array.append fa xx) sa,lnt)
+				    
+				 | _ as op -> 
+				    print_endline ("Looking for new/newarray opcode, found: " ^ (JDumpLow.opcode op));
+				    raise (Internal ("Encode incorrectly as byte: " ^ (string_of_int x)))
 			       else (r,lnt)
                               )(jt.c_code,lnt) rl in
 			  {jt with c_code = r; c_line_number_table = Some lnt}
