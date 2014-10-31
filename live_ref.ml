@@ -635,7 +635,7 @@ let main =
 
 
     (* From here on we use dataflow analysis to replace new opcodes being passed to signal object's setValue method *)
-    JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout;
+    (* JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout; *)
     ignore(map_concrete_method ~force:true (start None pp_stack prta pbir ss ms_ss (mobj.cm_class_method_signature)) mobj);
 
     (* JPrint.print_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) JPrint.jcode stdout; *)
@@ -649,13 +649,13 @@ let main =
 		    (fun pnode cm javacode -> 
                      if (cms_equal k cm.cm_class_method_signature) 
                      then
-		       let () = print_endline (JPrint.class_method_signature k) in
+		       (* let () = print_endline (JPrint.class_method_signature k) in *)
 		       let ndone = ref [] in
                        (* Changing the new instruction here!! *)
                        List.fold_left
 			 (fun jt rl ->
-			  let () = List.iter (fun ((_,x),_) -> print_int x; print_string " ") rl in
-			  let () = print_endline "\n" in
+			  (* let () = List.iter (fun ((_,x),_) -> print_int x; print_string " ") rl in *)
+			  (* let () = print_endline "\n" in *)
 			  let lnt = match jt.JCode.c_line_number_table with 
                             | Some x -> x 
                             | None -> failwith  
@@ -684,9 +684,10 @@ let main =
 
 				 let gremove mbir pp = 
 				   match (code mbir).(pp) with
-				    | NewArray _ -> 2
+				    | NewArray (_,(TBasic _),_) -> 2
+				    | NewArray (_,(TObject (TClass _)),_) -> 3
 				    | New _ -> 3
-				    | _ as s -> raise (Internal ("Expected new/newarray got: " ^ (print_instr s))) in
+				    | _ as s -> raise (Internal ("Expected new/(a)newarray got: " ^ (print_instr s))) in
 
 				 let remove = gremove birc bpp in
 
@@ -694,7 +695,7 @@ let main =
 
 				 let ox = x in
 				 let x = List.fold_left (fun x t -> if ox > t then x + pipi else x) x !ndone in
-				 let () = (print_endline >> string_of_int) x in
+				 (* let () = (print_endline >> string_of_int) x in *)
 				 ndone := ox :: !ndone;
 				 let newinstr = r.(x) in
 
@@ -787,7 +788,8 @@ let main =
 				    (Array.append (Array.append fa xx) sa,lnt)
 
 				 (* Allocating 1-D primitive arrays with const dimensions *)
-				 | JClassLow.OpNewArray vt -> 
+				 | JClassLow.OpNewArray _ 
+				 | JClassLow.OpANewArray _ -> 
 				    let dim = (match (code birc).(bpp) with
 					       | NewArray (_,_,els) -> 
 						  if List.length els = 1 then
@@ -833,9 +835,10 @@ let main =
 						  (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
 					OpInvalid; OpInvalid; (* 3 bytes *)
 					
-					OpNop; (* 1 byte *)
-
 				       |] in
+				    let xx = (match newinstrlow with
+					      | JClassLow.OpNewArray _ -> Array.append xx [|OpNop|]
+					      | _ -> Array.append xx [|OpNop;OpNop|]) in
 				    (Array.append (Array.append fa xx) sa,lnt)
 				    
 				 | _ as op -> 
@@ -847,7 +850,7 @@ let main =
 			 ) javacode v
                      else javacode) None prta
 		 ) global_replace prta in
-    JPrint.print_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) JPrint.jcode stdout;
+    (* JPrint.print_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) JPrint.jcode stdout; *)
     unparse_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) (open_out_bin (cn^".class"));
   with 
   | NARGS -> ()
