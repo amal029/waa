@@ -87,25 +87,23 @@ let rec isSignalSetValue ms = function
   | Unop (_,e1) -> isSignalSetValue ms e1 
   | Const _ -> false
 
-let isCorrectField2 vvt = function
-  | Var (vt,v) -> 
-     (* FIXME: This is not good enough. It allocates memory in the
-     permanent-heap even though it should not go there. So we have
-     pointers from normal heap to permanent heap space. It is sound, but
-     excessive memory consumption can happen. We need to get the actual
-     field that this variable is pointing to.*)
-     vvt = vt
+let isCorrectField2 varrs vvt = function
+  | Var (vt,v) -> List.exists ((=) v) varrs
   | _ -> false
 
-let isCorrectField tfs le cn fs cnfs = 
+let isCorrectField varrs tfs le cn fs cnfs = 
   let ifs = FieldMap.value_elements cnfs in
   let cnfs = make_cfs cn fs in
   let ifs = List.map (function 
 		       | InterfaceField ii -> ii.if_class_signature 
 		       | ClassField ic -> ic.cf_class_signature) ifs in
   let r1 = List.exists (cfs_equal cnfs) ifs in
-  let r2 = isCorrectField2 tfs le in
+  let r2 = isCorrectField2 varrs tfs le in
   r1 && r2
+
+let isArrayEqual varrs = function
+  | Var (_,vv) -> List.exists ((=) vv) varrs
+  | _ -> false
 
 let rec getargs = function
   | Unop (_,x) -> getargs x
@@ -120,6 +118,7 @@ let rec scommon cnfs sors2 instrs setValuepcs pp_stack prta pbir mstack ms_stack
        let arg = (match x with 
 		  | InvokeVirtual (None,e1,vk,ms,el) -> el 
 		  | AffectField (_,_,_,e) -> [e]
+		  | AffectArray (_,_,e) -> [e]
 		  | _ as s -> raise (Internal ("Set value not of type InvokeVirtual!: " ^ (print_instr s)))) in
        (* If arg is a local variable *)
        let arg = if List.length arg = 1 then List.hd arg else raise (Internal "") in
@@ -165,18 +164,65 @@ let rec scommon cnfs sors2 instrs setValuepcs pp_stack prta pbir mstack ms_stack
 		  invoke_method cnfs sors2 i pp_stack prta pbir cn ms mbir mstack ms_stack this_ms
 	       | _ -> ()) instrs
 
+and fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x =
+  let defpcs = du mbir pc v in
+  let pp = List.map (others prta pbir pp_stack fs_stack map cms mstack ms_stack mbir x) defpcs in
+  let cns = List.map (fun (_,x,_) -> x) pp in
+  let varrs = List.map (fun(x,_,_) ->x) pp in
+  let varrs = varrs |> List.flatten in 
+  let pp = List.map (fun (_,_,y) -> y) pp in
+  let rpp = ((List.map (fun (x,_) -> x)) (pp |> List.flatten)) |> (List.sort_unique compare) in
+  let pp = pp |> List.flatten |> List.unique in
+  let cns = List.filter (function | Some x -> true | None -> false) cns in
+  let cns = List.map (function | Some x -> x | None -> raise (Internal "No class name for new!")) cns in
+  let cn = List.hd cns in
+  if List.for_all ((=) cn) cns then
+    if (List.length (List.map (fun (_,x)->x) pp) > 1) then 
+      if not (reachable pbir (cms_split cms) rpp) then 
+	(varrs, Some cn, pp)
+      else
+	let () = print_endline ("Check program points in class file method<" ^JPrint.class_method_signature cms^">: ") in
+	List.iter (print_endline >> string_of_int) (List.map (fun (_,x)->x) pp);
+	raise (Not_supported "Bad code with excess memory usage and excess calls to \"new\"")
+    else
+      (varrs, Some cn,pp)
+  else
+    if (List.length (List.map (fun (_,x)->x) pp) > 1) && (not (reachable pbir (cms_split cms) rpp)) then
+      let sizes = List.map2 (fun x (pp,_) -> gets mbir pbir x pp) cns pp in
+      let mmax = List.max sizes in
+      let (index,_) = List.findi (fun i x -> mmax = x) sizes in
+      (varrs, Some (List.nth cns index), pp)
+    else
+      let () = print_endline ("Check program points in class file method<" ^JPrint.class_method_signature cms^">: ") in
+      List.iter (print_endline >> string_of_int) (List.map (fun (_,x)->x) pp);
+      raise (Not_supported "Bad code with excess memory usage and excess calls to \"new\"")
+
+and others prta pbir pp_stack fs_stack map cms mstack ms_stack mbir x pc = 
+  if pc >= 0 then
+    match (code mbir).(pc) with
+    | New (rv,cn,_,_) -> ([rv], Some ((TObject (TClass cn))),[(pc,(pc_ir2bc mbir).(pc - 1))])
+    | NewArray (rv,vt,els) -> 
+       ([rv], Some vt, [(pc,(pc_ir2bc mbir).(pc - 1))])
+    | AffectVar (_,e) as s -> 
+       hexpr prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc s e
+    | _ as s -> raise (Internal ("Can't handle: " ^ (print_instr s)))
+  else
+    raise (Internal ("New outside the current method" ^ (print_instr x)))
+
 and start2 (cnfs as ffs) pp_stack prta pbir mstack ms_stack this_ms mbir =
-  let (tfs,cnfs) = (match cnfs with 
-		   | Some (tfs,cnfs) -> (tfs,cnfs) 
+  let (varrs,tfs,cnfs) = (match cnfs with 
+		   | Some (varrs,tfs,cnfs) -> (varrs,tfs,cnfs) 
 		   | None -> raise (Internal "")) in
   let instrs = code mbir in
   (* VIMP: This has to be flow insensitive to be conservative *)
-  (* That this means is that I am not checking just below this program
+  (* What this means is that I am not checking just below this program
   points, but also above it, for conservative estimates. *)
   let setSigs = Array.mapi (fun pc x ->
 			    (match x with
 			     | AffectField (le,cn,fs,re) as s -> 
-				if (isCorrectField tfs le cn fs cnfs) then Some (s,pc) else None
+				if (isCorrectField varrs tfs le cn fs cnfs) then Some (s,pc) else None
+			     | AffectArray (el,_,_) as s -> 
+				if (isArrayEqual varrs el) then Some (s,pc) else None
 			     | _ -> None)
 			   ) instrs in
   let setValuepcs = Array.filter (function | Some _ -> true | None -> false) setSigs in
@@ -298,7 +344,7 @@ and gets mbir pbir vvt pc =
    -- Can handle primitive argument var, but not Object type argument var.
  *)
 and vardefpcs prta vt pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x = 
-  let (rrcn,rrp) = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x in
+  let (vaars,rrcn,rrp) = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x in
   let rrcn = (match rrcn with 
 	      | Some x -> x 
 	      | None -> raise (Internal ("Variable v's new type is unknown: " ^ (var_name v)))) in
@@ -311,7 +357,7 @@ and vardefpcs prta vt pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x
       let ifs = ifields pbir rrcn in
       if not (FieldMap.is_empty ifs) 
       then 
-	start2 (Some (vt,ifs)) pp_stack
+	start2 (Some (vaars,vt,ifs)) pp_stack
 	       prta pbir mstack
 	       ms_stack cms mbir
       else ());
@@ -319,80 +365,37 @@ and vardefpcs prta vt pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x
   (* Return if everything is A-OK *)
   ClassMethodMap.add cms rr map
 
-and others prta pbir pp_stack fs_stack map cms mstack ms_stack mbir x pc = 
-  if pc >= 0 then
-    match (code mbir).(pc) with
-    | New (_,cn,_,_) -> (Some (TObject (TClass cn)),[(pc,(pc_ir2bc mbir).(pc - 1))])
-    | NewArray (_,vt,els) -> 
-       (Some vt, [(pc,(pc_ir2bc mbir).(pc - 1))])
-    | AffectVar (_,e) as s -> 
-       hexpr prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc s e
-    | _ as s -> raise (Internal ("Can't handle: " ^ (print_instr s)))
-  else
-    raise (Internal ("New outside the current method" ^ (print_instr x)))
-
 and hexpr prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc x = function
-  | Const c -> (None,[])
+  | Const c -> ([],None,[])
   | Var (vt, v) -> 
      fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x
   | Unop (_,e) -> 
      hexpr prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc x e
   | Binop (_,e1,e2) -> 
-     let (cn,ppl) = 
+     let (vaars1,cn,ppl) = 
        hexpr prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc x e1 in
-     let (cn2,ppl2) = 
+     let (vaars2,cn2,ppl2) = 
        hexpr prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc x e2 in
-     if (cn = cn2) then (cn, ppl @ ppl2)
+     if (cn = cn2) then (vaars1@vaars2,cn, ppl @ ppl2)
      else raise (Internal ("BinOp: class not the same: " ))
   | Field (e,cn,fs) -> 
      if not (Enum.exists (fs_equal fs) (Stack.enum fs_stack)) then 
        let () = Stack.push fs fs_stack in
-       let (cn,ret) = 
+       let (vaars,cn,ret) = 
 	 vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x in
        let ret = ret |> List.flatten |> List.unique in
        ignore(Stack.pop fs_stack);
-       (cn,ret)
-     else (None,[])
+       (vaars,cn,ret)
+     else ([],None,[])
   | StaticField (cn,fs) -> 
      if not (Enum.exists (fs_equal fs) (Stack.enum fs_stack)) then 
        let () = Stack.push fs fs_stack in
-       let (cn,ret) =
+       let (vaars,cn,ret) =
 	 vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x in
        let ret = ret |> List.flatten |> List.unique in
        ignore(Stack.pop fs_stack);
-       (cn,ret)
-     else (None,[])
-
-and fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x =
-  let defpcs = du mbir pc v in
-  let pp = List.map (others prta pbir pp_stack fs_stack map cms mstack ms_stack mbir x) defpcs in
-  let cns = List.map (fun (x,_) -> x) pp in
-  let pp = List.map (fun (_,y) -> y) pp in
-  let rpp = ((List.map (fun (x,_) -> x)) (pp |> List.flatten)) |> (List.sort_unique compare) in
-  let pp = pp |> List.flatten |> List.unique in
-  let cns = List.filter (function | Some x -> true | None -> false) cns in
-  let cn = List.hd cns in
-  if List.for_all ((=) cn) cns then
-    if (List.length (List.map (fun (_,x)->x) pp) > 1) then 
-      if not (reachable pbir (cms_split cms) rpp) then 
-	(cn, pp)
-      else
-	let () = print_endline ("Check program points in class file method<" ^JPrint.class_method_signature cms^">: ") in
-	List.iter (print_endline >> string_of_int) (List.map (fun (_,x)->x) pp);
-	raise (Not_supported "Bad code with excess memory usage and excess calls to \"new\"")
-    else
-      (cn,pp)
-  else
-    if (List.length (List.map (fun (_,x)->x) pp) > 1) && (not (reachable pbir (cms_split cms) rpp)) then
-      let cns = List.map (function | Some x -> x | None -> raise (Internal "No class name for new!")) cns in
-      let sizes = List.map2 (fun x (pp,_) -> gets mbir pbir x pp) cns pp in
-      let mmax = List.max sizes in
-      let (index,_) = List.findi (fun i x -> mmax = x) sizes in
-      (Some (List.nth cns index), pp)
-    else
-      let () = print_endline ("Check program points in class file method<" ^JPrint.class_method_signature cms^">: ") in
-      List.iter (print_endline >> string_of_int) (List.map (fun (_,x)->x) pp);
-      raise (Not_supported "Bad code with excess memory usage and excess calls to \"new\"")
+       (vaars,cn,ret)
+     else ([],None,[])
 
 and reachable pbir (cn,ms) = function
   | [] -> false
@@ -446,21 +449,23 @@ and vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn 
   let pcs = duf mbir pc (make_cfs cn fs) in
   if List.length pcs <> 0 then
     let rescn = ref None in
+    let varrscn = ref [] in
     let res = 
       Array.fold_left 
 	(fun res pc'->
 	 match (code mbir).(pc') with
 	 | AffectField (e,cn',fs',e') as s -> 
             let vars = [getliveness e'] in
-	    let (vrescn, vres) = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc' (List.hd vars) x in
+	    let (varrs,vrescn, vres) = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc' (List.hd vars) x in
 	    let vress = List.map (fun (_,x) -> x) vres in
 	    rescn := vrescn;
+	    varrscn := varrs;
             if List.length vars = 1 then
 	      (if Array.exists (fun (fs'', _) -> (List.hd vars) = fs'') fslv then
 		 let fslvs = Array.filter (fun (fs'', _) -> fs'' = (List.hd vars)) fslv in
 		 let opps = Array.map 
 			      (fun (fs'', pc'') -> 
-			       let (_,r) = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc'' fs'' x in
+			       let (_,_,r) = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc'' fs'' x in
 			       List.map (fun (_,x) -> x) r) fslvs in
 		 let opps = opps |> Array.fold_left (@) [] |> List.fold_left (fun s x -> Ptset.add x s) Ptset.empty in
 		 let vvres = List.fold_left (fun s x -> Ptset.add x s) Ptset.empty vress in
@@ -474,15 +479,16 @@ and vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn 
               raise (Internal ("Field being set with more than one var!: " ^ (print_instr s)))
 	 | AffectStaticField (cn',fs',e') as s -> 
             let vars = [getliveness e'] in
-	    let (vrescn,vres) = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc' (List.hd vars) x in
+	    let (varrs,vrescn,vres) = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc' (List.hd vars) x in
 	    let vress = List.map (fun (_,x) -> x) vres in
 	    rescn := vrescn;
+	    varrscn := varrs;
             if List.length vars = 1 then
 	      (if Array.exists (fun (fs'', _) -> (List.hd vars) = fs'') fslv then
 		 let fslvs = Array.filter (fun (fs'', _) -> fs'' = (List.hd vars)) fslv in
 		 let opps = Array.map 
 			      (fun (fs'', pc'') -> 
-			       let (_,r) = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc'' fs'' x in 
+			       let (_,_,r) = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc'' fs'' x in 
 			       List.map (fun (_,x) -> x) r) fslvs 
 			    |> Array.fold_left (@) [] 
 			    |> List.fold_left (fun s x -> Ptset.add x s) Ptset.empty in
@@ -497,7 +503,7 @@ and vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn 
               raise (Internal ("Field being set with more than one var!: " ^ (print_instr s)))
 	 | _ as s -> raise (Internal (print_instr s))
 	) [] (Array.of_list pcs) in
-    (!rescn,res)
+    (!varrscn,!rescn,res)
   else
     if not (Stack.is_empty pp_stack) then
       let pp_stack_c = Stack.copy pp_stack in
@@ -506,7 +512,7 @@ and vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn 
       let pcc = Stack.pop pp_stack_c in
       let mbirc = Stack.pop mstack_c in
       let cmsc = Stack.pop ms_stack_c in
-      let (_,rr) = vfielddefpcs prta pbir pp_stack_c (Stack.create ()) map cmsc mstack_c ms_stack_c mbirc pcc cn fs x in
+      let (varrs,_,rr) = vfielddefpcs prta pbir pp_stack_c (Stack.create ()) map cmsc mstack_c ms_stack_c mbirc pcc cn fs x in
       let () = (match (fs_type fs) with 
 	       | (TObject (TClass x)) -> () 
 	       | _ -> raise (Not_supported "Fields of non Class type")) in
@@ -517,29 +523,29 @@ and vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn 
 	  let ifs = ifields pbir (fs_type fs) in
 	  if not (FieldMap.is_empty ifs) 
 	  then 
-	    start2_others ifs prta pbir (Stack.copy pp_stack_c) cmsc 
+	    start2_others varrs ifs prta pbir (Stack.copy pp_stack_c) cmsc 
 			  (Stack.copy mstack_c) 
 			  (Stack.copy ms_stack_c) mbirc pcc cn fs
 	  else ());
       global_replace := (ClassMethodMap.add cmsc rr map) :: !global_replace;
-      (None,[])
+      ([],None,[])
     else
       raise (Uninitialized ("Field: " ^ (fs_name fs))) 
 
-and start2_others ifs prta pbir pp_stack cms mstack ms_stack mbir pc cn fs =
-  let () = start2 (Some ((fs_type fs),ifs)) pp_stack
+and start2_others varrs ifs prta pbir pp_stack cms mstack ms_stack mbir pc cn fs =
+  let () = start2 (Some (varrs,(fs_type fs),ifs)) pp_stack
 		  prta pbir mstack
 		  ms_stack cms mbir in
   if not (Stack.is_empty pp_stack) then
     let cmsc = Stack.pop ms_stack in
     let mbirc = Stack.pop mstack in
     ignore(Stack.pop pp_stack);
-    start2_others ifs prta pbir pp_stack cmsc mstack ms_stack mbirc pc cn fs
+    start2_others varrs ifs prta pbir pp_stack cmsc mstack ms_stack mbirc pc cn fs
 
 (* XXX: We do not do not check that class name of the new vs the field,
 because this is handled at the variable level not at the field level.*)
 and fielddefpcs prta vt pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x =
-  let (_,rr) = vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x in
+  let (varrs,_,rr) = vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn fs x in
   let () = (match vt with | 
 		     (TObject (TClass x)) -> () 
 		     | _ -> raise (Not_supported "Fields of non Class type")) in
@@ -551,7 +557,7 @@ and fielddefpcs prta vt pbir pp_stack fs_stack map cms mstack ms_stack mbir pc c
       let ifs = ifields pbir (fs_type fs) in
       if not (FieldMap.is_empty ifs) 
       then 
-	start2_others ifs prta pbir 
+	start2_others varrs ifs prta pbir 
 		      (Stack.copy pp_stack) cms 
 		      (Stack.copy mstack) 
 		      (Stack.copy ms_stack) mbir pc cn fs
@@ -635,7 +641,7 @@ let main =
 
 
     (* From here on we use dataflow analysis to replace new opcodes being passed to signal object's setValue method *)
-    (* JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout; *)
+    JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout;
     ignore(map_concrete_method ~force:true (start None pp_stack prta pbir ss ms_ss (mobj.cm_class_method_signature)) mobj);
 
     (* JPrint.print_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) JPrint.jcode stdout; *)
