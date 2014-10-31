@@ -970,7 +970,7 @@ let parsewca x =
   (* First parsing file *) 
   let x = Str.split (Str.regexp ";") x in
   let x = Array.of_list x in
-  let x = Array.map (fun x -> String.trim x) x in
+  let x = Array.map String.trim x in
   Array.fold_left (fun h x -> getds h x ;h ) (Hashtbl.create 50) x
 
 let rec calc_exec_time (mn,vals) marray tbl =
