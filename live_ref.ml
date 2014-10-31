@@ -649,13 +649,13 @@ let main =
 		    (fun pnode cm javacode -> 
                      if (cms_equal k cm.cm_class_method_signature) 
                      then
-		       (* let () = print_endline (JPrint.class_method_signature k) in *)
+		       let () = print_endline (JPrint.class_method_signature k) in
 		       let ndone = ref [] in
                        (* Changing the new instruction here!! *)
                        List.fold_left
 			 (fun jt rl ->
-			  (* let () = List.iter (fun (x,_) -> print_int x; print_string " ") rl in  *)
-			  (* let () = print_endline "\n" in *)
+			  let () = List.iter (fun ((_,x),_) -> print_int x; print_string " ") rl in
+			  let () = print_endline "\n" in
 			  let lnt = match jt.JCode.c_line_number_table with 
                             | Some x -> x 
                             | None -> failwith  
@@ -677,56 +677,73 @@ let main =
 				     doonce := false; 
 				 in
 
+				 let (cname,mms) = cms_split k in
+				 let birc = (match (JProgram.get_concrete_method (JProgram.get_node pbir cname) mms).cm_implementation with
+					     | Native -> raise (Internal "Native method in NewArray")
+					     | Java x -> Lazy.force x) in
+
+				 let gremove mbir pp = 
+				   match (code mbir).(pp) with
+				    | NewArray _ -> 2
+				    | New _ -> 3
+				    | _ as s -> raise (Internal ("Expected new/newarray got: " ^ (print_instr s))) in
+
+				 let remove = gremove birc bpp in
+
+				 let pipi = 19 in
+
+				 let ox = x in
+				 let x = List.fold_left (fun x t -> if ox > t then x + pipi else x) x !ndone in
+				 let () = (print_endline >> string_of_int) x in
+				 ndone := ox :: !ndone;
 				 let newinstr = r.(x) in
+
+				 (* Increasing line numbers *)
+				 let lnt = List.map (fun ((bll,sll) as y) -> if bll > x then (bll+pipi,sll) else y ) lnt in
+				 (* ------ done *)
+
+				 let fa = Array.filteri (fun i _ -> (i<x)) r in
+				 let fa = Array.mapi 
+					    (fun rr ff ->
+					     (match ff with
+					      | OpIfCmp (xx,target) as s -> if (rr + target) = x then s 
+									    else if (rr+target) > x then OpIfCmp (xx,(target+pipi))
+									    else s
+					      | OpIf (xx,target) as s -> if (rr+target) = x then s 
+									 else if (rr+target) > x then OpIf (xx,(target+pipi))
+									 else s
+					      | OpGoto target as s -> if (rr+target) = x then s 
+								      else if (rr+target) > x then OpGoto (target + pipi)
+								      else s
+					      | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
+					      | _ as s -> s
+					    )) fa in
+				 let sa = Array.filteri (fun i _ -> (i>x+(remove-1))) r in
+				 let sa = Array.mapi 
+					    (fun rr ff ->
+					     let mindex = x + 3 + rr in
+					     (match ff with
+					      | OpIfCmp (xx,target) as s -> if (mindex + target) = x then s 
+									    else if (mindex + target) < x then OpIfCmp (xx,(target-pipi))
+									    else s
+					      | OpIf (xx,target) as s -> if (mindex + target) = x then s 
+									 else if (mindex + target) < x then OpIf (xx,(target-pipi))
+									 else s
+					      | OpGoto target as s -> 
+						 if (mindex + target) = x then s 
+						 else if (mindex + target) < x then OpGoto (target - pipi)
+						 else s
+					      | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
+					      | _ as s -> s
+					    )) sa in
+
 				 (* Change to low level format to get the index in the constant pool *)
 				 (* Should be encoded in 3 bytes max *)
 				 let cpool1 = DynArray.init (Array.length pc.c_consts) (fun i -> pc.c_consts.(i)) in
-				 let newinstrlow = JInstruction.instruction2opcode cpool1 3 newinstr in
+				 let newinstrlow = JInstruction.instruction2opcode cpool1 remove newinstr in
 				 match newinstrlow with 
 				 | JClassLow.OpNew nx -> 
-				    let pipi = 19 in
-				    let ox = x in
-				    let x = List.fold_left (fun x t -> if ox > t then x + pipi else x) x !ndone in
-				    ndone := ox :: !ndone;
 				    let poolindex = nx in
-				    (* Increasing line numbers *)
-				    let lnt = List.map (fun ((bll,sll) as y) -> if bll > x then (bll+pipi,sll) else y ) lnt in
-				    (* ------ done *)
-
-				    let fa = Array.filteri (fun i _ -> (i<x)) r in
-				    let fa = Array.mapi 
-					       (fun rr ff ->
-						(match ff with
-						 | OpIfCmp (xx,target) as s -> if (rr + target) = x then s 
-									       else if (rr+target) > x then OpIfCmp (xx,(target+pipi))
-									       else s
-						 | OpIf (xx,target) as s -> if (rr+target) = x then s 
-									    else if (rr+target) > x then OpIf (xx,(target+pipi))
-									    else s
-						 | OpGoto target as s -> if (rr+target) = x then s 
-									 else if (rr+target) > x then OpGoto (target + pipi)
-									 else s
-						 | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
-						 | _ as s -> s
-					       )) fa in
-				    let sa = Array.filteri (fun i _ -> (i>x+2)) r in
-				    let sa = Array.mapi 
-					       (fun rr ff ->
-						let mindex = x + 3 + rr in
-						(match ff with
-						 | OpIfCmp (xx,target) as s -> if (mindex + target) = x then s 
-									       else if (mindex + target) < x then OpIfCmp (xx,(target-pipi))
-									       else s
-						 | OpIf (xx,target) as s -> if (mindex + target) = x then s 
-									    else if (mindex + target) < x then OpIf (xx,(target-pipi))
-									    else s
-						 | OpGoto target as s -> 
-						    if (mindex + target) = x then s 
-						    else if (mindex + target) < x then OpGoto (target - pipi)
-						    else s
-						 | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
-						 | _ as s -> s
-					       )) sa in
 				    let xx = [|
 					(* This is the instruction sequence that replaces new after deleting it *)
 					JInstruction.opcode2instruction
@@ -770,52 +787,18 @@ let main =
 				    (Array.append (Array.append fa xx) sa,lnt)
 
 				 (* Allocating 1-D primitive arrays with const dimensions *)
-
 				 | JClassLow.OpNewArray vt -> 
-				    let pipi = 17 in (* 17 byte offset *)
-				    let ox = x in
-				    let x = List.fold_left (fun x t -> if ox > t then x + pipi else x) x !ndone in
-				    ndone := ox :: !ndone;
-				    (* Increasing line numbers *)
-				    let lnt = List.map (fun ((bll,sll) as y) -> if bll > x then (bll+pipi,sll) else y ) lnt in
-				    (* ------ done *)
-
-				    let fa = Array.filteri (fun i _ -> (i<x)) r in
-				    let fa = Array.mapi 
-					       (fun rr ff ->
-						(match ff with
-						 | OpIfCmp (xx,target) as s -> if (rr + target) = x then s 
-									       else if (rr+target) > x then OpIfCmp (xx,(target+pipi))
-									       else s
-						 | OpIf (xx,target) as s -> if (rr+target) = x then s 
-									    else if (rr+target) > x then OpIf (xx,(target+pipi))
-									    else s
-						 | OpGoto target as s -> if (rr+target) = x then s 
-									 else if (rr+target) > x then OpGoto (target + pipi)
-									 else s
-						 | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
-						 | _ as s -> s
-					       )) fa in
-				    let sa = Array.filteri (fun i _ -> (i>x+2)) r in
-				    let sa = Array.mapi 
-					       (fun rr ff ->
-						let mindex = x + 3 + rr in
-						(match ff with
-						 | OpIfCmp (xx,target) as s -> if (mindex + target) = x then s 
-									       else if (mindex + target) < x then OpIfCmp (xx,(target-pipi))
-									       else s
-						 | OpIf (xx,target) as s -> if (mindex + target) = x then s 
-									    else if (mindex + target) < x then OpIf (xx,(target-pipi))
-									    else s
-						 | OpGoto target as s -> 
-						    if (mindex + target) = x then s 
-						    else if (mindex + target) < x then OpGoto (target - pipi)
-						    else s
-						 | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
-						 | _ as s -> s
-					       )) sa in
+				    let dim = (match (code birc).(bpp) with
+					       | NewArray (_,_,els) -> 
+						  if List.length els = 1 then
+						    match (List.hd els) with
+						    | Const (`Int x) -> x
+						    | _ as s -> raise (Not_supported ("Non constant array dimensions" ^ (print_expr s)))
+						  else raise (Not_supported ("Arrays with more than 1-dimension"))
+					       | _ as s -> raise (Internal (print_instr s))) in
 				    let xx = [|
 					(* This is the instruction sequence that replaces new after deleting it *)
+					(* OpNop; (\* 1 byte *\) *)
 					OpPop; (* 1 byte *)
 
 					JInstruction.opcode2instruction
@@ -841,14 +824,16 @@ let main =
 
 					OpAdd `Int2Bool; (* 1 byte *)
 
-					OpConst (`Byte dim); OpInvalid; (* 2 bytes *)
+					OpConst (`Int dim); OpInvalid; (* 2 bytes *)
 
 					OpSwap; (* 1 byte *)
 
 					(* Write the pointer to start of method table structure *)
 					OpInvoke ((`Static (make_cn "com.jopdesign.sys.Native")),
 						  (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
-					OpInvalid; OpInvalid (* 3 bytes *)
+					OpInvalid; OpInvalid; (* 3 bytes *)
+					
+					OpNop; (* 1 byte *)
 
 				       |] in
 				    (Array.append (Array.append fa xx) sa,lnt)
@@ -862,7 +847,7 @@ let main =
 			 ) javacode v
                      else javacode) None prta
 		 ) global_replace prta in
-    (* JPrint.print_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) JPrint.jcode stdout; *)
+    JPrint.print_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) JPrint.jcode stdout;
     unparse_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) (open_out_bin (cn^".class"));
   with 
   | NARGS -> ()

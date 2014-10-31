@@ -8,7 +8,7 @@ public class arraytest {
     int count = 0;
     /* Start timer */
     long t1 = System.nanoTime();
-    for(count=0;count<100;++count){
+    for(count=0;count<4000;++count){
       A = new arr ();
       A.testArr = new int[20];
     }
