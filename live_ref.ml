@@ -205,7 +205,9 @@ and others prta pbir pp_stack fs_stack map cms mstack ms_stack mbir x pc =
        ([rv], Some vt, [(pc,(pc_ir2bc mbir).(pc - 1))])
     | AffectVar (_,e) as s -> 
        hexpr prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc s e
-    | _ as s -> raise (Internal ("Can't handle: " ^ (print_instr s)))
+    | _ as s -> 
+       (print_endline >> JPrint.class_method_signature) cms;
+       raise (Internal ("Can't handle: " ^ (print_instr s)))
   else
     raise (Internal ("New outside the current method" ^ (print_instr x)))
 
@@ -697,7 +699,7 @@ let main =
 
 				 let remove = gremove birc bpp in
 
-				 let pipi = 19 in
+				 let pipi = 22 in
 
 				 let ox = x in
 				 let x = List.fold_left (fun x t -> if ox > t then x + pipi else x) x !ndone in
@@ -754,14 +756,14 @@ let main =
 				    let xx = [|
 					(* This is the instruction sequence that replaces new after deleting it *)
 					JInstruction.opcode2instruction
-					  pc.c_consts (JClassLow.OpLdc1 ((Array.length pc.c_consts) - 1));
-					OpInvalid; (* 2 bytes *)
+					  pc.c_consts (JClassLow.OpLdc1w ((Array.length pc.c_consts) - 1));
+					OpInvalid; OpInvalid; (* 3 bytes *)
 
 					OpDup; (* 1 byte *)
 
 					JInstruction.opcode2instruction
-					  pc.c_consts (JClassLow.OpLdc1 ((Array.length pc.c_consts) - 2));
-					OpInvalid; (* 2 bytes *)
+					  pc.c_consts (JClassLow.OpLdc1w ((Array.length pc.c_consts) - 2));
+					OpInvalid; OpInvalid; (* 3 bytes *)
 
 					OpSwap; (* 1 byte *)
 
@@ -776,8 +778,8 @@ let main =
 
 					OpAdd `Int2Bool; (* 1 byte *)
 
-					JInstruction.opcode2instruction pc.c_consts (JClassLow.OpLdc1 poolindex); 
-					OpInvalid; (* 2 bytes *)
+					JInstruction.opcode2instruction pc.c_consts (JClassLow.OpLdc1w poolindex); 
+					OpInvalid; OpInvalid; (* 3 bytes *)
 
 					OpConst (`Byte class_header); OpInvalid; (* 2 bytes *)
 
@@ -810,14 +812,14 @@ let main =
 					OpPop; (* 1 byte *)
 
 					JInstruction.opcode2instruction
-					  pc.c_consts (JClassLow.OpLdc1 ((Array.length pc.c_consts) - 1));
-					OpInvalid; (* 2 bytes *)
+					  pc.c_consts (JClassLow.OpLdc1w ((Array.length pc.c_consts) - 1));
+					OpInvalid; OpInvalid; (* 3 bytes *)
 
 					OpDup; (* 1 byte *)
 
 					JInstruction.opcode2instruction
-					  pc.c_consts (JClassLow.OpLdc1 ((Array.length pc.c_consts) - 2));
-					OpInvalid; (* 2 bytes *)
+					  pc.c_consts (JClassLow.OpLdc1w ((Array.length pc.c_consts) - 2));
+					OpInvalid; OpInvalid; (* 3 bytes *)
 
 					OpSwap; (* 1 byte *)
 
@@ -843,11 +845,12 @@ let main =
 					
 				       |] in
 				    let xx = (match newinstrlow with
-					      | JClassLow.OpNewArray _ -> Array.append xx [|OpNop|]
-					      | _ -> Array.append xx [|OpNop;OpNop|]) in
+					      | JClassLow.OpNewArray _ -> Array.append xx [|OpNop;OpNop|]
+					      | _ -> Array.append xx [|OpNop;OpNop;OpNop|]) in
 				    (Array.append (Array.append fa xx) sa,lnt)
 				    
 				 | _ as op -> 
+				    (print_endline >> JPrint.class_method_signature) k;
 				    print_endline ("Looking for new/newarray opcode, found: " ^ (JDumpLow.opcode op));
 				    raise (Internal ("Encode incorrectly as byte: " ^ (string_of_int x)))
 			       else (r,lnt)

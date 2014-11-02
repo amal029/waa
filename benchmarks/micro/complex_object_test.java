@@ -7,7 +7,7 @@ public class complex_object_test {
     int count = 0;
     /* Start timer */
     long t1 = System.nanoTime();
-    for(int i=0;i<5;++i){
+    for(int i=0;i<200;++i){
       objects = new o[20];
       for(int j=0;j<20;++j){
 	o newObject = new o();
