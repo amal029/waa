@@ -44,6 +44,7 @@ exception Internal of string
 exception NARGS
 exception Not_supported of string
 exception Uninitialized of string
+exception Cant_handle of string
 
 let signal_class_name = make_cn "systemj.lib.Signal"
 let array_bound_class_name = make_cn "java.lang.ArrayBound"
@@ -196,18 +197,33 @@ and fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc v x =
       let () = print_endline ("Check program points in class file method<" ^JPrint.class_method_signature cms^">: ") in
       List.iter (print_endline >> string_of_int) (List.map (fun (_,x)->x) pp);
       raise (Not_supported "Bad code with excess memory usage and excess calls to \"new\"")
+	    
+(* This only works for new bytecode not newarray! *)
+and get_bpir pc cn mbir = 
+  let fa = Array.filteri (fun i _ -> i<pc) (code mbir) in
+  fa 
+  |> Array.rev
+  |> Array.findi (function 
+		   | MayInit cnn -> 
+		      cn_equal cn cnn
+		   | _ -> false)
+  |> ((-) ((Array.length fa)-1))
+
 
 and others prta pbir pp_stack fs_stack map cms mstack ms_stack mbir x pc = 
   if pc >= 0 then
     match (code mbir).(pc) with
-    | New (rv,cn,_,_) -> ([rv], Some ((TObject (TClass cn))),[(pc,(pc_ir2bc mbir).(pc - 1))])
+    | New (rv,cn,_,_) -> 
+       let bpir = get_bpir pc cn mbir in
+       ([rv], Some ((TObject (TClass cn))),[(pc,(pc_ir2bc mbir).(bpir))])
     | NewArray (rv,vt,els) -> 
+       (* FIXME: This needs to be looked at later on!! *)
        ([rv], Some vt, [(pc,(pc_ir2bc mbir).(pc - 1))])
     | AffectVar (_,e) as s -> 
        hexpr prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc s e
     | _ as s -> 
-       (print_endline >> JPrint.class_method_signature) cms;
-       raise (Internal ("Can't handle: " ^ (print_instr s)))
+       (* (print_endline >> JPrint.class_method_signature) cms; *)
+       raise (Cant_handle ("Can't handle: " ^ (print_instr s)))
   else
     raise (Internal ("New outside the current method" ^ (print_instr x)))
 
@@ -467,7 +483,12 @@ and vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn 
 		 let fslvs = Array.filter (fun (fs'', _) -> fs'' = (List.hd vars)) fslv in
 		 let opps = Array.map 
 			      (fun (fs'', pc'') -> 
-			       let (_,_,r) = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc'' fs'' x in
+			       let (_,_,r) = 
+				 try 
+				   fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc'' fs'' x 
+				 with
+				 | Cant_handle _ -> ([],None,[])
+			       in 
 			       List.map (fun (_,x) -> x) r) fslvs in
 		 let opps = opps |> Array.fold_left (@) [] |> List.fold_left (fun s x -> Ptset.add x s) Ptset.empty in
 		 let vvres = List.fold_left (fun s x -> Ptset.add x s) Ptset.empty vress in
@@ -490,7 +511,12 @@ and vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn 
 		 let fslvs = Array.filter (fun (fs'', _) -> fs'' = (List.hd vars)) fslv in
 		 let opps = Array.map 
 			      (fun (fs'', pc'') -> 
-			       let (_,_,r) = fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc'' fs'' x in 
+			       let (_,_,r) = 
+				 try 
+				   fvardefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc'' fs'' x 
+				 with
+				 | Cant_handle _ -> ([],None,[])
+			       in 
 			       List.map (fun (_,x) -> x) r) fslvs 
 			    |> Array.fold_left (@) [] 
 			    |> List.fold_left (fun s x -> Ptset.add x s) Ptset.empty in
@@ -643,7 +669,7 @@ let main =
 
 
     (* From here on we use dataflow analysis to replace new opcodes being passed to signal object's setValue method *)
-    JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout;
+    (* JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout; *)
     ignore(map_concrete_method ~force:true (start None pp_stack prta pbir ss ms_ss (mobj.cm_class_method_signature)) mobj);
 
     (* JPrint.print_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) JPrint.jcode stdout; *)
@@ -662,7 +688,7 @@ let main =
                        (* Changing the new instruction here!! *)
                        List.fold_left
 			 (fun jt rl ->
-			  (* let () = List.iter (fun ((_,x),_) -> print_int x; print_string " ") rl in *)
+			  (* let () = List.iter (fun ((bb,x),_) -> print_int x; print_string " "; print_int bb; print_endline " ") rl in *)
 			  (* let () = print_endline "\n" in *)
 			  let lnt = match jt.JCode.c_line_number_table with 
                             | Some x -> x 

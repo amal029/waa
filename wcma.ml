@@ -12,6 +12,10 @@ module Enum = BatEnum
 module File = BatFile
 module Hashtbl = BatHashtbl
 open BatPervasives
+       
+let (>>) f g x = (f(g x))
+
+type int = Big_Int
 
 exception Internal
 exception Opcode_Not_Implemented of string
@@ -760,8 +764,10 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
     Array.append newb invokestatic_mc
   | JL.OpNewArray _ 
   | JL.OpANewArray _ as op -> 
-    let mn = make_ms "f_newarray" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
-    let () = byte_code_method_invoke op mn mstack marray pms cms pcname cname bcs const_pool cp l bd level ss2 in
+     let () = JDumpLow.opcode op |> print_endline in
+     let () = level |> string_of_int |> print_endline in
+     let mn = make_ms "f_newarray" [(TBasic `Int);(TBasic `Int)] (Some (TBasic `Int)) in
+     let () = byte_code_method_invoke op mn mstack marray pms cms pcname cname bcs const_pool cp l bd level ss2 in
     Array.append newb invokestatic_mc
   | JL.OpAMultiNewArray _ as op -> raise (Opcode_Java_Implemented (JDumpLow.opcode op))
   | JL.OpCheckCast _ as op -> 
@@ -781,18 +787,23 @@ and byte_code_method_invoke op mn mstack marray pms cms pcname cname bcs const_p
   let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
   let clzms = (JBasics.make_cms cn.JClass.c_name mn) in
   if not (exists_in_clzms_array clzms ss2) then 
-    let () = (if !addmethods then DynArray.add bd clzms) in
-    if not (exists_in_marray marray clzms) then
-      let () = Stack.push clzms ss2 in
-      let cpool = cn.JClass.c_consts in
-      let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
-      let m = JHigh2Low.h2l_acmethod cpool1 m in
-      let () = generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level ss2 in
-      let () = if !addmethods then DynArray.add bd clzms in
-      ignore(Stack.pop ss2)
+    (* let () = (if !addmethods then DynArray.add bd clzms) in *)
+    (if not (exists_in_marray marray clzms) then
+       let () = Stack.push clzms ss2 in
+       let cpool = cn.JClass.c_consts in
+       let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
+       let m = JHigh2Low.h2l_acmethod cpool1 m in
+       let () = generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level ss2 in
+       let () = if !addmethods then DynArray.add bd clzms in
+       ignore(Stack.pop ss2)
+     else
+       if !addmethods then DynArray.add bd clzms)
+  else
+    if !addmethods then DynArray.add bd clzms
 
 (* Generate micro-code for a given method *)
 and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l level ss2 = 
+  let () = print_endline m.JClassLow.m_name in
   let bcs = m.JClassLow.m_attributes in
   let bcs = List.filter (fun t -> match t with | JClassLow.AttributeCode _ -> true | _ -> false) bcs in
   if bcs <> [] then
@@ -973,27 +984,34 @@ let parsewca x =
   let x = Array.map String.trim x in
   Array.fold_left (fun h x -> getds h x ;h ) (Hashtbl.create 50) x
 
-let rec calc_exec_time (mn,vals) marray tbl =
-  (* print_endline (JPrint.class_method_signature mn); *)
-  let vals = Array.fold_left 
-	       (fun (i,m) (micro,lc,bd) -> 
-		let (ii,mm) = Array.fold_left (fun (i,m) x -> 
-					       if (Array.exists (fun y -> x = y) mem_instr) then 
-						 (i,m+lc) 
-					       else 
-						 (i+lc,m)) (0,0) micro in
-		let (ii,mm) = Array.fold_left 
-				(fun (ii,mm) x -> 
-				 let indx = DynArray.index_of (fun (y,_) -> x = y) marray in
-				 let (mn,vals) = DynArray.get marray indx in 
-				 let n = Hashtbl.find_option tbl mn in
-				 let (ri,rm) = match n with | Some n -> n | None -> calc_exec_time (mn,vals) marray tbl in
-				 (ii+(ri*lc),mm+(rm*lc))
-				) (ii,mm) bd in
-		(i+ii,mm+m)
-	       ) (0,0) vals in
-  let () = Hashtbl.add tbl mn vals in
-  vals
+let rec calc_exec_time jfk (mn,vals) marray tbl =
+  if not (exists_in_clzms_array mn jfk) then
+    let _ = Stack.push mn jfk in
+    let vals = Array.fold_left 
+		 (fun (i,m) (micro,lc,bd) -> 
+		  let (ii,mm) = Array.fold_left (fun (i,m) x -> 
+						 if (Array.exists (fun y -> x = y) mem_instr) then 
+						   (i,m+lc) 
+						 else 
+						   (i+lc,m)) (0,0) micro in
+		  let (ii,mm) = Array.fold_left 
+				  (fun (ii,mm) x -> 
+				   let indx = DynArray.index_of (fun (y,_) -> x = y) marray in
+				   let (mn,vals) = DynArray.get marray indx in 
+				   let n = Hashtbl.find_option tbl mn in
+				   let (ri,rm) = 
+				     match n with 
+				     | Some n -> n 
+				     | None -> calc_exec_time jfk (mn,vals) marray tbl
+				   in
+				   (ii+(ri*lc),mm+(rm*lc))
+				  ) (ii,mm) bd in
+		  (i+ii,mm+m)
+		 ) (0,0) vals in
+    let _ = Stack.pop jfk in
+    let () = Hashtbl.add tbl mn vals in
+    vals
+  else (0,0)
 
 let main = 
   try
@@ -1011,10 +1029,11 @@ let main =
       else (DynArray.get args 0,DynArray.get args 1) in
     cpp := cp;
     let marray = DynArray.make 100 in
+    let jfk = Stack.create () in
     bj3 := cn;
     let () = generate_microcode_clazz marray (JFile.class_path cp) (make_cn cn) l in 
     let mm = DynArray.map (fun (mn,vals) -> (JPrint.class_method_signature mn,
-					     calc_exec_time (mn,vals) marray (Hashtbl.create 50)) ) marray in
+					     calc_exec_time jfk (mn,vals) marray (Hashtbl.create 50)) ) marray in
     let () = Sys.chdir ff in
     let fd = open_out (cn^".ini") in
     DynArray.iter (fun (x,(i,m)) -> 
