@@ -526,52 +526,21 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
     let mn = make_ms "f_lookupswitch" [(TBasic `Int)] None in
     let () = byte_code_method_invoke op mn mstack marray pms cms pcname cname bcs const_pool cp l bd level ss2 in
     invokestatic_mc
-  | JL.OpReturn x as op ->
-    let hopcode = JInstruction.opcode2instruction const_pool op in
-    (* BAD hack! TOO EXPENSIVE *)
-    let iwaits = 
-      try 
-        (match pms with | Some ms -> 
-          print_endline (ms_name ms);
-          print_endline (cn_name cname);
-          get_invoke_msize false cp cname hopcode ms | None -> [||]) 
-      with
-      | Not_found -> 
-        let cname = (match pcname with | Some x -> x | None -> raise Internal) in
-        (match pms with | Some ms -> get_invoke_msize false cp cname hopcode ms | None -> [||])
-    in
+  | JL.OpReturn x ->
     (match x with
-     | `Double | `Long -> Array.append iwaits [|Stm;Stm;Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;
-                                                Ldmrd; Stbcrd;Stm;Nop;Stsp;Pop;Pop;Ldbcstart;Ldm;Add;
-                                                Stjpc;Ldm;Ldm;Wait;Wait;Nop|]
-     | _ -> Array.append iwaits [|Stm;Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;Ldmrd;Stbcrd;Stm;Nop;Stsp;
-                                  Pop;Pop;Ldbcstart;Ldm;Add;Stjpc;Ldm;Wait;Wait;Nop|])
-  | JL.OpAReturn as op -> 
-    let hopcode = JInstruction.opcode2instruction const_pool op in
-    (* BAD hack! TOO EXPENSIVE *)
-    let iwaits = 
-      try 
-        (match pms with | Some ms -> get_invoke_msize false cp cname hopcode ms | None -> [||]) 
-      with
-      | Not_found -> 
-        let cname = (match pcname with | Some x -> x | None -> raise Internal) in
-        (match pms with | Some ms -> get_invoke_msize false cp cname hopcode ms | None -> [||])
-    in
-    Array.append iwaits [|Stm;Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;Ldmrd;Stbcrd;Stm;Nop;Stsp;
-                          Pop;Pop;Ldbcstart;Ldm;Add;Stjpc;Ldm;Wait;Wait;Nop|] 
-  | JL.OpReturnVoid as op -> 
-    let hopcode = JInstruction.opcode2instruction const_pool op in
-    (* BAD hack! TOO EXPENSIVE *)
-    let iwaits = 
-      try 
-        (match pms with | Some ms -> get_invoke_msize false cp cname hopcode ms | None -> [||]) 
-      with
-      | Not_found -> 
-        let cname = (match pcname with | Some x -> x | None -> raise Internal) in
-        (match pms with | Some ms -> get_invoke_msize false cp cname hopcode ms | None -> [||])
-    in
-    Array.append iwaits [|Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;Ldmrd;Stbcrd;Stm;Nop;
-                          Stsp;Ldbcstart;Ldm;Add;Stjpc;Pop;Pop;Wait;Wait;Nop|]
+     | `Double | `Long -> 
+		  [|Stm;Stm;Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;
+                    Ldmrd; Stbcrd;Stm;Nop;Stsp;Pop;Pop;Ldbcstart;Ldm;Add;
+                    Stjpc;Ldm;Ldm;Wait;Wait;Nop|]
+     | _ ->
+	[|Stm;Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;Ldmrd;Stbcrd;Stm;Nop;Stsp;
+          Pop;Pop;Ldbcstart;Ldm;Add;Stjpc;Ldm;Wait;Wait;Nop|])
+  | JL.OpAReturn -> 
+    [|Stm;Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;Ldmrd;Stbcrd;Stm;Nop;Stsp;
+      Pop;Pop;Ldbcstart;Ldm;Add;Stjpc;Ldm;Wait;Wait;Nop|] 
+  | JL.OpReturnVoid -> 
+    [|Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;Ldmrd;Stbcrd;Stm;Nop;
+      Stsp;Ldbcstart;Ldm;Add;Stjpc;Pop;Pop;Wait;Wait;Nop|]
 
   | JL.OpGetStatic _ 
   | JL.OpGetField _ 
@@ -646,6 +615,8 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
             ignore(Stack.pop mstack)
           else ();
           let iwaits = get_invoke_msize true cp cn op mn in
+	  let iiwaits = get_invoke_msize false cp cname op cms in
+	  let iwaits = Array.append iwaits iiwaits in
           Array.append iwaits invokeinterface_mc
         (* Array.append iwaits invokeinterface_mc *)
         | `Virtual ot -> 
@@ -664,6 +635,8 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
             ignore(Stack.pop mstack)
           else ();
           let iwaits = get_invoke_msize true cp cn op mn in
+	  let iiwaits = get_invoke_msize false cp cname op cms in
+	  let iwaits = Array.append iwaits iiwaits in
           Array.append iwaits invokevirtual_mc
         (* Array.append waits invokevirtual_mc *)
         | `Special cn -> 
@@ -682,6 +655,8 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
             ignore(Stack.pop mstack)
           else ();
           let iwaits = get_invoke_msize true cp cn op mn in
+	  let iiwaits = get_invoke_msize false cp cname op cms in
+	  let iwaits = Array.append iwaits iiwaits in
           Array.append iwaits invokestatic_mc
         (* Array.append waits invokestatic_mc *)
         | `Static cn ->
@@ -739,6 +714,8 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
                  ignore(Stack.pop mstack)
                else ();
                let iwaits = get_invoke_msize true cp cn op mn in
+	       let iiwaits = get_invoke_msize false cp cname op cms in
+	       let iwaits = Array.append iwaits iiwaits in
                Array.append iwaits invokestatic_mc
                (* Array.append waits invokeinterface_mc *)
             )
@@ -751,9 +728,13 @@ let rec generate_microcode_bc mstack marray pms cms pcname cname bcs const_pool 
                 invoke_method mstack cn mn const_pool cp marray cms cname op l level ss2 clzms in
             ignore(Stack.pop mstack);
             let iwaits = get_invoke_msize true cp cn op mn in
+	    let iiwaits = get_invoke_msize false cp cname op cms in
+	    let iwaits = Array.append iwaits iiwaits in
             Array.append iwaits invokestatic_mc
           else
             let iwaits = get_invoke_msize true cp cn op mn in
+	    let iiwaits = get_invoke_msize false cp cname op cms in
+	    let iwaits = Array.append iwaits iiwaits in
             Array.append iwaits invokestatic_mc
             (* Array.append waits invokeinterface_mc *)
        )
