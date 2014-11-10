@@ -88,9 +88,11 @@ let rec isSignalSetValue ms = function
   | Unop (_,e1) -> isSignalSetValue ms e1 
   | Const _ -> false
 
-let isCorrectField2 varrs vvt = function
+let rec isCorrectField2 varrs vvt = function
   | Var (vt,v) -> List.exists ((=) v) varrs
-  | _ -> false
+  | Field (e,_,_) -> isCorrectField2 varrs vvt e
+  | Unop (_,e) -> isCorrectField2 varrs vvt e
+  | _ as s -> false
 
 let isCorrectField varrs tfs le cn fs cnfs = 
   let ifs = FieldMap.value_elements cnfs in
@@ -100,7 +102,7 @@ let isCorrectField varrs tfs le cn fs cnfs =
 		       | ClassField ic -> ic.cf_class_signature) ifs in
   let r1 = List.exists (cfs_equal cnfs) ifs in
   let r2 = isCorrectField2 varrs tfs le in
-  r1 && r2
+  r2 
 
 let isArrayEqual varrs = function
   | Var (_,vv) -> List.exists ((=) vv) varrs
@@ -293,29 +295,12 @@ and get_size pbir (vt,f) =
   | TBasic (`Double) -> 2 
   | TObject (TClass _) -> 1
   | TObject (TArray _) -> 1
-(* let fa = (match f with *)
-(* 	       | ClassField x -> x.cf_annotations  *)
-(* 	       | InterfaceField x -> x.if_annotations) in *)
-(* let evps = List.fold_left  *)
-(* 		  (fun res {kind;element_value_pairs} ->  *)
-(* 		   if (cn_equal kind array_bound_class_name) then *)
-(* 		     (List.filter (fun (x,_) -> x = "bound") element_value_pairs) @ res *)
-(* 		   else res *)
-(* 		  ) [] (List.map (fun (x,_) -> x) fa) in *)
-(* if evps <> [] then *)
-(*   List.max (List.map (fun (_,x) ->  *)
-(* 			   match x with *)
-(* 			   | EVCstString x -> int_of_string x *)
-(* 			   | _ -> raise (Not_supported "Cannot understand bound annotation on  *)
-(* 							array type field")) evps) *)
-(* else *)
-(*   raise (Not_supported "Unbounded arrays emitted via signals") *)
 
 and ifields pbir = function
   | TObject (TClass cn) -> 
      let pnode = JProgram.get_node pbir cn in
      let fields = JProgram.get_fields pnode in
-     let fields = FieldMap.filter (not >> is_static_field) fields in
+     (* let fields = FieldMap.filter (not >> is_static_field) fields in *)
      FieldMap.filter (function
 		       | InterfaceField x -> 
 			  (match fs_type (x.if_signature) with 
@@ -669,7 +654,7 @@ let main =
 
 
     (* From here on we use dataflow analysis to replace new opcodes being passed to signal object's setValue method *)
-    (* JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout; *)
+    JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout;
     ignore(map_concrete_method ~force:true (start None pp_stack prta pbir ss ms_ss (mobj.cm_class_method_signature)) mobj);
 
     (* JPrint.print_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) JPrint.jcode stdout; *)
