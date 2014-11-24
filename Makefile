@@ -5,10 +5,10 @@ SRCN=joplang.ml wcma.ml
 all: wcma live_ref
 
 wcma:
-	ocamlfind $(CCC) -pp "camlp4o pa_macro.cmo -DDEBUG" -package extlib -package sawja -package batteries -package javalib \
+	ocamlfind $(CCC) -pp "camlp4o pa_macro.cmo -DDEBUG" -package extlib,deriving -package sawja -package batteries -package javalib \
 	-linkpkg $(SRCN) -o $@
 live_ref:
-	ocamlfind $(CCC) -pp "camlp4o pa_macro.cmo -DDEBUG" -package extlib -package sawja -package batteries -package javalib \
+	ocamlfind $(CCC) -pp "camlp4o pa_macro.cmo -DDEBUG" -package extlib,deriving -package sawja -package batteries -package javalib \
 	-linkpkg $(SRCO) -o $@
 
 

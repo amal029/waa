@@ -147,7 +147,7 @@ let rec scommon cnfs sors2 instrs setValuepcs pp_stack prta pbir mstack ms_stack
 		   | Const x -> elist
 		   | _ as s -> 
 		      raise (Internal ("Setting a non-field, var type value in setValue: " ^ (print_expr s)))
-		 )) ClassMethodMap.empty arg in
+		  )) ClassMethodMap.empty arg in
        ClassMethodMap.merge (@) elist rr
       ) ClassMethodMap.empty setValuepcs in
 
@@ -231,8 +231,8 @@ and others prta pbir pp_stack fs_stack map cms mstack ms_stack mbir x pc =
 
 and start2 (cnfs as ffs) pp_stack prta pbir mstack ms_stack this_ms mbir =
   let (varrs,tfs,cnfs) = (match cnfs with 
-		   | Some (varrs,tfs,cnfs) -> (varrs,tfs,cnfs) 
-		   | None -> raise (Internal "")) in
+			  | Some (varrs,tfs,cnfs) -> (varrs,tfs,cnfs) 
+			  | None -> raise (Internal "")) in
   let instrs = code mbir in
   (* VIMP: This has to be flow insensitive to be conservative *)
   (* What this means is that I am not checking just below this program
@@ -331,11 +331,11 @@ and gets mbir pbir vvt pc =
   | NewArray(_,vt,els) -> 
      (* Check that all els have constant dimensions *)
      let dims = List.map (function 
-			      | Const (`Int x) -> 
-				 let ret = Int32.to_int x in
-				 if ret >= 0 then ret else raise (Not_supported ("Negative dimension arrays: " ^ (string_of_int ret)))
-			      | _ as s -> raise (Not_supported ("Non constant array dimensions" ^ (print_expr s)))
-			    ) els in
+			   | Const (`Int x) -> 
+			      let ret = Int32.to_int x in
+			      if ret >= 0 then ret else raise (Not_supported ("Negative dimension arrays: " ^ (string_of_int ret)))
+			   | _ as s -> raise (Not_supported ("Non constant array dimensions" ^ (print_expr s)))
+			 ) els in
      let dim = List.fold_left ( * ) 1 dims in
      dim * (get_object_size_array vt)
   | New _ -> (get_object_size pbir vvt) + (super_size pbir vvt)
@@ -527,8 +527,8 @@ and vfielddefpcs prta pbir pp_stack fs_stack map cms mstack ms_stack mbir pc cn 
       let cmsc = Stack.pop ms_stack_c in
       let (varrs,_,rr) = vfielddefpcs prta pbir pp_stack_c (Stack.create ()) map cmsc mstack_c ms_stack_c mbirc pcc cn fs x in
       let () = (match (fs_type fs) with 
-	       | (TObject (TClass x)) -> () 
-	       | _ -> raise (Not_supported "Fields of non Class type")) in
+		| (TObject (TClass x)) -> () 
+		| _ -> raise (Not_supported "Fields of non Class type")) in
       let size = get_object_size pbir (fs_type fs) in
       let size = size + super_size pbir (fs_type fs) in
       let rr = List.map (fun x -> List.map (fun x -> (x,size)) x) rr in
@@ -703,10 +703,10 @@ let main =
 
 				 let gremove mbir pp = 
 				   match (code mbir).(pp) with
-				    | NewArray (_,(TBasic _),_) -> 2
-				    | NewArray (_,(TObject (TClass _)),_) -> 3
-				    | New _ -> 3
-				    | _ as s -> raise (Internal ("Expected new/(a)newarray got: " ^ (print_instr s))) in
+				   | NewArray (_,(TBasic _),_) -> 2
+				   | NewArray (_,(TObject (TClass _)),_) -> 3
+				   | New _ -> 3
+				   | _ as s -> raise (Internal ("Expected new/(a)newarray got: " ^ (print_instr s))) in
 
 				 let remove = gremove birc bpp in
 
@@ -737,7 +737,7 @@ let main =
 								      else s
 					      | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
 					      | _ as s -> s
-					    )) fa in
+					     )) fa in
 				 let sa = Array.filteri (fun i _ -> (i>x+(remove-1))) r in
 				 let sa = Array.mapi 
 					    (fun rr ff ->
@@ -755,7 +755,7 @@ let main =
 						 else s
 					      | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
 					      | _ as s -> s
-					    )) sa in
+					     )) sa in
 
 				 (* Change to low level format to get the index in the constant pool *)
 				 (* Should be encoded in 3 bytes max *)
@@ -859,7 +859,7 @@ let main =
 					      | JClassLow.OpNewArray _ -> Array.append xx [|OpNop;OpNop|]
 					      | _ -> Array.append xx [|OpNop;OpNop;OpNop|]) in
 				    (Array.append (Array.append fa xx) sa,lnt)
-				    
+				      
 				 | _ as op -> 
 				    (print_endline >> JPrint.class_method_signature) k;
 				    print_endline ("Looking for new/newarray opcode, found: " ^ (JDumpLow.opcode op));
