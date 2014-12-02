@@ -9,7 +9,7 @@ usage_message = 'gurobi.sh lp_solve.py <file-name>.txt'
 
 try:
     #f = open(str(sys.argv[1]))
-    f = open('stage2.txt')
+    f = open('stage2.csv')
     d = {}
     counter = 0
     for line in f:

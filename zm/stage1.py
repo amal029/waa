@@ -74,22 +74,22 @@ def stage1_optimize(core_num, wcits, wcmts, rrs):
     # for v in m.getVars():
     #    print v.varName, v.x
 
-    solution = open('solution.txt', 'w')
+    solution = open('solution_stage1.txt', 'w')
+    
+    solution.write('Objective is: %s \n' % m.getObjective().getValue())
     for j in range(core_num):
         print('allocated core sign for core %s is %s: ' % (j, valid_core[j]))
-        solution.write('allocated core sign for core %s is %s: ' % (j, valid_core[j]))
-        solution.write("\n")
+        solution.write('allocated core sign for core %s is %s: \n' % (j, valid_core[j]))
+
 
     
     stage2_data = {}
     for i in range(len(wcmts)):
         print('for Clock Domain %s: ' % i)
-        solution.write('for Clock Domain %s: ' % i)
-        solution.write("\n")
+        solution.write('for Clock Domain %s: \n' % i)
         for j in range(core_num):
             print('Processor Allocation for index (%s,%s) is %s: ' % (i, j, core_alloc[i, j]))
-            solution.write('Processor Allocation for index (%s,%s) is %s: ' % (i, j, core_alloc[i, j]))
-            solution.write("\n")
+            solution.write('Processor Allocation for index (%s,%s) is %s: \n' % (i, j, core_alloc[i, j]))
             if core_alloc[i, j].X == 1:
                 if j in stage2_data:
                     stage2_data[j][0] += wcits[i]
@@ -99,11 +99,17 @@ def stage1_optimize(core_num, wcits, wcmts, rrs):
                 else: 
                     stage2_data[j] = [wcits[i],wcmts[i],rrs[i]]
                 print stage2_data
-
-    print stage2_data
-
+    
+    
+    print "stage1_result: "
+    solution.write("stage1_result: \n")
+    for j in stage2_data.keys():
+        print ("core %s: %s" % (j,str(stage2_data[j])))
+        solution.write("core %s: %s\n" % (j,str(stage2_data[j])))
+                 
+    
     # write the stage2 file at last 
-    outfile = open('stage2.txt', 'w')
+    outfile = open('stage2.csv', 'w')
     for i in stage2_data:
         outfile.write(','.join(str(x) for x in stage2_data[i])+"\n")
     
@@ -124,7 +130,7 @@ try:
 
     # f = open(str(sys.argv[1]))
 
-    f = open('stage1.txt')
+    f = open('stage1.csv')
     # d = {}
     wcits = []
     wcmts = []
