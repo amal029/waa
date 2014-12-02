@@ -9,9 +9,9 @@ usage_message = 'gurobi.sh/gurobi.bat stage1.py/stage2.py <file-name>.txt'
 
 
 
-def stage1_optimize(core_num, wcits, wcmts, wcrrs):
+def stage12_optimize(core_num, wcits, wcmts, wcrrs):
 
-    m = Model("stage1")
+    m = Model("stage12")
     weight_ub = 1000.0
     total_rr = sum(wcrrs)
     
@@ -49,7 +49,7 @@ def stage1_optimize(core_num, wcits, wcmts, wcrrs):
     # Integrate the variables in to the model
     m.update()
 
-    m.write('stage1.lp')
+    m.write('stage12.lp')
     # set objective
 
     # add constraint
@@ -150,8 +150,8 @@ def stage1_optimize(core_num, wcits, wcmts, wcrrs):
         print('TDMA slots for core %s is %s: ' % (j, weight[j]))
     
                 
-    print "stage1_result: "
-    solution.write("stage1_result: \n")
+    print "stage12_result: "
+    solution.write("stage12_result: \n")
     for j in stage2_data.keys():
         print ("core %s: %s; TDMA slot number: %s" % (j,str(stage2_data[j]), weight[j]))
         solution.write("core %s: %s; TDMA slot number: %s\n" % (j,str(stage2_data[j]), weight[j]))
@@ -221,7 +221,7 @@ try:
     print wcmts
     print wcrrs
 
-    success = stage1_optimize(len(wcits), wcits, wcmts, wcrrs)
+    success = stage12_optimize(len(wcits), wcits, wcmts, wcrrs)
 
 
 
