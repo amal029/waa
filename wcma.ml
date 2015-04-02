@@ -1023,6 +1023,77 @@ let exists_in_clzms_array clzms x =
       vals
     else (of_int 0, of_int 0)
 
+  (* Currently only numbers at 60 MHz are given. But it can be easily
+  extended to any thing else *)
+  let annotate = function
+    | Pop -> PPop {avgp = 293.0}
+    | And -> PAnd {avgp = 294.0}
+    | Or -> POr {avgp = 294.0}
+    | Xor -> PXor {avgp = 299.0}
+    | Add -> PAdd {avgp = 299.0}
+    | Sub -> PSub {avgp = 299.0}
+    | Stmul -> PStmul {avgp = 290.0}
+    | Stmwa -> PStmwa {avgp = 290.0}
+    | Stmra -> PStmra {avgp = 290.0}
+    | Stmrac -> PStmrac {avgp = 290.0}
+    | Stmraf -> PStmraf {avgp = 290.0}
+    | Stmwd -> PStmwd {avgp = 290.0}
+    | Stald -> PStald {avgp = 290.0}
+    | Stast -> PStast {avgp = 290.0}
+    | Stgf -> PStgf {avgp = 290.0}
+    | Stgs -> PStgs {avgp = 290.0}
+    | Stpf -> PStpf {avgp = 290.0}
+    | Stcp -> PStcp {avgp = 290.0}
+    | Stbcrd -> PStbcrd {avgp = 290.0}
+    | Stidx -> PStidx {avgp = 290.0}
+    | Stps -> PStps {avgp = 290.0}
+    | Cyc -> Cyc
+    | Ldcr -> Ldcr
+    | St0 -> PSt0 {avgp = 293.0}
+    | St1 -> PSt1 {avgp = 299.0}
+    | St2 -> PSt2 {avgp = 293.0}
+    | St3 -> PSt3 {avgp = 293.0}
+    | St4 -> PSt4 {avgp = 293.0}
+    | St -> PSt {avgp = 296.0}
+    | Stmi -> PStmi {avgp = 293.0}
+    | Stvp -> PStvp {avgp = 291.0}
+    | Stjpc -> PStjpc {avgp = 290.0}
+    | Star -> PStar {avgp = 290.0}
+    | Stsp -> PStsp {avgp = 290.0}
+    | Ushr -> PUshr {avgp = 290.0}
+    | Shl -> PShl {avgp = 290.0}
+    | Shr -> PShr {avgp = 290.0}
+    | Stm -> PStm {avgp = 290.0}
+    | Bz -> PBz {avgp = 290.0}
+    | Bnz -> PBnz {avgp = 290.0}
+    | Nop -> PNop {avgp = 290.0}
+    | Wait -> PWait {avgp = 290.0}
+    | Jbr -> PJbr {avgp = 290.0}
+    | Ldm -> PLdm {avgp = 292.0}
+    | Ldi -> PLdi {avgp = 290.0}
+    | Ldmrd -> PLdmrd {avgp = 291.0}
+    | Ldmul -> PLdmul {avgp = 291.0}
+    | Ldbcstart -> PLdbcstart {avgp = 290.0}
+    | Ld0 -> PLd0 {avgp = 290.0}
+    | Ld1 -> PLd1 {avgp = 291.0}
+    | Ld2 -> PLd2 {avgp = 290.0}
+    | Ld3 -> PLd3 {avgp = 290.0}
+    | Ld4 -> PLd4 {avgp = 290.0}
+    | Ld -> PLd {avgp = 291.0}
+    | Ldmi -> PLdmi {avgp = 293.0}
+    | Ldsp -> PLdsp {avgp = 295.0}
+    | Ldvp -> PLdvp {avgp = 293.0}
+    | Ldjpc -> PLdjpc {avgp = 293.0}
+    | Ld_opd_8u -> PLd_opd_8u {avgp = 292.0}
+    | Ld_opd_8s -> PLd_opd_8s {avgp = 293.0}
+    | Ld_opd_16u -> PLd_opd_16u {avgp = 292.0}
+    | Ld_opd_16s -> PLd_opd_16s {avgp = 293.0}
+    | Dup -> PDup {avgp = 290.0}
+    | Jmp -> PJmp {avgp = 290.0}
+    | Cinval -> Cinval
+    | _ as s -> raise Internal
+
+
   let main = 
     try
       let args = DynArray.make 2 in
@@ -1043,6 +1114,9 @@ let exists_in_clzms_array clzms x =
       bj3 := cn;
       let () = generate_microcode_clazz marray (JFile.class_path cp) (make_cn cn) l in 
       let marray = DynArray.map (fun (mn,vals) -> (mn,Array.map(fun(x,y,z) -> (x,BatNum.of_int y,z))vals)) marray in
+      (* Annotating the micro-code array with the average-power numbers uses open types, see joplang.ml *)
+      let _ = DynArray.map (fun (mn,vals) -> (mn,Array.map(fun(x,y,z) ->
+								 ((Array.map annotate x),y,z))vals)) marray in
       let mm = DynArray.map (fun (mn,vals) -> (JPrint.class_method_signature mn,
                                                calc_exec_time jfk (mn,vals) marray (Hashtbl.create 50)) ) marray in
       let () = Sys.chdir ff in
