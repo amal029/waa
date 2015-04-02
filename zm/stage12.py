@@ -12,7 +12,7 @@ usage_message = 'gurobi.sh/gurobi.bat stage1.py/stage2.py <file-name>.txt'
 def stage12_optimize(core_num, wcits, wcmts, wcrrs):
 
     m = Model("stage12")
-    weight_ub = 1000.0
+    weight_ub =  10.0
     total_rr = sum(wcrrs)
     
     

@@ -149,12 +149,12 @@ let usage_msg = "Usage: wcma [-sourcepath <filename>] [OPTION] class-path class-
   set_permissive true;;
 
 
-  let exists_in_marray marray ms = 
-    List.exists (fun (i,_) -> (i = ms)) (DynArray.to_list  marray)
+let exists_in_marray marray ms = 
+  List.exists (fun (i,_) -> (i = ms)) (DynArray.to_list  marray)
 
-  let exists_in_clzms_array clzms x = 
-    let a = Stack.enum x in
-    Enum.exists (fun x -> x = clzms) a
+let exists_in_clzms_array clzms x = 
+  let a = Stack.enum x in
+  Enum.exists (fun x -> x = clzms) a
 
   (* Method size in bytes *)
   let get_method_size = function
@@ -347,8 +347,8 @@ let usage_msg = "Usage: wcma [-sourcepath <filename>] [OPTION] class-path class-
 						     false
 						  ) opcodes in
 			       let goto = Array.fold_left (fun x y -> 
-							   (function (i,JClassLow.OpGotoW n) | (i,JClassLow.OpGoto n) | (i,JClassLow.OpIfNe n) -> 
-															 if (i+n) = s_bcln then Some i else x | _ -> failwith "This must be goto bytecode") y
+							   (function (i,JClassLow.OpGotoW n) | (i,JClassLow.OpGoto n)
+								     | (i,JClassLow.OpIfNe n) -> if (i+n) = s_bcln then Some i else x | _ -> failwith "This must be goto bytecode") y
 							  ) None goto 
 			       in
 			       match goto with
