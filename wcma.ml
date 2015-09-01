@@ -870,13 +870,21 @@ and invoke_method mstack cn mn cpool cp marray cms cname op l level ss2 clzms =
   if not (exists_in_marray marray clzms) then
     let () = Stack.push clzms ss2 in
     let (m,cn) = pipi cn cp op mn in 
-    let cn = (match cn with | JClass.JClass x -> x | _ -> raise (Internal "This should be JClass")) in
-    print_endline ("jlkjdlfjlsjf: " ^ (cn_name cn.JClass.c_name));
-    let cpool = cn.JClass.c_consts in
-    let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
-    let m = JHigh2Low.h2l_acmethod cpool1 m in
-    let () = generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level ss2 in
-    ignore(Stack.pop ss2)
+    (match cn with 
+        | JClass.JClass cn -> 
+          print_endline ("jlkjdlfjlsjf: " ^ (cn_name cn.JClass.c_name));
+          let cpool = cn.JClass.c_consts in
+          let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
+          let m = JHigh2Low.h2l_acmethod cpool1 m in
+          let () = generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.c_name cpool cp m l level ss2 in
+          ignore(Stack.pop ss2)
+        | JClass.JInterface cn -> 
+          let cpool = cn.JClass.i_consts in
+          let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
+          let m = JHigh2Low.h2l_acmethod cpool1 m in
+          let () = generate_microcode_method mstack marray (Some cms) mn (Some cname) cn.JClass.i_name cpool cp m l level ss2 in
+          ignore(Stack.pop ss2)
+    )
 
 and get_invoke_msize retorinv cp cn op ms = 
   let cnn = cn in
@@ -892,8 +900,8 @@ and get_invoke_msize retorinv cp cn op ms =
         let cn = (match cn with | JClass.JClass x -> x | _ -> raise (Internal "This should be JClass")) in
         search_super op cp cn.JClass.c_super_class ms cnn
       else raise Not_found in
-  let cn = (match cn with | JClass.JClass x -> x | _ -> raise (Internal "This should be JClass")) in
-  let cpool = cn.JClass.c_consts in
+(*   let cn = (match cn with | JClass.JClass x -> x | _ -> raise (Internal "This should be JClass")) in *)
+  let cpool = (match cn with | JClass.JClass x -> x.JClass.c_consts | JClass.JInterface x -> x.JClass.i_consts) in
   let cpool1 = DynArray.init (Array.length cpool) (fun i -> cpool.(i)) in
   let m = JHigh2Low.h2l_acmethod cpool1 m in
   let bcs = m.JClassLow.m_attributes in
