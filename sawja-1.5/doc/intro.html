@@ -1,0 +1,60 @@
+<h2>Introduction</h2>
+
+<p>
+ <em>Sawja</em> is a library written in <em>OCaml</em>, relying on
+  <em >Javalib</em> to provide a high level representation of <em>Java</em>
+  bytecode programs. Its name stands for <em>Static Analysis Workshop for
+  JAva</em>.  Whereas <em>Javalib</em> is dedicated to isolated classes,
+  <em>Sawja</em> handles bytecode programs with their class hierarchy and
+  control flow algorithms<sup>1</sup>.
+</p>
+
+<p>Moreover, <em>Sawja</em> provides some stackless intermediate
+  representations of code, called <em>JBir</em> and <em>A3Bir</em>.
+  The transformation algorithm, common to these representations, has
+  been formalized and proved to be semantics-preserving<sup>2,3</sup>.
+</p>
+
+<p>
+  It is distributed under the <em>GNU General Public License</em>
+ (either version 3 of the License, or (at your option) any later
+ version).
+</p>
+
+<p>An <em>Eclipse</em> plugin for <em>Sawja</em> analyses is now
+  available: it allows developers to add an analysis
+  in <em>Eclipse</em> just by adding an executable.
+</p>
+
+
+<hr/>
+<ol class="footnote">
+  <li id="fn1">
+    Laurent Hubert, Nicolas Barr&eacute;, Fr&eacute;d&eacute;ric
+    Besson, Delphine Demange, Thomas Jensen, Vincent Monfort, David
+    Pichardie, and Tiphaine Turpin. <em> Sawja: Static Analysis
+    Workshop for Java.</em> In Proc. of the 1st International
+    Conference on Formal Verification of Object-Oriented Software
+    (FoVeOOS 2010), volume 6528 of Lecture Notes in Computer Science,
+    pages 92-106. Springer-Verlag, 2010.
+    <a href="http://www.irisa.fr/celtique/pichardie/papers/foveoos10.pdf">[.pdf]</a>
+  </li>
+  <li id="fn2">
+    <p>
+      Delphine Demange, Thomas Jensen, and David Pichardie. <em>A
+      provably correct stackless intermediate representation for Java
+      bytecode</em>. In Proc. of the 8th Asian Symposium on
+      Programming Languages and Systems (APLAS 2010), volume 6461
+      of Lecture Notes in Computer Science, pages
+      97-113. Springer-Verlag, 2010.
+      <a href="http://www.irisa.fr/celtique/pichardie/papers/aplas10.pdf">[.pdf]</a>
+    </p>
+  </li>
+  <li id="fn3">
+    D. Demange, T. Jensen and D. Pichardie.
+      <em>A Provably Correct Stackless Intermediate Representation For
+	Java Bytecode</em>.
+      Research Report 7021, INRIA, 2009.
+      <a href="http://www.irisa.fr/celtique/demange/bir/rr7021-3.pdf">[.pdf]</a>
+  </li>
+</ol>

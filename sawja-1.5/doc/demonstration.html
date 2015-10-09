@@ -1,0 +1,80 @@
+<h2>Quick start</h2>
+
+<p>
+  We quickly present some <em>OCaml</em> code allowing to load a full program
+  and to transform it into <em>JBir</em> intermediate representation.
+
+  To get started, run the command <strong>make ocaml</strong> in the
+  source repository of <em>Sawja</em>. Then you can run the generated
+  toplevel named <strong>ocaml</strong>, which
+  includes <em>Javalib</em> and <em>Sawja</em> modules. You need to
+  enter some <strong>#directory</strong> directives to specify the
+  location of the <strong>.cmi</strong> files needed
+  by <em>Javalib</em> and <em>Sawja</em>.</p>
+
+<h3>Loading a program</h3>
+
+<p>Given an archive <b>test.jar</b> containing a class
+  named <b>Test.class</b> defining a <b>main</b> method, we can load
+  the corresponding program, assuming that
+  the <strong>$CLASSPATH</strong> environment variable contains the
+  <strong>test.jar</strong> file and the <em>Java
+  Runtime</em> <strong>rt.jar</strong>.</p>
+
+<p>Enter the following directives in your <em>toplevel</em>:</p>
+<pre><code>    #cd "... path of your test.jar archive ...";;
+    #directory "... path of Ptrees sources ...";;
+    #directory "... path of Extlib sources ...";;
+    #directory "... path of Camlzip sources ...";;
+    #directory "... path of Javalib sources ...";;
+    #directory "... path of Sawja sources ...";;</code></pre>
+  
+<p>The different modules of Sawja and Javalib are encapsulated in Sawja_pack
+  and Javalib_pack modules. To uses them, you have to load the different used
+  library and thoses packs:</p>
+<pre><code>    #load "ptrees.cma";;
+#load "extLib.cma";;
+#load "str.cma";;
+#load "unix.cma";;
+#load "zip.cma";;
+#load "javalib_pack.cmo";;
+#load "sawja_pack.cmo";;
+</code></pre>
+
+<pre><code>    let (prta,instantiated_classes) =
+      JRTA.parse_program (Sys.getenv "CLASSPATH")
+         (JBasics.make_cms (JBasics.make_cn "Test") JProgram.main_signature);;
+</code></pre>
+
+<p>Now we generate the <strong>.html</strong> files corresponding to the
+  parsed program <strong>prta</strong>. One file per class is generated
+  and the package tree is reproduced in the destination directory. The
+  destination directory must exist otherwise an exception will be
+  raised.</p>
+
+<pre><code>    let outputdir = "./test";;
+    let () = JPrintHtml.JCodePrinter.print_program prta outputdir;;
+</code></pre>
+
+<p>You can open the file <strong>./test/Test.html</strong> with a web
+  browser and navigate through the class hierarchy, or follow the
+  control flow graph.</p>
+
+<h3>Transforming a program</h3>
+
+<p>We transform the previously loaded program from the JCode representation to
+  the JBir intermediate representation.</p>
+
+<pre><code>    
+let pbir = JProgram.map_program2
+  (fun _ -&gt; JBir.transform ~bcv:false ~ch_link:false ~formula:false ~formula_cmd:[])
+  (Some (fun code pp -&gt; (Ptmap.find pp (JBir.pc_bc2ir code)))) prta;;
+
+</code></pre>
+
+
+<p>To see how <em>JBir</em> representation looks like, we can generate
+the corresponding <strong>.html</strong> files.</p>
+
+<pre><code>    let () = JBir.print_program pbir outputdir;;
+</code></pre>

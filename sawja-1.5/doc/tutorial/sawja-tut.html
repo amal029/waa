@@ -1,0 +1,1118 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content=
+"HTML Tidy for Linux (vers 25 March 2009), see www.w3.org" />
+<meta http-equiv="Content-Type" content=
+"text/html; charset=utf-8" />
+<meta http-equiv="Content-Style-Type" content="text/css" />
+<meta name="generator" content="pandoc" />
+<title>Sawja tutorial -</title>
+
+<style type="text/css">
+/*<![CDATA[*/
+code{white-space: pre;}
+/*]]>*/
+</style>
+
+<style type="text/css">
+/*<![CDATA[*/
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+code > span.kw { color: #007020; font-weight: bold; }
+code > span.dt { color: #902000; }
+code > span.dv { color: #40a070; }
+code > span.bn { color: #40a070; }
+code > span.fl { color: #40a070; }
+code > span.ch { color: #4070a0; }
+code > span.st { color: #4070a0; }
+code > span.co { color: #60a0b0; font-style: italic; }
+code > span.ot { color: #007020; }
+code > span.al { color: #ff0000; font-weight: bold; }
+code > span.fu { color: #06287e; }
+code > span.er { color: #ff0000; font-weight: bold; }
+/*]]>*/
+</style>
+<link rel="stylesheet" href="style.css" type="text/css" />
+</head>
+<body>
+<div class="content">
+<h1 class="tutorial-title">Sawja tutorial</h1>
+<div id="TOC">
+<ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#global-architecture">Global architecture</a>
+<ul>
+<li><a href="#jprogram-module"><em>JProgram</em> module</a></li>
+<li><a href="#jcra-jrta-and-jrrta-modules"><em>JCRA</em>,
+<em>JRTA</em> and <em>JRRTA</em> modules</a></li>
+<li><a href="#jnativestubs-module"><em>JNativeStubs</em>
+module</a></li>
+<li><a href="#jcontrolflow-module"><em>JControlFlow</em>
+module</a></li>
+<li><a href=
+"#jbir-jbirssa-a3bir-and-a3birssa-modules"><em>JBir</em>, JBirSSA,
+<em>A3Bir</em> and <em>A3BirSSA</em> modules</a></li>
+<li><a href="#jprinthtml-module"><em>JPrintHtml</em>
+module</a></li>
+</ul>
+</li>
+<li><a href="#tutorial">Tutorial</a>
+<ul>
+<li><a href="#loading-and-printing-a-program">Loading and printing
+a program</a></li>
+<li><a href="#transforming-a-program-with-bir">Transforming a
+program with <em>Bir</em></a></li>
+<li><a href="#writing-your-own-html-printer">Writing your own HTML
+printer</a></li>
+<li><a href=
+"#create-an-analysis-for-the-sawja-eclipse-plugin">Create an
+analysis for the Sawja Eclipse Plugin</a></li>
+<li><a href="#using-formulae-to-make-assertions">Using
+<em>formulae</em> to make assertions</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<h2 id="introduction"><a href="#introduction">Introduction</a></h2>
+<p><em>Sawja</em> is a library written in <em>OCaml</em>, relying
+on the <em>Javalib</em> to provide a high level representation of
+<em>Java</em> byte-code programs. Whereas <em>Javalib</em> is
+dedicated to class per class loading, <em>Sawja</em> introduces a
+notion of program thanks to control flow algorithms. For instance,
+a program can be loaded using various algorithms like <em>Class
+Reachability Analysis</em> (<em>CRA</em>), a variant of <em>Class
+Hierarchy Analysis</em> algorithm (<em>CHA</em>) or <em>Rapid Type
+Analysis</em> (<em>RTA</em>). For now, <em>RTA</em> is the best
+compromise between loading time and precision of the call graph. A
+version of <em>XTA</em> is available and provides a way to refine
+the call graph of a program. To get more information about control
+flow graph algorithms and their complexity, you can consult the
+paper of Frank Tip and Jens Palsberg <sup><a href="#fn1" class=
+"footnoteRef" id="fnref1" name="fnref1">1</a></sup>.</p>
+<p>In <em>Sawja</em>, classes and interfaces are represented by
+interconnected nodes belonging to a common hierarchy. For example,
+given a class node, it's easy to access its super class, its
+implemented interfaces or its children classes. The next chapters
+will give more information about the nodes and program data
+structures.</p>
+<p>Moreover, <em>Sawja</em> provides some stack-less intermediate
+representations of code, called <em>JBir</em> and <em>A3Bir</em>.
+Such representations open the way to many analyses which can be
+built upon them more naturally, better than with the byte-code
+representation (e.g. <em>Live Variable Analysis</em>). The
+transformation algorithm, common to these representations, has been
+formalized and proved to be semantics-preserving<sup><a href="#fn2"
+class="footnoteRef" id="fnref2" name="fnref2">2</a></sup>.</p>
+<p><em>Sawja</em> also provides functions to map a program using a
+particular code representation to another.</p>
+<h2 id="global-architecture"><a href="#global-architecture">Global
+architecture</a></h2>
+<p>In this section, we present the different modules of
+<em>Sawja</em> and how they interact together. While reading the
+next sections, we recommend you to have a look at <em>Sawja</em>
+API at the same time. All modules of <em>Sawja</em> are sub-modules
+of the package module <em>Sawja_pack</em> in order to avoid
+possible namespace conflicts.</p>
+<h3 id="jprogram-module"><a href=
+"#jprogram-module"><em>JProgram</em> module</a></h3>
+<p>This module defines:</p>
+<ul>
+<li>the types representing the class hierarchy.</li>
+<li>the program structure.</li>
+<li>some functions to access classes, methods and fields (similar
+to <em>Javalib</em> functions).</li>
+<li>some functions to browse the class hierarchy.</li>
+<li>a large set of program manipulations.</li>
+</ul>
+<p>Classes and interfaces are represented by
+<strong>class_node</strong> and <strong>interface_node</strong>
+record types, respectively. These types are parametrized by the
+code representation type, like in <em>Javalib</em>. These types are
+private and cannot be modified by the user. The only way to create
+them is to use the functions <strong>make_class_node</strong> and
+<strong>make_interface_node</strong> with consistent arguments. In
+practice, you will never need to build them because the class
+hierarchy is automatically generated when loading a program. You
+only need a read access to these record fields.</p>
+<p>The program structure contains:</p>
+<ul>
+<li>a map of all the classes referenced in the loaded program.
+These classes are linked together through the node structure.</li>
+<li>a map of parsed methods. This map depends on the algorithm used
+to load the program (<em>CRA</em>, <em>RTA</em>, ...).</li>
+<li>a static lookup method. Given the calling class name, the
+calling method signature, the invoke kind (virtual, static, ...),
+the invoked class name and method signature, it returns a set of
+potential couples of (<strong>class_name</strong>,
+<strong>method_signature</strong>) that may be called.</li>
+</ul>
+<h3 id="jcra-jrta-and-jrrta-modules"><a href=
+"#jcra-jrta-and-jrrta-modules"><em>JCRA</em>, <em>JRTA</em> and
+<em>JRRTA</em> modules</a></h3>
+<p>Each of these modules implements a function
+<strong>parse_program</strong> (the signature varies) which returns
+a program parametrized by the <strong>Javalib.jcode</strong>
+representation.</p>
+<p>In <em>RTA</em>, the function <strong>parse_program</strong>
+takes at least, as parameters, a class-path string and a program
+entry point. The <strong>default_entrypoints</strong> value
+represents the methods that are always called by <em>Sun JVM</em>
+before any program is launched.</p>
+<p>In <em>CRA</em>, the function <strong>parse_program</strong>
+takes at least, as parameters, a class-path string and a list of
+classes acting as entry points. The
+<strong>default_classes</strong> value represents the classes that
+are always loaded by <em>Sun JVM</em>.</p>
+<p><em>JRRTA</em> is a refinement of <em>RTA</em>. It first calls
+<em>RTA</em> and then prunes the call graph.</p>
+<p>If we compare these algorithms according to their precision on
+the call-graph, and their cost (time and memory consumption), we
+get the following order : <em>CRA</em> &lt; <em>RTA</em> &lt;
+<em>RRTA</em> &lt; <em>XTA</em>.</p>
+<h3 id="jnativestubs-module"><a href=
+"#jnativestubs-module"><em>JNativeStubs</em> module</a></h3>
+<p>This module allows to define stubs for native methods,
+containing information about native method calls and native object
+allocations. Stubs can be stored in files, loaded and merged. The
+format to describe stubs looks like:</p>
+<pre>
+<code>    Method{type="Native" class="Ljava/lang/String;"
+           name="intern" signature="()Ljava/lang/String;"}{
+      VMAlloc{
+        "Ljava/lang/String;"
+        "[C"
+      }
+    }
+
+
+    Method{type="Native" class="Ljava/io/UnixFileSystem;"
+           name="getLength" signature="(Ljava/io/File;)J"}{
+      Invokes{
+        Method{type="Java" class="Ljava/lang/String;"
+               name="getBytes" signature="(Ljava/lang/String;)[B"}
+        }
+    }</code>
+</pre>
+<p><em>JRTA</em> admits a stub file as optional argument to handle
+native methods.</p>
+<h3 id="jcontrolflow-module"><a href=
+"#jcontrolflow-module"><em>JControlFlow</em> module</a></h3>
+<p><em>JControlFlow</em> provides many functions related to class,
+field an method resolution. Static lookup functions for
+<strong>invokevirtual</strong>, <strong>invokeinterface</strong>,
+<strong>invokestatic</strong> and <strong>invokespecial</strong>
+are also present.</p>
+<p>This module also contains an internal module <strong>PP</strong>
+which allows to navigate through the control flow graph of a
+program.</p>
+<h3 id="jbir-jbirssa-a3bir-and-a3birssa-modules"><a href=
+"#jbir-jbirssa-a3bir-and-a3birssa-modules"><em>JBir</em>, JBirSSA,
+<em>A3Bir</em> and <em>A3BirSSA</em> modules</a></h3>
+<p>These modules both declare a type <strong>t</strong> defining an
+intermediate code representation. Both representations are
+stack-less. <em>A3Bir</em> looks like a three-address code
+representation whereas expressions in <em>JBir</em> can have
+arbitrary depths. <em>JBirSSA</em> and <em>A3BirSSA</em> are
+variants which respect the Static Single Assignment (SSA) form.</p>
+<p>Each module defines a function <strong>transform</strong> which
+takes as parameters a concrete method and its associated
+<strong>JCode.code</strong>, and returns a representation of type
+<strong>t</strong>. This function coupled with
+<strong>JProgram.map_program2</strong> can be used to transform a
+whole program loaded with <em>RTA</em> algorithm for example.</p>
+<h3 id="jprinthtml-module"><a href=
+"#jprinthtml-module"><em>JPrintHtml</em> module</a></h3>
+<p>This module allows, for a given code representation, to dump a
+program into a set of <strong>.html</strong> files (one per class)
+related together by the control flow graph. It provides a functor
+<em>Make</em> that can be instantiated by a module of signature
+<em>PrintInterface</em>. This functor generates a module of
+signature <em>HTMLPrinter</em> containing a function
+<strong>print_program</strong>.</p>
+<p>This module is internally used by the different <em>Sawja</em>
+code representations through a <strong>print_program</strong>
+function to dump a program using their representation.</p>
+<p>The printer for <em>JCode</em>, which is a <em>Javalib</em>
+module is defined in <em>JPrintHtml</em> using the presented
+functor. It will be used as example in the tutorial.</p>
+<h2 id="tutorial"><a href="#tutorial">Tutorial</a></h2>
+<p>To begin this tutorial, open an <em>OCaml</em> toplevel, for
+instance using the <em>Emacs</em> <strong>tuareg-mode</strong>, and
+load the following libraries in the given order:</p>
+<pre class="sourceCode ocaml" id="load">
+<code class="sourceCode ocaml"><span class=
+"ot">#load "str.cma"</span>
+<span class="ot">#load "unix.cma"</span>
+<span class="ot">#load "extLib.cma"</span>
+<span class="ot">#load "zip.cma"</span>
+<span class="ot">#load "ptrees.cma"</span>
+<span class="ot">#load "javalib.cma"</span>
+<span class="ot">#load "sawja.cma"</span></code>
+</pre>
+<p>Don't forget the associated <strong>#directory</strong>
+directives that allow you to specify the paths where to find these
+libraries. If you installed sawja with FindLib you should do:</p>
+<pre class="sourceCode ocaml" id="get_dir">
+<code class="sourceCode ocaml"><span class=
+"ot">#directory "&lt;package_install_path&gt;extlib"</span>
+<span class=
+"ot">#directory "&lt;package_install_path&gt;camlzip"</span>
+<span class=
+"ot">#directory "&lt;package_install_path&gt;ptrees"</span>
+<span class=
+"ot">#directory "&lt;package_install_path&gt;javalib"</span>
+<span class=
+"ot">#directory "&lt;package_install_path&gt;sawja"</span>
+<span class=
+"co">(*&lt;package_install_path&gt; is given by command 'ocamlfind printconf'. </span>
+<span class=
+"co">If it is the same path than standard ocaml library just replace by '+'.*)</span></code>
+</pre>
+<p>You can also build a toplevel including all these libraries
+using the command <strong>make ocaml</strong> in the sources
+repository of <em>Sawja</em>. This command builds an executable
+named <strong>ocaml</strong> which is the result of the
+<strong>ocamlmktop</strong> command.</p>
+<h3 id="loading-and-printing-a-program"><a href=
+"#loading-and-printing-a-program">Loading and printing a
+program</a></h3>
+<p>In this section, we present how to load a program with
+<em>Sawja</em> and some basic manipulations we can do on it to
+recover interesting information.</p>
+<p>In order to test the efficiency of <em>Sawja</em>, we like to
+work on huge programs. For instance we will use <em>Soot</em>, a
+<em>Java Optimization Framework</em> written in <em>Java</em>,
+which can be found at <a href=
+"http://www.sable.mcgill.ca/soot">http://www.sable.mcgill.ca/soot</a>.
+Once you have downloaded <em>Soot</em> and its dependencies, make
+sure that the <strong>$CLASSPATH</strong> environment variable
+contains the corresponding <strong>.jar</strong> files, the
+<em>Java Runtime</em> <strong>rt.jar</strong> and the <em>Java
+Cryptographic Extension</em> <strong>jce.jar</strong>. The
+following sample of code loads <em>Soot</em> program, given its
+main entry point:</p>
+<pre class="sourceCode ocaml" id="parse">
+<code class="sourceCode ocaml"><span class=
+"ot">open</span> Javalib_pack
+<span class="ot">open</span> Javalib
+<span class="ot">open</span> JBasics
+<span class="ot">open</span> Sawja_pack
+<span class="ot">open</span> JProgram
+<span class="kw">let</span> (prta,instantiated_classes) =
+  JRTA<span class="kw">.</span>parse_program (Sys<span class=
+"kw">.</span>getenv <span class="st">"CLASSPATH"</span>)
+        (JBasics<span class="kw">.</span>make_cms
+           (JBasics<span class="kw">.</span>make_cn <span class=
+"st">"soot.Main"</span>) JProgram<span class=
+"kw">.</span>main_signature)</code>
+</pre>
+<p>It can be interesting to generate the <strong>.html</strong>
+files corresponding to the parsed program <strong>prta</strong>. We
+first need to build an <strong>info</strong> type.</p>
+<pre class="sourceCode ocaml" id="p_class">
+<code class="sourceCode ocaml"><span class=
+"co">(* p_class annots a class, saying if it may be instantiated</span>
+<span class="co">   or not. *)</span>
+<span class="kw">let</span> p_class =
+  (<span class="kw">fun</span> cn -&gt;
+    <span class="kw">let</span> ioc = get_node prta cn <span class=
+"kw">in</span>
+      <span class="kw">match</span> ioc <span class=
+"kw">with</span>
+       | <span class="dt">Class</span> _c -&gt;
+         <span class="kw">if</span> ClassMap<span class=
+"kw">.</span>mem (get_name ioc) instantiated_classes <span class=
+"kw">then</span>
+           [<span class="st">"Instantiated"</span>] <span class=
+"kw">else</span> [<span class="st">"Not instantiatied"</span>]
+       | _ -&gt; []
+  )</code>
+</pre>
+<pre class="sourceCode ocaml" id="p_meth">
+<code class="sourceCode ocaml"><span class=
+"co">(* p_method annots a method, saying if it is concrete or abstract,</span>
+<span class=
+"co">   and if it has been parsed or not (by RTA). *)</span>
+<span class="kw">let</span> p_method =
+  (<span class="kw">fun</span> cn ms -&gt;
+    <span class=
+"kw">let</span> m = get_method (get_node prta cn) ms <span class=
+"kw">in</span>
+       <span class="kw">match</span> m <span class="kw">with</span>
+        | <span class=
+"dt">AbstractMethod</span> _ -&gt; [<span class=
+"st">"Abstract Method"</span>]
+        | <span class="dt">ConcreteMethod</span> _cm -&gt;
+          <span class=
+"kw">let</span> cms = make_cms cn ms <span class="kw">in</span>
+          <span class="kw">let</span> parse =
+            <span class="kw">if</span> ClassMethodMap<span class=
+"kw">.</span>mem cms prta.parsed_methods <span class=
+"kw">then</span>
+              <span class="st">"Parsed"</span> <span class=
+"kw">else</span> <span class="st">"Not parsed"</span> <span class=
+"kw">in</span>
+            [<span class="st">"Concrete Method "</span>; parse]
+  )</code>
+</pre>
+<pre class="sourceCode ocaml" id="print">
+<code class="sourceCode ocaml"><span class=
+"co">(* There is no field annotation. *)</span>
+<span class="kw">let</span> p_field = (<span class=
+"kw">fun</span> _ _ -&gt; [])
+
+<span class="co">(* There is no program point annotation. *)</span>
+<span class="kw">let</span> p_pp = (<span class=
+"kw">fun</span> _ _ _ -&gt; [])
+
+<span class="co">(* This is the info type. *)</span>
+<span class="kw">let</span> simple_info = 
+  { JPrintHtml<span class="kw">.</span>p_class = p_class;
+    JPrintHtml<span class="kw">.</span>p_field = p_field;
+    JPrintHtml<span class="kw">.</span>p_method = p_method;
+    JPrintHtml<span class="kw">.</span>p_pp = p_pp }</code>
+</pre>
+<p>Then we just need to call the printing function:</p>
+<pre class="sourceCode ocaml" id="do_print">
+<code class="sourceCode ocaml"><span class=
+"kw">let</span> output = <span class="st">"./prta"</span>
+<span class="kw">let</span> () = JPrintHtml<span class=
+"kw">.</span>JCodePrinter<span class=
+"kw">.</span>print_program ~info:simple_info prta output</code>
+</pre>
+<dl>
+<dt>Note:</dt>
+<dd>The destination directory must exist, otherwise an exception
+will be raised.</dd>
+</dl>
+<h3 id="transforming-a-program-with-bir"><a href=
+"#transforming-a-program-with-bir">Transforming a program with
+<em>Bir</em></a></h3>
+<p>In this section we present a sample of code transforming a
+program loaded with <em>RTA</em> to <em>JBir</em> representation.
+The procedure to obtain the <em>A3Bir</em> representation is
+exactly the same.</p>
+<pre class="sourceCode ocaml" id="pbir">
+<code class="sourceCode ocaml"><span class=
+"kw">let</span> pbir = JProgram<span class=
+"kw">.</span>map_program2
+   (<span class="kw">fun</span> _ -&gt; JBir<span class=
+"kw">.</span>transform ~bcv:false ~ch_link:false ~formula:false ~formula_cmd:[]) 
+   (<span class="dt">Some</span> (<span class=
+"kw">fun</span> code pp -&gt; (JBir<span class=
+"kw">.</span>pc_ir2bc code).(pp)))
+   prta</code>
+</pre>
+<p>Warning: : Subroutines inlining is handled in <em>JBir</em> and
+<em>A3Bir</em> only for not nested subroutines (runtime of version
+JRE1.6_20 contains a few nested subroutines and next version 1.7
+none). If some transformed code contains such subroutines, the
+exception <strong>JBir.Subroutine</strong> or
+<strong>AB3Bir.Subroutine</strong> will be raised, respectively.
+However, when transforming a whole program with the above function,
+no exception will be raised because of the <em>lazy</em> evaluation
+of code.</p>
+<p>To see how <em>JBir</em> representation looks like, we can
+pretty-print one class, for instance
+<strong>java.lang.Object</strong>:</p>
+<pre class="sourceCode ocaml" id="jbir">
+<code class="sourceCode ocaml"><span class=
+"kw">let</span> obj = JProgram<span class=
+"kw">.</span>get_node pbir JBasics<span class=
+"kw">.</span>java_lang_object
+<span class="kw">let</span> () = JPrint<span class=
+"kw">.</span>print_class (JProgram<span class=
+"kw">.</span>to_ioc obj)
+    JBir<span class="kw">.</span>print stdout</code>
+</pre>
+<p>Or generate the <em>.html</em> files corresponding to
+<em>JBir</em> program:</p>
+<pre class="sourceCode ocaml" id="print_pbir">
+<code class="sourceCode ocaml"><span class=
+"kw">let</span> output = <span class="st">"./pbir"</span>
+<span class="kw">let</span> () = JBir<span class=
+"kw">.</span>print_program pbir output</code>
+</pre>
+<dl>
+<dt>Note:</dt>
+<dd>If some exceptions occur during <em>JBir</em> transformation,
+the incriminated methods won't have any body in the <em>.html</em>
+representation.</dd>
+</dl>
+<h3 id="writing-your-own-html-printer"><a href=
+"#writing-your-own-html-printer">Writing your own HTML
+printer</a></h3>
+<p>Here we study the case of <strong>JCode.jcode</strong> printer,
+and show in details how it is implemented.</p>
+<p>We remember that the module interface to implement is
+<em>PrintInterface</em> whose signature is given below.</p>
+<pre class="sourceCode ocaml" id="print_inter">
+<code class="sourceCode ocaml"><span class=
+"ot">module</span> <span class="kw">type</span> <span class=
+"dt">PrintInterface</span> =
+<span class="kw">sig</span>
+  <span class="kw">type</span> instr
+  <span class="kw">type</span> code
+  <span class="kw">val</span> iter_code : (<span class=
+"dt">int</span> -&gt; instr <span class=
+"dt">list</span> -&gt; <span class=
+"dt">unit</span>) -&gt; code Lazy<span class=
+"kw">.</span>t -&gt; <span class="dt">unit</span>
+  <span class=
+"kw">val</span> method_param_names : code program -&gt; class_name -&gt;
+     method_signature -&gt; <span class=
+"dt">string</span> <span class="dt">list</span> <span class=
+"dt">option</span>
+  <span class=
+"kw">val</span> inst_html : code program -&gt; class_name -&gt; method_signature -&gt;
+    <span class=
+"dt">int</span> -&gt; instr -&gt; JPrintHtml<span class=
+"kw">.</span>elem <span class="dt">list</span>
+<span class="kw">end</span></code>
+</pre>
+<p>The type <strong>instr</strong> represents the instructions in
+your code representation type <strong>code</strong>. Here,
+<strong>instr</strong> corresponds to
+<strong>JCode.jopcode</strong> and <strong>code</strong> is
+<strong>JCode.jcode</strong>.</p>
+<p>Then, you need to give an iterator on you code structure. This
+function is really easy to write.</p>
+<pre class="sourceCode ocaml" id="iter_op">
+<code class="sourceCode ocaml"><span class=
+"kw">let</span> iter_code f lazy_code =
+  <span class="kw">let</span> code = Lazy<span class=
+"kw">.</span>force lazy_code <span class="kw">in</span>
+    Array<span class="kw">.</span>iteri
+      (<span class="kw">fun</span> pp opcode -&gt;
+        <span class="kw">match</span> opcode <span class=
+"kw">with</span>
+          | JCode<span class="kw">.</span><span class=
+"dt">OpInvalid</span> -&gt; ()
+          | _ -&gt; f pp [opcode]
+      ) code.JCode<span class="kw">.</span>c_code</code>
+</pre>
+<p>You also need to provide a function that may associate names to
+method parameters in the signature. Then, when generating the html
+instructions you need to be consistent with those names. In our
+implementation <em>JCodePrinter</em> in <em>jPrintHtml.ml</em>, we
+use the source variables names when the local variable table exists
+in the considered method. If you want to test your printer very
+quickly, you can define:</p>
+<pre class="sourceCode ocaml" id="m_param">
+<code class="sourceCode ocaml"><span class=
+"kw">let</span> method_param_names _ _ _ = <span class=
+"dt">None</span></code>
+</pre>
+<p>Now, we need to define how to display the instructions in html.
+In order to do that, some html elements can be created by using
+predefined functions in <em>JPrintHtml</em>. These functions are
+<strong>simple_elem</strong>, <strong>value_elem</strong>,
+<strong>field_elem</strong>, <strong>invoke_elem</strong> and
+<strong>method_args_elem</strong>. The sample of code below will
+help you to understand how you can use these functions. You are
+also recommended to read the <em>API</em> documentation.</p>
+<pre class="sourceCode ocaml" id="html_print">
+<code class="sourceCode ocaml"><span class=
+"ot">open</span> JPrintHtml
+
+<span class="kw">let</span> inst_html program cs ms pp op =
+  <span class="kw">match</span> op <span class="kw">with</span>
+    | JCode<span class="kw">.</span><span class=
+"dt">OpNew</span> ccs -&gt;
+      <span class="kw">let</span> v = <span class=
+"dt">TObject</span> (<span class=
+"dt">TClass</span> ccs) <span class="kw">in</span>
+        [simple_elem <span class=
+"st">"new"</span>; value_elem program cs v]
+    | JCode<span class="kw">.</span><span class=
+"dt">OpNewArray</span> v -&gt;
+        [simple_elem <span class=
+"st">"newarray"</span>; value_elem program cs v]
+    | JCode<span class="kw">.</span><span class=
+"dt">OpGetField</span> (ccs,fs) -&gt;
+      <span class="kw">let</span> ftype = fs_type fs <span class=
+"kw">in</span>
+        [simple_elem <span class="st">"getfield"</span>;
+         field_elem program cs ccs fs;
+         simple_elem <span class="st">" : "</span>;
+         value_elem program cs ftype]
+    | JCode<span class="kw">.</span><span class=
+"dt">OpInvoke</span> ((<span class=
+"dt">`Virtual</span> o),cms) -&gt;
+      <span class="kw">let</span> ccs = 
+              <span class="kw">match</span> o <span class=
+"kw">with</span>
+              | <span class="dt">TClass</span> ccs -&gt; ccs
+            | _ -&gt; JBasics<span class=
+"kw">.</span>java_lang_object 
+        <span class="kw">and</span> inst =
+          Javalib<span class="kw">.</span>JPrint<span class=
+"kw">.</span>jopcode ~jvm:true op 
+          <span class="kw">in</span>
+             [simple_elem inst;
+           invoke_elem program cs ms pp ccs cms;
+           method_args_elem program cs ms]
+  <span class="co">(*| ... -&gt; ...*)</span>
+    | _ -&gt;
+      <span class="kw">let</span> inst =
+        Javalib<span class="kw">.</span>JPrint<span class=
+"kw">.</span>jopcode ~jvm:true op <span class="kw">in</span>
+        [simple_elem inst]</code>
+</pre>
+<p>The html elements have to be concatenated in a list and will be
+displayed in the given order. The element returned by
+<strong>simple_elem</strong> is raw text. The element returned by
+<strong>value_elem</strong> refers to an html class file. The
+element returned by <strong>field_elem</strong> is a link to the
+field definition in the corresponding html class file. Field
+resolution is done by the function <strong>resolve_field</strong>
+of <em>JControlFlow</em>. If more than one field is resolved (it
+can happen with interface fields), a list of possible links is
+displayed. The element returned by <strong>invoke_elem</strong> is
+a list of links refering to html class file methods that have been
+resolved by the <strong>static_lookup_method</strong> function of
+<strong>JProgram.program</strong>. The element returned by
+<strong>method_args_elem</strong> is a list of
+<strong>value_elem</strong> elements corresponding to the method
+parameters. They are separated by commas and encapsulated by
+parentheses, ready to be displayed.</p>
+<p>If you don't want any html effect, the above function becomes
+very simple:</p>
+<pre class="sourceCode ocaml" id="inst_print">
+<code class="sourceCode ocaml"><span class=
+"kw">let</span> inst_html _program _ _ _ op =
+  <span class="kw">let</span> inst =
+    Javalib<span class="kw">.</span>JPrint<span class=
+"kw">.</span>jopcode ~jvm:true op <span class="kw">in</span>
+    [simple_elem inst]</code>
+</pre>
+<h3 id="create-an-analysis-for-the-sawja-eclipse-plugin"><a href=
+"#create-an-analysis-for-the-sawja-eclipse-plugin">Create an
+analysis for the Sawja Eclipse Plugin</a></h3>
+<p>In this section we will use the <a href=
+"http://en.wikipedia.org/wiki/Live_variable_analysis">live variable
+analysis</a>, included in Sawja as a dataflow analysis example, to
+create an algorithm that detects unused variable assignment, and
+turn it into a component of the <em>Sawja Eclipse Plugin</em>.</p>
+<p>We use the result of the <em>live variable analysis</em>
+associated with the JBir code representation (Live_bir module in
+Sawja) that returns the live variables before the execution of an
+instruction. For each instruction <strong>JBir.AffectVar
+(var,expr)</strong> we check that on the next instruction the
+variable <strong>var</strong> is alive: if not, it is a dead
+affectation.</p>
+<p>The analysis should notify the programmer in case of a dead
+variable affectation, as it could be a sign of a bug. As a
+consequence we want to put warnings on the dead affectation
+instruction and on the method containing it. We also want to give
+more verbose information on the result of the analysis, in this
+case to indicate, for each instruction, which variables are
+live.</p>
+<p>In precedent tutorials we used the <em>OCaml</em> toplevel but
+for this one we want to generate an executable: as a consequence we
+will use the native ocaml compiler and construct the file
+<strong>dvad.ml</strong> step by step (bottom up).</p>
+<p>The head of the <strong>dvad.ml</strong> file should load the
+<em>Javalib</em> and <em>Sawja</em> library packages:</p>
+<pre class="sourceCode ocaml" id="ecl_needed_mod">
+<code class="sourceCode ocaml"><span class=
+"ot">open</span> Javalib_pack
+<span class="ot">open</span> Sawja_pack</code>
+</pre>
+<p>We first parse the arguments of our executable using the module
+<em>ArgPlugin</em> which is a wrapper to the standard <em>Arg</em>
+module. It will allow us to directly add our executable in the
+Eclipse plugin, just by dropping it in a folder. In order to
+automatically analyze all the classes in a project (see
+documentation of <em>ArgPlugin</em>), our code will parse a list of
+class names.</p>
+<pre class="sourceCode ocaml" id="ecl_plugin">
+<code class="sourceCode ocaml"><span class=
+"co">(** [_plugin_exec] parses arguments and executes the analysis for each given</span>
+<span class="co">    class file*)</span>
+<span class="kw">let</span> _plugin_exec =
+ 
+    <span class="co">(* Arguments values*)</span>
+  <span class="kw">let</span> targets = <span class=
+"dt">ref</span> []
+  <span class="kw">and</span> classpath = <span class=
+"dt">ref</span> <span class="st">""</span> 
+  <span class="kw">and</span> path_output = <span class=
+"dt">ref</span> <span class="st">""</span> <span class=
+"kw">in</span>
+
+    <span class=
+"co">(* Description and instanciation of the arguments*)</span>
+  <span class="kw">let</span> exec_args = 
+    [ (<span class="st">"--files"</span>, <span class=
+"st">"Class files"</span>,
+       ArgPlugin<span class="kw">.</span><span class=
+"dt">ClassFiles</span> (<span class=
+"kw">fun</span> sl -&gt; targets := sl),
+       <span class=
+"st">"The class files to pass to the live affectation checker."</span>);
+      (<span class="st">"--classpath"</span>, <span class=
+"st">"Class path"</span>,
+       ArgPlugin<span class="kw">.</span><span class=
+"dt">ClassPath</span> (<span class=
+"kw">fun</span> s -&gt; classpath := s),
+       <span class=
+"st">"Locations where class files are looked for."</span>);
+    ]
+  <span class="kw">in</span>
+  <span class="kw">let</span> usage_msg = <span class=
+"st">"Usage: "</span> ^Sys.argv.(0)^ <span class=
+"st">" [options]"</span> <span class="kw">in</span>
+
+    <span class=
+"co">(* Add analysis description and output, and launch parsing of arguments *)</span>
+    ArgPlugin<span class="kw">.</span>parse
+      (<span class="st">"DVAD"</span>,<span class=
+"st">"Dead Variables Affected Detection: detects variables affected but never read."</span>)
+      exec_args
+      (ArgPlugin<span class="kw">.</span><span class=
+"dt">PluginOutput</span> (<span class=
+"st">"--plug_output"</span>,(<span class=
+"kw">fun</span> s -&gt; path_output := s)))
+      usage_msg;
+    <span class="kw">try</span>
+      <span class="kw">let</span> cp = Javalib<span class=
+"kw">.</span>class_path !classpath <span class="kw">in</span>
+
+        <span class=
+"co">(* Launch the analysis on each given class *)</span>
+        List<span class="kw">.</span>iter
+          (<span class="kw">fun</span> cn_string -&gt; 
+             main cp !path_output cn_string <span class=
+"co">(*==&gt; Next function to write *)</span>
+          ) 
+          !targets
+    <span class="kw">with</span> e -&gt;
+      <span class=
+"co">(* If an exception is raised, it will appear on the standard</span>
+<span class=
+"co">         error output and then in the Error Log view of Eclipse*)</span>
+      raise e</code>
+</pre>
+<p>We then write the main function: its job is to run the analysis
+on a class and provide the data structure of warnings and
+information to the Eclipse plugin.</p>
+<pre class="sourceCode ocaml" id="ecl_main">
+<code class="sourceCode ocaml"><span class=
+"co">(** [main cp output cn_string] loads the class [cn_string], converts it</span>
+<span class=
+"co">   in JBir representation, runs the analysis and prints the information</span>
+<span class=
+"co">   for the plugin. [cp] is a class_path, [output] a folder path for</span>
+<span class=
+"co">   generation of plugin information and [cn_string] the fully</span>
+<span class="co">   qualified name of a Java class file.*)</span>
+<span class="kw">let</span> main cp output cn_string =
+  <span class="kw">let</span> cn = JBasics<span class=
+"kw">.</span>make_cn cn_string <span class="kw">in</span>
+  <span class="kw">let</span> ioc = Javalib<span class=
+"kw">.</span>get_class cp cn <span class="kw">in</span>
+  <span class="kw">let</span> bir_ioc = Javalib<span class=
+"kw">.</span>map_interface_or_class_context JBir<span class=
+"kw">.</span>transform ioc <span class="kw">in</span>
+  <span class=
+"kw">let</span> plugin_infos = run_dead_affect bir_ioc <span class=
+"co">(*==&gt; We need to write this function next*)</span>
+  <span class="kw">in</span> 
+
+    <span class=
+"co">(* Print infos on the current class for the Eclipse plugin*)</span>
+    JBir<span class="kw">.</span>PluginPrinter<span class=
+"kw">.</span>print_class plugin_infos bir_ioc output</code>
+</pre>
+<p>We create the empty data structure containing the information
+for the Eclipse plugin and launch the analysis for each method of a
+class.</p>
+<pre class="sourceCode ocaml" id="ecl_run_dead">
+<code class="sourceCode ocaml"><span class=
+"co">(**[run_dead_affect ioc] returns the data structure containing</span>
+<span class=
+"co">   information for the Eclipse plugin. [ioc] is the interface_or_class</span>
+<span class="co">   to check.*)</span>
+<span class="kw">let</span> run_dead_affect ioc =
+  <span class="kw">let</span> plugin_infos = JBir<span class=
+"kw">.</span>PluginPrinter<span class=
+"kw">.</span>empty_infos <span class="kw">in</span>
+    Javalib<span class="kw">.</span>cm_iter
+      (<span class="kw">fun</span> cm -&gt;
+   <span class="kw">match</span> cm.Javalib<span class=
+"kw">.</span>cm_implementation <span class="kw">with</span> 
+       Javalib<span class="kw">.</span><span class=
+"dt">Native</span> -&gt; ()
+     | Javalib<span class="kw">.</span><span class=
+"dt">Java</span> lazc -&gt; 
+         <span class="kw">let</span> code = Lazy<span class=
+"kw">.</span>force lazc <span class="kw">in</span>
+
+         <span class=
+"co">(* Launch the live variable analysis *)</span>
+         <span class="kw">let</span> live = Live_bir<span class=
+"kw">.</span>run code <span class="kw">in</span>
+         <span class="kw">let</span> (cn,ms) = JBasics<span class=
+"kw">.</span>cms_split cm.Javalib<span class=
+"kw">.</span>cm_class_method_signature <span class="kw">in</span>
+           method_dead_affect 
+             cn ms code live plugin_infos <span class=
+"co">(*==&gt; We need to write this function next*)</span>
+      )
+      ioc;
+    plugin_infos</code>
+</pre>
+<p>Finally we write the part of the analysis that checks a method
+and fills the <em>plug_info</em> data structure with warnings and
+information for the plugin.</p>
+<pre class="sourceCode ocaml" id="ecl_dead_affect">
+<code class="sourceCode ocaml"><span class=
+"co">(**[method_dead_affect cn ms code live plug_info] modifies the data</span>
+<span class=
+"co">  structure [plug_info] containing information for the Eclipse</span>
+<span class=
+"co">  plugin. [cn] is a class_name, [ms] a method_signature, [code] the</span>
+<span class=
+"co">  JBir code of the method and [live] the result of the live analysis</span>
+<span class="co">  on the code.*)</span>
+<span class=
+"kw">let</span> method_dead_affect cn ms code live plugin_infos =
+
+  <span class=
+"co">(*Corner cases: false positive on AffectVar instruction*)</span>
+  <span class="kw">let</span> not_corner_case i = 
+    <span class=
+"co">(* Check all AffectVar instructions corresponding to a catch(Exception e) statement*)</span>
+    List<span class="kw">.</span>for_all
+      (<span class=
+"kw">fun</span> exc_h -&gt; not(i = exc_h.JBir<span class=
+"kw">.</span>e_handler))
+      (JBir<span class="kw">.</span>exc_tbl code)
+  <span class="kw">in</span>
+  <span class="kw">let</span> dead_var_exists = <span class=
+"dt">ref</span> <span class="kw">false</span> <span class=
+"kw">in</span>
+    Array<span class="kw">.</span>iteri 
+      (<span class="kw">fun</span> i op -&gt; 
+         (<span class="kw">match</span> op <span class=
+"kw">with</span> 
+            | JBir<span class="kw">.</span><span class=
+"dt">AffectVar</span> (var,_) <span class=
+"kw">when</span> not_corner_case i -&gt; 
+
+                <span class=
+"co">(* Is the variable dead at next instruction ?*)</span>
+                <span class=
+"kw">let</span> live_res = live (i+1) <span class="kw">in</span>
+                <span class=
+"kw">let</span> dead_var = not (Live_bir<span class=
+"kw">.</span>Env<span class=
+"kw">.</span>mem var live_res) <span class="kw">in</span>
+                  <span class="kw">if</span> dead_var
+                  <span class="kw">then</span> 
+                    <span class="kw">begin</span>
+
+                      <span class=
+"co">(* We add a warning on the dead affectation instruction*)</span>
+                      <span class="kw">let</span> warn_pp = 
+                        (Printf<span class="kw">.</span>sprintf 
+                           <span class=
+"st">"Variable '%s' is affected but never read !"</span> 
+                           (JBir<span class=
+"kw">.</span>var_name_g var), <span class="dt">None</span>)
+                      <span class="kw">in</span>
+                        plugin_infos.JPrintPlugin<span class=
+"kw">.</span>p_warnings &lt;- 
+                        JPrintPlugin<span class=
+"kw">.</span>add_pp_iow 
+                          warn_pp cn ms i plugin_infos.JPrintPlugin<span class="kw">.</span>p_warnings;
+                        dead_var_exists := <span class=
+"kw">true</span>
+                    <span class="kw">end</span>
+            | _ -&gt; ()))
+      (JBir<span class="kw">.</span>code code);
+
+    <span class=
+"co">(* Fill information for plugin depending on the method analysis result *)</span>
+    fill_debug_infos 
+      !dead_var_exists cn ms code live plugin_infos <span class=
+"co">(*==&gt; Last function to write *)</span>
+
+
+</code>
+</pre>
+<p>We just have to add a warning and to provide any relevant
+information from the analysis on a method that contains at least
+one dead affectation.</p>
+<pre class="sourceCode ocaml" id="ecl_fill_debug">
+<code class="sourceCode ocaml"><span class=
+"co">(** Fill debug information when dead affectations are detected*)</span>
+<span class=
+"kw">let</span> fill_debug_infos dead_found cn ms code live plugin_infos =
+  <span class="kw">let</span> _warns = 
+    <span class="kw">if</span> dead_found
+    <span class="kw">then</span>
+      plugin_infos.JPrintPlugin<span class=
+"kw">.</span>p_warnings &lt;- 
+        JPrintPlugin<span class="kw">.</span>add_meth_iow 
+        (JPrintPlugin<span class="kw">.</span><span class=
+"dt">MethodSignature</span> <span class=
+"st">"The method contains dead affectation(s)."</span>)
+        cn ms plugin_infos.JPrintPlugin<span class=
+"kw">.</span>p_warnings
+  <span class="kw">and</span> _infos = 
+    <span class="kw">if</span> dead_found
+    <span class="kw">then</span>
+      <span class="kw">begin</span>
+
+      <span class=
+"co">(* We give information on the variables liveness for this</span>
+<span class="co">         method*)</span>
+      Array<span class="kw">.</span>iteri
+        (<span class="kw">fun</span> i _ -&gt; 
+           <span class="kw">let</span> info_live = 
+             Printf<span class="kw">.</span>sprintf <span class=
+"st">"Live variables: %s</span><span class=
+"ch">\n</span><span class="st">"</span>
+               (Live_bir<span class=
+"kw">.</span>to_string (live i)) 
+           <span class="kw">in</span>
+             plugin_infos.JPrintPlugin<span class=
+"kw">.</span>p_infos &lt;- 
+               JPrintPlugin<span class=
+"kw">.</span>add_pp_iow info_live cn ms i plugin_infos.JPrintPlugin<span class="kw">.</span>p_infos
+        )
+        (JBir<span class="kw">.</span>code code);
+        plugin_infos.JPrintPlugin<span class=
+"kw">.</span>p_infos &lt;- 
+          JPrintPlugin<span class="kw">.</span>add_meth_iow 
+          (JPrintPlugin<span class="kw">.</span><span class=
+"dt">MethodSignature</span> <span class=
+"st">"Dead variable affectation(s) found"</span>) 
+          cn ms plugin_infos.JPrintPlugin<span class=
+"kw">.</span>p_infos ;
+      <span class="kw">end</span>
+    <span class="kw">else</span>
+      plugin_infos.JPrintPlugin<span class=
+"kw">.</span>p_infos &lt;- 
+        JPrintPlugin<span class="kw">.</span>add_meth_iow 
+          (JPrintPlugin<span class="kw">.</span><span class=
+"dt">MethodSignature</span> <span class=
+"st">"No dead variable affectation found"</span>) 
+          cn ms plugin_infos.JPrintPlugin<span class=
+"kw">.</span>p_infos;
+  <span class="kw">in</span> ()</code>
+</pre>
+<p>Now we have created the file <strong>dvad.ml</strong>: we can
+create our executable with the following command:</p>
+<pre>
+<code>ocamlfind ocamlopt -package sawja -linkpkg -o dvad dvad.ml</code>
+</pre>
+<p>Finally we can copy our executable <strong>dvad</strong> in the
+folder of executables as described on the <a href=
+"http://javalib.gforge.inria.fr/eclipse.html">Sawja Eclipse Plugin
+page</a>.</p>
+<p>The implementation of this tutorial is supplied with the
+<em>Sawja</em> library (version &gt; 1.2) as the file
+<strong>dvad-plugin.ml</strong> in <em>src/dataflow_analyses</em>.
+It also demonstrates how to insert HTML code to display the
+information on the variable liveness.</p>
+<h3 id="using-formulae-to-make-assertions"><a href=
+"#using-formulae-to-make-assertions">Using <em>formulae</em> to
+make assertions</a></h3>
+<p><em>Formulae</em> is a new feature of Sawja 1.4. It provides a
+way to add some special assertions into a <em>Bir</em>
+representation (JBir, A3Bir...) using dedicated Java stub methods.
+To keep full compatibility with the previous versions of
+<em>Sawja</em> it is disabled by default. You can enable
+<em>formulae</em> by setting the optionnal <strong>formula</strong>
+argument.</p>
+<pre class="sourceCode ocaml" id="for_trans">
+<code class="sourceCode ocaml"><span class=
+"ot">open</span> Javalib_pack
+<span class="ot">open</span> Sawja_pack
+
+<span class=
+"co">(* print the html representation of the class [cn_string] at JBir</span>
+<span class=
+"co">  level with the default formula enabled. [cp] is the java classpath and</span>
+<span class=
+"co">  [outputDir] is the directory in which the html file will be</span>
+<span class="co">  generated. *)</span>
+
+<span class="kw">let</span> print cp cn_string outputDir =
+  <span class="kw">let</span> cn = JBasics<span class=
+"kw">.</span>make_cn cn_string <span class="kw">in</span>
+  <span class="kw">let</span> ioc = Javalib<span class=
+"kw">.</span>get_class cp cn <span class="kw">in</span>
+  <span class="kw">let</span> bir_ioc = Javalib<span class=
+"kw">.</span>map_interface_or_class_context 
+                  (JBir<span class=
+"kw">.</span>transform ~formula:true ) ioc 
+  <span class="kw">in</span>
+    JBir<span class="kw">.</span>print_class bir_ioc outputDir
+
+<span class=
+"co">(* Example of use in the same folder as the Java class *)</span>
+<span class="kw">let</span> main = 
+  <span class="kw">let</span> cp = Javalib<span class=
+"kw">.</span>class_path <span class="st">"."</span> <span class=
+"kw">in</span>
+    print cp <span class="st">"TestFormula"</span> <span class=
+"st">"html_dir"</span></code>
+</pre>
+<p>If you set the <strong>formula</strong> argument to
+<strong>true</strong> without specifying the
+<strong>formula_cmd</strong> argument, you will be using the
+default_formulae. It means that the default Java stub methods are
+going to be used to generate the <em>formulae</em>. A Java call to
+such a method will be replaced in the generated <em>JBir</em> code
+by the <em>formula</em>. Those static methods must return
+<strong>void</strong> and take only a single boolean argument,
+otherwise, it will not be considered as a <em>formula</em>.</p>
+<p>The default value offers 3 Java static methods named
+<strong>'assume'</strong>, <strong>'check'</strong>,
+<strong>'invariant'</strong> and defined in the Class
+<strong>'sawja.Assertions'</strong>. The java source file is
+present in <strong>runtime/sawja/Assertions.java</strong> and will
+be necessary to compile your Java class using formulae (methods
+bodies are empty since those methods will not really be called)
+.</p>
+<p>For example the following java code:</p>
+<pre class="sourceCode java">
+<code class="sourceCode java"><span class=
+"kw">public</span> <span class="kw">class</span> TestFormula{
+       
+       <span class="kw">public</span> <span class=
+"dt">static</span> Object mayBeNull;
+
+       <span class="kw">public</span> <span class=
+"dt">static</span> Object <span class="fu">doit</span>(){
+           Object i = mayBeNull;
+           sawja.<span class="fu">Assertions</span>.<span class=
+"fu">check</span>(i!=<span class="kw">null</span>);
+           <span class="kw">return</span> i;
+       }
+
+}</code>
+</pre>
+<p>will be translate without formulae as:</p>
+<pre>
+<code> public static java.lang.Object doit ( ) ;
+
+   0: mayinit TestFormula
+   1: $bcvar0 := TestFormula.mayBeNull
+   2: if ($bcvar0:java.lang.Object == null) goto 5
+   3: $T0_13 := 1
+   4: goto 6
+   5: $T0_13 := 0
+   6: mayinit sawja.Assertions
+   7: sawja.Assertions.check ($T0_13:I)
+   8: return $bcvar0:java.lang.Object
+</code>
+</pre>
+<p>but with default formulae it will become:</p>
+<pre>
+<code> public static java.lang.Object doit ( ) ;
+
+   0: mayinit TestFormula
+   1: $bcvar0 := TestFormula.mayBeNull
+   2: nop
+   3: nop
+   4: nop
+   5: nop
+   6: nop
+   7: FORMULA: sawja.Assertions.check($bcvar0:java.lang.Object != null)
+   8: return $bcvar0:java.lang.Object</code>
+</pre>
+<p>You must pay attention to the fact that the formula directly
+stores the boolean expression which was given as argument to the
+Java method. This expression can then be directly manipulated in
+different analyzes to make assumptions. The generated 'nop'
+instructions are replacing the instructions which have been used to
+create the formula.</p>
+<p>In the current implementation, the expression obtained when
+working with the <strong>A3bir</strong> representation is quite
+limited (it is often a simple temporary variable, containing the
+result of the expression). It will be completed in a next
+release.</p>
+<p>You can also create your own <em>formula handler</em>, using the
+class and static methods you want (methods must return void and
+take only a single boolean argument). You just have to do the as
+follows:</p>
+<pre class="sourceCode ocaml" id="mycode">
+<code class="sourceCode ocaml"><span class=
+"ot">open</span> Javalib_pack
+<span class="ot">open</span> Sawja_pack
+
+<span class=
+"co">(* print the html representation of the class [cn_string] at JBir</span>
+<span class=
+"co">  level with a personnalized formula enabled. [cp] is the java</span>
+<span class=
+"co">  classpath and [outputDir] is the directory in which the html file</span>
+<span class="co">  will be generated. *)</span>
+
+<span class="kw">let</span> print cp cn_string outputDir =
+  <span class="kw">let</span> cn = JBasics<span class=
+"kw">.</span>make_cn cn_string <span class="kw">in</span>
+  <span class="kw">let</span> ioc = Javalib<span class=
+"kw">.</span>get_class cp cn <span class="kw">in</span>
+  <span class="kw">let</span> fhandler = 
+   <span class="kw">let</span> cn_formula_cl = JBasics<span class=
+"kw">.</span>make_cn <span class=
+"st">"MyFormulaClass"</span> <span class="kw">in</span>
+   <span class="kw">let</span> ms1_formula = JBasics<span class=
+"kw">.</span>make_ms <span class=
+"st">"myFormulaFun1"</span> [JBasics<span class=
+"kw">.</span><span class="dt">TBasic</span> <span class=
+"dt">`Bool]</span> <span class="dt">None</span> <span class=
+"kw">in</span>
+   <span class="kw">let</span> ms2_formula = JBasics<span class=
+"kw">.</span>make_ms <span class=
+"st">"myFormulaFun2"</span> [JBasics<span class=
+"kw">.</span><span class="dt">TBasic</span> <span class=
+"dt">`Bool]</span> <span class="dt">None</span> <span class=
+"kw">in</span>
+       [JBasics<span class=
+"kw">.</span>make_cms cn_formula_cl ms1_formula; 
+        JBasics<span class=
+"kw">.</span>make_cms cn_formula_cl ms2_formula ]
+  <span class="kw">in</span>
+  <span class="kw">let</span> bir_ioc = Javalib<span class=
+"kw">.</span>map_interface_or_class_context 
+                  (JBir<span class=
+"kw">.</span>transform ~formula:true ~formula_cmd:fhandler) ioc 
+  <span class="kw">in</span>
+    JBir<span class=
+"kw">.</span>print_class bir_ioc outputDir</code>
+</pre>
+<p>You can then use the printing functions on Java code containing
+a call to <strong>"MyFormulaClass.myFormulaFun1"</strong>, you will
+see that the call is replaced by a <em>formula</em>
+instruction.</p>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1">
+<p>F. Tip, J. Palsberg. <em>Scalable Propagation-Based Call Graph
+Construction Algorithms</em>. OOPSLA 2000. See <a href=
+"http://www.cs.ucla.edu/~palsberg/paper/oopsla00.pdf">http://www.cs.ucla.edu/~palsberg/paper/oopsla00.pdf</a>.<a href="#fnref1">↩</a></p>
+</li>
+<li id="fn2">
+<p>D. Demange, T. Jensen and D. Pichardie. <em>A Provably Correct
+Stackless Intermediate Representation For Java Bytecode</em>.
+Research Report 7021, INRIA, 2009. See <a href=
+"http://www.irisa.fr/celtique/ext/bir">http://www.irisa.fr/celtique/ext/bir</a>.<a href="#fnref2">↩</a></p>
+</li>
+</ol>
+</div>
+</div>
+</body>
+</html>

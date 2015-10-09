@@ -1,0 +1,96 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="JPrintPlugin.NewCodePrinter.PrintInterface.html">
+<link rel="Up" href="JPrintPlugin.NewCodePrinter.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Iter" rel="Chapter" href="Iter.html">
+<link title="Wlist" rel="Chapter" href="Wlist.html">
+<link title="JProgram" rel="Chapter" href="JProgram.html">
+<link title="ClassDomain" rel="Chapter" href="ClassDomain.html">
+<link title="JNativeStubs" rel="Chapter" href="JNativeStubs.html">
+<link title="JsrInline" rel="Chapter" href="JsrInline.html">
+<link title="JControlFlow" rel="Chapter" href="JControlFlow.html">
+<link title="JPrintHtml" rel="Chapter" href="JPrintHtml.html">
+<link title="JPrintPlugin" rel="Chapter" href="JPrintPlugin.html">
+<link title="ArgPlugin" rel="Chapter" href="ArgPlugin.html">
+<link title="JCodePP" rel="Chapter" href="JCodePP.html">
+<link title="JBir" rel="Chapter" href="JBir.html">
+<link title="JBirPP" rel="Chapter" href="JBirPP.html">
+<link title="A3Bir" rel="Chapter" href="A3Bir.html">
+<link title="A3BirPP" rel="Chapter" href="A3BirPP.html">
+<link title="JBirSSA" rel="Chapter" href="JBirSSA.html">
+<link title="JBirSSAPP" rel="Chapter" href="JBirSSAPP.html">
+<link title="A3BirSSA" rel="Chapter" href="A3BirSSA.html">
+<link title="A3BirSSAPP" rel="Chapter" href="A3BirSSAPP.html">
+<link title="Live_bir" rel="Chapter" href="Live_bir.html">
+<link title="Live_a3bir" rel="Chapter" href="Live_a3bir.html">
+<link title="Safe" rel="Chapter" href="Safe.html">
+<link title="ReachableMethods" rel="Chapter" href="ReachableMethods.html">
+<link title="JType" rel="Chapter" href="JType.html">
+<link title="ParserType" rel="Chapter" href="ParserType.html">
+<link title="Parse_heap" rel="Chapter" href="Parse_heap.html">
+<link title="HeapParser" rel="Chapter" href="HeapParser.html">
+<link title="JCRA" rel="Chapter" href="JCRA.html">
+<link title="XTA" rel="Chapter" href="XTA.html">
+<link title="JRTA" rel="Chapter" href="JRTA.html">
+<link title="JRTAWithHeap" rel="Chapter" href="JRTAWithHeap.html">
+<link title="JRRTA" rel="Chapter" href="JRRTA.html">
+<link title="ReachDef" rel="Chapter" href="ReachDef.html">
+<link title="AvailableExpr" rel="Chapter" href="AvailableExpr.html">
+<link title="Javalib_pack.Javalib" rel="Chapter" href="Javalib_pack.Javalib.html">
+<link title="Javalib_pack.JBasics" rel="Chapter" href="Javalib_pack.JBasics.html">
+<link title="Javalib_pack.JCode" rel="Chapter" href="Javalib_pack.JCode.html"><title>Sawja : JPrintPlugin.NewCodePrinter.PluginPrinter</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="JPrintPlugin.NewCodePrinter.PrintInterface.html" title="JPrintPlugin.NewCodePrinter.PrintInterface">Previous</a>
+&nbsp;<a class="up" href="JPrintPlugin.NewCodePrinter.html" title="JPrintPlugin.NewCodePrinter">Up</a>
+&nbsp;</div>
+<h1>Module type <a href="type_JPrintPlugin.NewCodePrinter.PluginPrinter.html">JPrintPlugin.NewCodePrinter.PluginPrinter</a></h1>
+<pre><span class="keyword">module type</span> PluginPrinter = <code class="code"><span class="keyword">sig</span></code> <a href="JPrintPlugin.NewCodePrinter.PluginPrinter.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info">
+Final module signature of the Printer, it allows to print
+      information for a class or a complete program.<br>
+</div>
+<hr width="100%">
+<pre><span id="TYPEcode"><span class="keyword">type</span> <code class="type"></code>code</span> </pre>
+<div class="info">
+The code representation (equivalent of <a href="Javalib_pack.JCode.html#TYPEjcode"><code class="code"><span class="constructor">Javalib_pack</span>.<span class="constructor">JCode</span>.jcode</code></a>, <a href="JBir.html#TYPEt"><code class="code"><span class="constructor">JBir</span>.t</code></a>, etc.<br>
+</div>
+
+<pre><span id="TYPEexpr"><span class="keyword">type</span> <code class="type"></code>expr</span> </pre>
+<div class="info">
+Type that could be use to provide an information more precise
+	than an instruction for warnings on program points (e.g.:
+	<code class="code">unit</code> for <a href="Javalib_pack.JCode.html"><code class="code"><span class="constructor">Javalib_pack</span>.<span class="constructor">JCode</span></code></a>, <a href="JBir.html#TYPEexpr"><code class="code"><span class="constructor">JBir</span>.expr</code></a> for <a href="JBir.html"><code class="code"><span class="constructor">JBir</span></code></a>,
+	etc.)<br>
+</div>
+
+<pre><span id="VALempty_infos"><span class="keyword">val</span> empty_infos</span> : <code class="type"><a href="JPrintPlugin.NewCodePrinter.PluginPrinter.html#TYPEexpr">expr</a> <a href="JPrintPlugin.html#TYPEplugin_info">JPrintPlugin.plugin_info</a></code></pre><div class="info">
+An empty plugin information data structure<br>
+</div>
+<pre><span id="VALprint_class"><span class="keyword">val</span> print_class</span> : <code class="type">?html_info:bool -><br>       <a href="JPrintPlugin.NewCodePrinter.PluginPrinter.html#TYPEexpr">expr</a> <a href="JPrintPlugin.html#TYPEplugin_info">JPrintPlugin.plugin_info</a> -><br>       <a href="JPrintPlugin.NewCodePrinter.PluginPrinter.html#TYPEcode">code</a><br>       <a href="Javalib_pack.Javalib.html#TYPEinterface_or_class">Javalib_pack.Javalib.interface_or_class</a> -> string -> unit</code></pre><div class="info">
+<code class="code">print_class ?html info ioc outputdir</code> generates plugin's
+	information files for the interface or class <code class="code">ioc</code> in the output
+	directory <code class="code">outputdir</code>, given the plugin's information <code class="code">info</code>. If
+	<code class="code">html</code> is given and true then string data in
+	<a href="JPrintPlugin.html#TYPEplugin_info"><code class="code"><span class="constructor">JPrintPlugin</span>.plugin_info</code></a><code class="code">.p_infos</code> (only) must be valid html (between &lt;div&gt;
+	tags).<br>
+<b>Raises</b> <code>Invalid_argument</code> if the name corresponding to
+	<code class="code">outputdir</code> is a file.<br>
+</div>
+<pre><span id="VALprint_program"><span class="keyword">val</span> print_program</span> : <code class="type">?html_info:bool -><br>       <a href="JPrintPlugin.NewCodePrinter.PluginPrinter.html#TYPEexpr">expr</a> <a href="JPrintPlugin.html#TYPEplugin_info">JPrintPlugin.plugin_info</a> -><br>       <a href="JPrintPlugin.NewCodePrinter.PluginPrinter.html#TYPEcode">code</a> <a href="JProgram.html#TYPEprogram">JProgram.program</a> -><br>       string -> unit</code></pre><div class="info">
+<code class="code">print_program ?html info program outputdir</code> generates plugin's
+	information files for the program <code class="code">p</code> in the output directory
+	<code class="code">outputdir</code>, given the plugin's information <code class="code">info</code>. If <code class="code">html</code> is
+	given and true then string data in <a href="JPrintPlugin.html#TYPEplugin_info"><code class="code"><span class="constructor">JPrintPlugin</span>.plugin_info</code></a><code class="code">.p_infos</code> (only)
+	must be valid html (between &lt;div&gt; tags).<br>
+<b>Raises</b> <code>Invalid_argument</code> if the name corresponding to <code class="code">outputdir</code> is a file.<br>
+</div>
+</body></html>

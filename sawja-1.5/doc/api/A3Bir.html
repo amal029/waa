@@ -1,0 +1,1033 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="JBirPP.html">
+<link rel="next" href="A3BirPP.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Iter" rel="Chapter" href="Iter.html">
+<link title="Wlist" rel="Chapter" href="Wlist.html">
+<link title="JProgram" rel="Chapter" href="JProgram.html">
+<link title="ClassDomain" rel="Chapter" href="ClassDomain.html">
+<link title="JNativeStubs" rel="Chapter" href="JNativeStubs.html">
+<link title="JsrInline" rel="Chapter" href="JsrInline.html">
+<link title="JControlFlow" rel="Chapter" href="JControlFlow.html">
+<link title="JPrintHtml" rel="Chapter" href="JPrintHtml.html">
+<link title="JPrintPlugin" rel="Chapter" href="JPrintPlugin.html">
+<link title="ArgPlugin" rel="Chapter" href="ArgPlugin.html">
+<link title="JCodePP" rel="Chapter" href="JCodePP.html">
+<link title="JBir" rel="Chapter" href="JBir.html">
+<link title="JBirPP" rel="Chapter" href="JBirPP.html">
+<link title="A3Bir" rel="Chapter" href="A3Bir.html">
+<link title="A3BirPP" rel="Chapter" href="A3BirPP.html">
+<link title="JBirSSA" rel="Chapter" href="JBirSSA.html">
+<link title="JBirSSAPP" rel="Chapter" href="JBirSSAPP.html">
+<link title="A3BirSSA" rel="Chapter" href="A3BirSSA.html">
+<link title="A3BirSSAPP" rel="Chapter" href="A3BirSSAPP.html">
+<link title="Live_bir" rel="Chapter" href="Live_bir.html">
+<link title="Live_a3bir" rel="Chapter" href="Live_a3bir.html">
+<link title="Safe" rel="Chapter" href="Safe.html">
+<link title="ReachableMethods" rel="Chapter" href="ReachableMethods.html">
+<link title="JType" rel="Chapter" href="JType.html">
+<link title="ParserType" rel="Chapter" href="ParserType.html">
+<link title="Parse_heap" rel="Chapter" href="Parse_heap.html">
+<link title="HeapParser" rel="Chapter" href="HeapParser.html">
+<link title="JCRA" rel="Chapter" href="JCRA.html">
+<link title="XTA" rel="Chapter" href="XTA.html">
+<link title="JRTA" rel="Chapter" href="JRTA.html">
+<link title="JRTAWithHeap" rel="Chapter" href="JRTAWithHeap.html">
+<link title="JRRTA" rel="Chapter" href="JRRTA.html">
+<link title="ReachDef" rel="Chapter" href="ReachDef.html">
+<link title="AvailableExpr" rel="Chapter" href="AvailableExpr.html">
+<link title="Javalib_pack.Javalib" rel="Chapter" href="Javalib_pack.Javalib.html">
+<link title="Javalib_pack.JBasics" rel="Chapter" href="Javalib_pack.JBasics.html">
+<link title="Javalib_pack.JCode" rel="Chapter" href="Javalib_pack.JCode.html"><link title="Language" rel="Section" href="#2_Language">
+<link title="Printing functions" rel="Section" href="#2_Printingfunctions">
+<link title="Bytecode transformation" rel="Section" href="#2_Bytecodetransformation">
+<link title="Exceptions" rel="Section" href="#2_Exceptions">
+<link title="Variables" rel="Subsection" href="#3_Variables">
+<link title="Expressions" rel="Subsection" href="#3_Expressions">
+<link title="Formulae" rel="Subsection" href="#3_Formulae">
+<link title="Instructions" rel="Subsection" href="#3_Instructions">
+<title>Sawja : A3Bir</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="JBirPP.html" title="JBirPP">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="A3BirPP.html" title="A3BirPP">Next</a>
+</div>
+<h1>Module <a href="type_A3Bir.html">A3Bir</a></h1>
+<pre><span class="keyword">module</span> A3Bir: <code class="code"><span class="keyword">sig</span></code> <a href="A3Bir.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info">
+Stackless, 3-address like and unstructured intermediate
+    representation for Java Bytecode, in which basic expression trees
+    are reconstructed and method and constructor calls are folded.<br>
+</div>
+<hr width="100%">
+<br>
+Stackless, 3-address like and unstructured intermediate
+    representation for Java Bytecode, in which basic expression trees
+    are reconstructed and method and constructor calls are folded.<br>
+<br>
+<h2 id="2_Language">Language</h2><br>
+<br>
+<h3 id="3_Variables">Variables</h3><br>
+<pre><span id="TYPEvar"><span class="keyword">type</span> <code class="type"></code>var</span> </pre>
+<div class="info">
+Abstract data type for variables<br>
+</div>
+
+<pre><span id="VALvar_equal"><span class="keyword">val</span> var_equal</span> : <code class="type"><a href="A3Bir.html#TYPEvar">var</a> -> <a href="A3Bir.html#TYPEvar">var</a> -> bool</code></pre><div class="info">
+<code class="code">var_equal v1 v2</code> is equivalent to <code class="code">v1 = v2</code>, but is faster.<br>
+</div>
+<pre><span id="VALvar_orig"><span class="keyword">val</span> var_orig</span> : <code class="type"><a href="A3Bir.html#TYPEvar">var</a> -> bool</code></pre><div class="info">
+<code class="code">var_orig v</code> is <code class="code"><span class="keyword">true</span></code> if and only if the variable <code class="code">v</code> was already used at
+    bytecode level.<br>
+</div>
+<pre><span id="VALvar_name"><span class="keyword">val</span> var_name</span> : <code class="type"><a href="A3Bir.html#TYPEvar">var</a> -> string</code></pre><div class="info">
+<code class="code">var_name v</code> returns a string representation of the variable <code class="code">v</code>.<br>
+</div>
+<pre><span id="VALvar_name_debug"><span class="keyword">val</span> var_name_debug</span> : <code class="type"><a href="A3Bir.html#TYPEvar">var</a> -> string option</code></pre><div class="info">
+<code class="code">var_name_debug v</code> returns, if possible the original variable names of <code class="code">v</code>, 
+    if the initial class was compiled using debug information.<br>
+</div>
+<pre><span id="VALvar_name_g"><span class="keyword">val</span> var_name_g</span> : <code class="type"><a href="A3Bir.html#TYPEvar">var</a> -> string</code></pre><div class="info">
+<code class="code">var_name_g v</code> returns a string representation of the variable <code class="code">v</code>. 
+    If the initial class was compiled using debug information, original 
+    variable names are build on this information. It is equivalent to
+    <code class="code">var_name_g x = <span class="keyword">match</span> var_name_debug <span class="keyword">with</span> <span class="constructor">Some</span> s <span class="keywordsign">-&gt;</span> s <span class="keywordsign">|</span> _ <span class="keywordsign">-&gt;</span> var_name x</code><br>
+</div>
+<pre><span id="VALbc_num"><span class="keyword">val</span> bc_num</span> : <code class="type"><a href="A3Bir.html#TYPEvar">var</a> -> int option</code></pre><div class="info">
+<code class="code">bc_num v</code> returns the local var number if the variable comes from the initial bytecode program.<br>
+</div>
+<pre><span id="VALindex"><span class="keyword">val</span> index</span> : <code class="type"><a href="A3Bir.html#TYPEvar">var</a> -> int</code></pre><div class="info">
+<code class="code">index v</code> returns the hash value of the given variable.<br>
+</div>
+<pre><span class="keyword">module</span> <a href="A3Bir.VarSet.html">VarSet</a>: <code class="type"><a href="Javalib_pack.JBasics.GenericSetSig.html">Javalib_pack.JBasics.GenericSetSig</a></code><code class="type">  with type elt = var</code></pre><div class="info">
+This module allows to build efficient sets of <code class="code">var</code> values.
+</div>
+<pre><span class="keyword">module</span> <a href="A3Bir.VarMap.html">VarMap</a>: <code class="type"><a href="Javalib_pack.JBasics.GenericMapSig.html">Javalib_pack.JBasics.GenericMapSig</a></code><code class="type">  with type key = var</code></pre><div class="info">
+This module allows to build maps of elements indexed by <code class="code">var</code> values.
+</div>
+<br>
+<h3 id="3_Expressions">Expressions</h3><br>
+<pre><span id="TYPEconst"><span class="keyword">type</span> <code class="type"></code>const</span> = <code class="type"><a href="JBir.html#TYPEconst">JBir.const</a></code> </pre>
+<div class="info">
+Constants<br>
+</div>
+
+<pre><code><span id="TYPEconv"><span class="keyword">type</span> <code class="type"></code>conv</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTconv.I2L"><span class="constructor">I2L</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTconv.I2F"><span class="constructor">I2F</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTconv.I2D"><span class="constructor">I2D</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTconv.L2I"><span class="constructor">L2I</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTconv.L2F"><span class="constructor">L2F</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTconv.L2D"><span class="constructor">L2D</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTconv.F2I"><span class="constructor">F2I</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTconv.F2L"><span class="constructor">F2L</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTconv.F2D"><span class="constructor">F2D</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTconv.D2I"><span class="constructor">D2I</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTconv.D2L"><span class="constructor">D2L</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTconv.D2F"><span class="constructor">D2F</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTconv.I2B"><span class="constructor">I2B</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTconv.I2C"><span class="constructor">I2C</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTconv.I2S"><span class="constructor">I2S</span></span></code></td>
+
+</tr></table>
+
+<div class="info">
+Conversion operators<br>
+</div>
+
+<pre><code><span id="TYPEunop"><span class="keyword">type</span> <code class="type"></code>unop</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTunop.Neg"><span class="constructor">Neg</span></span> <span class="keyword">of</span> <code class="type"><a href="Javalib_pack.JBasics.html#TYPEjvm_basic_type">Javalib_pack.JBasics.jvm_basic_type</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTunop.Conv"><span class="constructor">Conv</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEconv">conv</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTunop.ArrayLength"><span class="constructor">ArrayLength</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTunop.InstanceOf"><span class="constructor">InstanceOf</span></span> <span class="keyword">of</span> <code class="type"><a href="Javalib_pack.JBasics.html#TYPEobject_type">Javalib_pack.JBasics.object_type</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTunop.Cast"><span class="constructor">Cast</span></span> <span class="keyword">of</span> <code class="type"><a href="Javalib_pack.JBasics.html#TYPEobject_type">Javalib_pack.JBasics.object_type</a></code></code></td>
+
+</tr></table>
+
+<div class="info">
+Unary operators<br>
+</div>
+
+<pre><code><span id="TYPEcomp"><span class="keyword">type</span> <code class="type"></code>comp</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTcomp.DG"><span class="constructor">DG</span></span></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >double comparison, if a value is NaN, push 1 into operand stack.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTcomp.DL"><span class="constructor">DL</span></span></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >double comparison, if a value is NaN, push -1 into operand stack.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTcomp.FG"><span class="constructor">FG</span></span></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >float comparison, if a value is NaN, push 1 into operand stack.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTcomp.FL"><span class="constructor">FL</span></span></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >float comparison, if a value is NaN, push -1 into operand stack.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTcomp.L"><span class="constructor">L</span></span></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >long comparison.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+
+<div class="info">
+Comparison operators<br>
+</div>
+
+<pre><code><span id="TYPEbinop"><span class="keyword">type</span> <code class="type"></code>binop</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbinop.ArrayLoad"><span class="constructor">ArrayLoad</span></span> <span class="keyword">of</span> <code class="type"><a href="Javalib_pack.JBasics.html#TYPEvalue_type">Javalib_pack.JBasics.value_type</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbinop.Add"><span class="constructor">Add</span></span> <span class="keyword">of</span> <code class="type"><a href="Javalib_pack.JBasics.html#TYPEjvm_basic_type">Javalib_pack.JBasics.jvm_basic_type</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbinop.Sub"><span class="constructor">Sub</span></span> <span class="keyword">of</span> <code class="type"><a href="Javalib_pack.JBasics.html#TYPEjvm_basic_type">Javalib_pack.JBasics.jvm_basic_type</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbinop.Mult"><span class="constructor">Mult</span></span> <span class="keyword">of</span> <code class="type"><a href="Javalib_pack.JBasics.html#TYPEjvm_basic_type">Javalib_pack.JBasics.jvm_basic_type</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbinop.Div"><span class="constructor">Div</span></span> <span class="keyword">of</span> <code class="type"><a href="Javalib_pack.JBasics.html#TYPEjvm_basic_type">Javalib_pack.JBasics.jvm_basic_type</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbinop.Rem"><span class="constructor">Rem</span></span> <span class="keyword">of</span> <code class="type"><a href="Javalib_pack.JBasics.html#TYPEjvm_basic_type">Javalib_pack.JBasics.jvm_basic_type</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbinop.IShl"><span class="constructor">IShl</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbinop.IShr"><span class="constructor">IShr</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbinop.IAnd"><span class="constructor">IAnd</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbinop.IOr"><span class="constructor">IOr</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbinop.IXor"><span class="constructor">IXor</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbinop.IUshr"><span class="constructor">IUshr</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbinop.LShl"><span class="constructor">LShl</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbinop.LShr"><span class="constructor">LShr</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbinop.LAnd"><span class="constructor">LAnd</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbinop.LOr"><span class="constructor">LOr</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbinop.LXor"><span class="constructor">LXor</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbinop.LUshr"><span class="constructor">LUshr</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTbinop.CMP"><span class="constructor">CMP</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEcomp">comp</a></code></code></td>
+
+</tr></table>
+
+<div class="info">
+Binary operators<br>
+</div>
+
+<pre><span id="TYPEtvar"><span class="keyword">type</span> <code class="type"></code>tvar</span> = <code class="type"><a href="Javalib_pack.JBasics.html#TYPEvalue_type">Javalib_pack.JBasics.value_type</a> * <a href="A3Bir.html#TYPEvar">var</a></code> </pre>
+<div class="info">
+variables are given a type information.<br>
+</div>
+
+<pre><code><span id="TYPEexpr"><span class="keyword">type</span> <code class="type"></code>expr</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpr.Const"><span class="constructor">Const</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEconst">const</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >constants</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpr.Var"><span class="constructor">Var</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEtvar">tvar</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpr.Unop"><span class="constructor">Unop</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEunop">unop</a> * <a href="A3Bir.html#TYPEtvar">tvar</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpr.Binop"><span class="constructor">Binop</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEbinop">binop</a> * <a href="A3Bir.html#TYPEtvar">tvar</a> * <a href="A3Bir.html#TYPEtvar">tvar</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpr.Field"><span class="constructor">Field</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEtvar">tvar</a> * <a href="Javalib_pack.JBasics.html#TYPEclass_name">Javalib_pack.JBasics.class_name</a><br>        * <a href="Javalib_pack.JBasics.html#TYPEfield_signature">Javalib_pack.JBasics.field_signature</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Reading fields of arbitrary expressions</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpr.StaticField"><span class="constructor">StaticField</span></span> <span class="keyword">of</span> <code class="type"><a href="Javalib_pack.JBasics.html#TYPEclass_name">Javalib_pack.JBasics.class_name</a> * <a href="Javalib_pack.JBasics.html#TYPEfield_signature">Javalib_pack.JBasics.field_signature</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Reading static fields</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+
+<div class="info">
+Side-effect free expressions. Only variables can be assigned such expressions.<br>
+</div>
+
+<pre><span id="VALtype_of_tvar"><span class="keyword">val</span> type_of_tvar</span> : <code class="type"><a href="A3Bir.html#TYPEtvar">tvar</a> -> <a href="Javalib_pack.JBasics.html#TYPEvalue_type">Javalib_pack.JBasics.value_type</a></code></pre><div class="info">
+<code class="code">type_of_tvar e</code> returns the type of the expression <code class="code">e</code>.<br>
+</div>
+<pre><span id="VALtype_of_expr"><span class="keyword">val</span> type_of_expr</span> : <code class="type"><a href="A3Bir.html#TYPEexpr">expr</a> -> <a href="Javalib_pack.JBasics.html#TYPEvalue_type">Javalib_pack.JBasics.value_type</a></code></pre><div class="info">
+<code class="code">type_of_expr e</code> returns the type of the expression <code class="code">e</code>.<br>
+</div>
+<br>
+<h3 id="3_Formulae">Formulae</h3><br>
+<pre><code><span id="TYPEformula"><span class="keyword">type</span> <code class="type"></code>formula</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTformula.Atom"><span class="constructor">Atom</span></span> <span class="keyword">of</span> <code class="type">[ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * <a href="A3Bir.html#TYPEtvar">tvar</a> * <a href="A3Bir.html#TYPEtvar">tvar</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Atomic expression.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTformula.BoolVar"><span class="constructor">BoolVar</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEtvar">tvar</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTformula.And"><span class="constructor">And</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEformula">formula</a> * <a href="A3Bir.html#TYPEformula">formula</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTformula.Or"><span class="constructor">Or</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEformula">formula</a> * <a href="A3Bir.html#TYPEformula">formula</a></code></code></td>
+
+</tr></table>
+
+<div class="info">
+Represents a reconstructed boolean expression. In the good cases (the
+  expression can be precisely reconstructed), we obtain conjunctions/disjunctions
+  of Atoms. Sometimes the expression cannot be precisely constructed (for
+  example when the expression contains side effects). In this case, we just get
+  a BoolVar.<br>
+</div>
+
+<pre><span id="VALdefault_formula_cmd"><span class="keyword">val</span> default_formula_cmd</span> : <code class="type"><a href="Javalib_pack.JBasics.html#TYPEclass_method_signature">Javalib_pack.JBasics.class_method_signature</a> list</code></pre><div class="info">
+Give a default set of methods used to generate formulae. Those methods are all
+    defined in the class 'sawja.Assertions' and are the following:<ul>
+<li>public static void assume (boolean)</li>
+<li>public static void check (boolean)</li>
+<li>public static void invariant (boolean)</li>
+</ul>
+<br>
+</div>
+<br>
+<h3 id="3_Instructions">Instructions</h3><br>
+<pre><code><span id="TYPEvirtual_call_kind"><span class="keyword">type</span> <code class="type"></code>virtual_call_kind</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTvirtual_call_kind.VirtualCall"><span class="constructor">VirtualCall</span></span> <span class="keyword">of</span> <code class="type"><a href="Javalib_pack.JBasics.html#TYPEobject_type">Javalib_pack.JBasics.object_type</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTvirtual_call_kind.InterfaceCall"><span class="constructor">InterfaceCall</span></span> <span class="keyword">of</span> <code class="type"><a href="Javalib_pack.JBasics.html#TYPEclass_name">Javalib_pack.JBasics.class_name</a></code></code></td>
+
+</tr></table>
+
+
+<br>
+<code class="code">check</code> is the type of A3Bir assertions. They are generated by the transformation so that execution errors arise 
+    in the same order in the initial bytecode program and its A3Bir version. Next to each of them is the informal semantics they should be given.<br>
+<pre><code><span id="TYPEcheck"><span class="keyword">type</span> <code class="type"></code>check</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTcheck.CheckNullPointer"><span class="constructor">CheckNullPointer</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEtvar">tvar</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">CheckNullPointer</span> e</code> checks that the expression <code class="code">e</code> is not a null pointer and raises the Java NullPointerException if this not the case.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTcheck.CheckArrayBound"><span class="constructor">CheckArrayBound</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEtvar">tvar</a> * <a href="A3Bir.html#TYPEtvar">tvar</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">CheckArrayBound</span>(a,idx)</code> checks the index <code class="code">idx</code> is a valid index for the array denoted by the expression <code class="code">a</code> and raises the Java IndexOutOfBoundsException if this is not the case.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTcheck.CheckArrayStore"><span class="constructor">CheckArrayStore</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEtvar">tvar</a> * <a href="A3Bir.html#TYPEtvar">tvar</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">CheckArrayStore</span>(a,e)</code> checks <code class="code">e</code> can be stored as an element of the array <code class="code">a</code> and raises the Java ArrayStoreException if this is not the case.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTcheck.CheckNegativeArraySize"><span class="constructor">CheckNegativeArraySize</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEtvar">tvar</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">CheckNegativeArray</span> e</code> checks that <code class="code">e</code>, denoting an array size, is positive or zero and raises the Java NegativeArraySizeException if this is not the case.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTcheck.CheckCast"><span class="constructor">CheckCast</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEtvar">tvar</a> * <a href="Javalib_pack.JBasics.html#TYPEobject_type">Javalib_pack.JBasics.object_type</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">CheckCast</span>(e,t)</code> checks the object denoted by <code class="code">e</code> can be casted to the object type <code class="code">t</code> and raises the Java ClassCastException if this is not the case.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTcheck.CheckArithmetic"><span class="constructor">CheckArithmetic</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEtvar">tvar</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">CheckArithmetic</span> e</code> checks that the divisor <code class="code">e</code> is not zero, and raises ArithmeticExcpetion if this is not the case.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTcheck.CheckLink"><span class="constructor">CheckLink</span></span> <span class="keyword">of</span> <code class="type"><a href="Javalib_pack.JCode.html#TYPEjopcode">Javalib_pack.JCode.jopcode</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">CheckLink</span> op</code> checks if linkage mechanism, depending on
+	  <code class="code">op</code> instruction, must be started and if so if it
+	  succeeds. These instructions are only generated if the
+	  option is activated during transformation (cf. <a href="A3Bir.html#VALtransform"><code class="code"><span class="constructor">A3Bir</span>.transform</code></a>).
+<p>
+
+	  Linkage mechanism and errors that could be thrown
+	  are described in chapter 6 of JVM Spec 1.5 for each bytecode
+	  instruction (only a few instructions imply linkage
+	  operations: checkcast, instanceof, anewarray,
+	  multianewarray, new, get_, put_, invoke_).</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+
+
+<br>
+A3Bir instructions are register-based and unstructured. Their operands are <code class="code">tvar</code> (typed local vars), except variable assigments.
+    Next to them is the informal semantics (using a traditional instruction notations) they should be given. 
+<p>
+
+    Exceptions that could be raised by the virtual
+    machine are described beside each instruction, except for the
+    virtual machine errors, subclasses of
+    <code class="code">java.lang.<span class="constructor">VirtualMachineError</span></code>, that could be raised at any time
+    (cf. JVM Spec 1.5 §6.3 ).<br>
+<pre><code><span id="TYPEinstr"><span class="keyword">type</span> <code class="type"></code>instr</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinstr.Nop"><span class="constructor">Nop</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinstr.AffectVar"><span class="constructor">AffectVar</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEvar">var</a> * <a href="A3Bir.html#TYPEexpr">expr</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">AffectVar</span>(x,e)</code> denotes x := e.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinstr.AffectArray"><span class="constructor">AffectArray</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEtvar">tvar</a> * <a href="A3Bir.html#TYPEtvar">tvar</a> * <a href="A3Bir.html#TYPEtvar">tvar</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">AffectArray</span>(x,i,e)</code> denotes   x[i] := e.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinstr.AffectField"><span class="constructor">AffectField</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEtvar">tvar</a> * <a href="Javalib_pack.JBasics.html#TYPEclass_name">Javalib_pack.JBasics.class_name</a><br>        * <a href="Javalib_pack.JBasics.html#TYPEfield_signature">Javalib_pack.JBasics.field_signature</a> * <a href="A3Bir.html#TYPEtvar">tvar</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">AffectField</span>(x,c,fs,y)</code> denotes   x.&lt;c:fs&gt; := y.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinstr.AffectStaticField"><span class="constructor">AffectStaticField</span></span> <span class="keyword">of</span> <code class="type"><a href="Javalib_pack.JBasics.html#TYPEclass_name">Javalib_pack.JBasics.class_name</a> * <a href="Javalib_pack.JBasics.html#TYPEfield_signature">Javalib_pack.JBasics.field_signature</a><br>        * <a href="A3Bir.html#TYPEtvar">tvar</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">AffectStaticField</span>(c,fs,e)</code> denotes   &lt;c:fs&gt; := e .</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinstr.Goto"><span class="constructor">Goto</span></span> <span class="keyword">of</span> <code class="type">int</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">Goto</span> pc</code> denotes goto pc. (absolute address)</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinstr.Ifd"><span class="constructor">Ifd</span></span> <span class="keyword">of</span> <code class="type">([ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * <a href="A3Bir.html#TYPEtvar">tvar</a> * <a href="A3Bir.html#TYPEtvar">tvar</a>) * int</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">Ifd</span>((op,x,y),pc)</code> denotes    if (x op y) goto pc. (absolute address)</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinstr.Throw"><span class="constructor">Throw</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEtvar">tvar</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">Throw</span> x</code> denotes throw x.  
+<p>
+
+			    The exception <code class="code"><span class="constructor">IllegalMonitorStateException</span></code> could be thrown by the virtual machine.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinstr.Return"><span class="constructor">Return</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEtvar">tvar</a> option</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">Return</span> x</code> denotes <ul>
+<li>return void when <code class="code">x</code> is <code class="code"><span class="constructor">None</span></code> </li>
+<li>return x otherwise </li>
+</ul>
+
+				    The exception <code class="code"><span class="constructor">IllegalMonitorStateException</span></code> could be thrown
+				    by the virtual machine.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinstr.New"><span class="constructor">New</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEvar">var</a> * <a href="Javalib_pack.JBasics.html#TYPEclass_name">Javalib_pack.JBasics.class_name</a><br>        * <a href="Javalib_pack.JBasics.html#TYPEvalue_type">Javalib_pack.JBasics.value_type</a> list * <a href="A3Bir.html#TYPEtvar">tvar</a> list</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">New</span>(x,c,tl,args)</code> denotes x:= new c&lt;tl&gt;(args),  <code class="code">tl</code> gives the type of <code class="code">args</code>.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinstr.NewArray"><span class="constructor">NewArray</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEvar">var</a> * <a href="Javalib_pack.JBasics.html#TYPEvalue_type">Javalib_pack.JBasics.value_type</a> * <a href="A3Bir.html#TYPEtvar">tvar</a> list</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">NewArray</span>(x,t,el)</code> denotes x := new c[e1]...[en] where ei are the elements of <code class="code">el</code> ; they represent the length of the corresponding dimension. Elements of the array are of type <code class="code">t</code>.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinstr.InvokeStatic"><span class="constructor">InvokeStatic</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEvar">var</a> option * <a href="Javalib_pack.JBasics.html#TYPEclass_name">Javalib_pack.JBasics.class_name</a><br>        * <a href="Javalib_pack.JBasics.html#TYPEmethod_signature">Javalib_pack.JBasics.method_signature</a> * <a href="A3Bir.html#TYPEtvar">tvar</a> list</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">InvokeStatic</span>(x,c,ms,args)</code> denotes <ul>
+<li>c.m&lt;ms&gt;(args) if <code class="code">x</code> is <code class="code"><span class="constructor">None</span></code> (void returning method)</li>
+<li> x :=  c.m&lt;ms&gt;(args) otherwise </li>
+</ul>
+
+											   The exception <code class="code"><span class="constructor">UnsatisfiedLinkError</span></code> could be
+											   thrown if the method is native and the code cannot be
+											   found.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinstr.InvokeVirtual"><span class="constructor">InvokeVirtual</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEvar">var</a> option * <a href="A3Bir.html#TYPEtvar">tvar</a> * <a href="A3Bir.html#TYPEvirtual_call_kind">virtual_call_kind</a><br>        * <a href="Javalib_pack.JBasics.html#TYPEmethod_signature">Javalib_pack.JBasics.method_signature</a> * <a href="A3Bir.html#TYPEtvar">tvar</a> list</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">InvokeVirtual</span>(x,y,k,ms,args)</code> denotes the <code class="code">k</code> call<ul>
+<li> y.m&lt;ms&gt;(args) if <code class="code">x</code> is <code class="code"><span class="constructor">None</span></code>  (void returning method)</li>
+<li> x := y.m&lt;ms&gt;(args) otherwise</li>
+</ul>
+
+												      If <code class="code">k</code> is a <code class="code"><span class="constructor">VirtualCall</span> _</code> then the virtual machine could throw the following errors in the same order: <code class="code"><span class="constructor">AbstractMethodError</span>, <span class="constructor">UnsatisfiedLinkError</span></code>.
+<p>
+
+												      If <code class="code">k</code> is a <code class="code"><span class="constructor">InterfaceCall</span> _</code> then the virtual machine could throw the following errors in the same order: <code class="code"><span class="constructor">IncompatibleClassChangeError</span>, <span class="constructor">AbstractMethodError</span>, <span class="constructor">IllegalAccessError</span>, <span class="constructor">AbstractMethodError</span>, <span class="constructor">UnsatisfiedLinkError</span></code>.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinstr.InvokeNonVirtual"><span class="constructor">InvokeNonVirtual</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEvar">var</a> option * <a href="A3Bir.html#TYPEtvar">tvar</a> * <a href="Javalib_pack.JBasics.html#TYPEclass_name">Javalib_pack.JBasics.class_name</a><br>        * <a href="Javalib_pack.JBasics.html#TYPEmethod_signature">Javalib_pack.JBasics.method_signature</a> * <a href="A3Bir.html#TYPEtvar">tvar</a> list</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">InvokeNonVirtual</span>(x,y,c,ms,args)</code> denotes the non virtual call<ul>
+<li> y.C.m&lt;ms&gt;(args) if <code class="code">x</code> is <code class="code"><span class="constructor">None</span></code>  (void returning method)</li>
+<li> x := y.C.m&lt;ms&gt;(args) otherwise </li>
+</ul>
+
+													The exception <code class="code"><span class="constructor">UnsatisfiedLinkError</span></code> could be thrown 
+													if the method is native and the code cannot be found.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinstr.MonitorEnter"><span class="constructor">MonitorEnter</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEtvar">tvar</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">MonitorEnter</span> x</code> locks the object <code class="code">x</code>.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinstr.MonitorExit"><span class="constructor">MonitorExit</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEtvar">tvar</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">MonitorExit</span> x</code> unlocks the object <code class="code">x</code>. 
+<p>
+
+				  The exception
+				  <code class="code"><span class="constructor">IllegalMonitorStateException</span></code> could be
+				  thrown by the virtual machine.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinstr.MayInit"><span class="constructor">MayInit</span></span> <span class="keyword">of</span> <code class="type"><a href="Javalib_pack.JBasics.html#TYPEclass_name">Javalib_pack.JBasics.class_name</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">MayInit</span> c</code> initializes the class <code class="code">c</code> whenever it is required. 
+<p>
+
+				      The exception <code class="code"><span class="constructor">ExceptionInInitializerError</span></code> could be thrown by the virtual machine.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinstr.Check"><span class="constructor">Check</span></span> <span class="keyword">of</span> <code class="type"><a href="A3Bir.html#TYPEcheck">check</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">Check</span> c</code> evaluates the assertion <code class="code">c</code>. 
+<p>
+
+		       Exceptions that could be thrown by the virtual
+		       machine are described in <a href="A3Bir.html#TYPEcheck"><code class="code"><span class="constructor">A3Bir</span>.check</code></a> type declaration.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinstr.Formula"><span class="constructor">Formula</span></span> <span class="keyword">of</span> <code class="type"><a href="Javalib_pack.JBasics.html#TYPEclass_method_signature">Javalib_pack.JBasics.class_method_signature</a> * <a href="A3Bir.html#TYPEformula">formula</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">Formula</span> cms f</code>: <code class="code">cms</code> is the method declaring the formula. <code class="code">f</code> is
+          the formula to be verified.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+
+
+<pre><code><span id="TYPEexception_handler"><span class="keyword">type</span> <code class="type"></code>exception_handler</span> = {</code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexception_handler.e_start">e_start</span>&nbsp;:<code class="type">int</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexception_handler.e_end">e_end</span>&nbsp;:<code class="type">int</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexception_handler.e_handler">e_handler</span>&nbsp;:<code class="type">int</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexception_handler.e_catch_type">e_catch_type</span>&nbsp;:<code class="type"><a href="Javalib_pack.JBasics.html#TYPEclass_name">Javalib_pack.JBasics.class_name</a> option</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexception_handler.e_catch_var">e_catch_var</span>&nbsp;:<code class="type"><a href="A3Bir.html#TYPEvar">var</a></code>;</code></td>
+
+</tr></table>
+}
+
+
+<pre><span id="TYPEt"><span class="keyword">type</span> <code class="type"></code>t</span> </pre>
+<div class="info">
+<code class="code">t</code> is the parameter type for A3Bir methods.<br>
+</div>
+
+<pre><span id="VALempty"><span class="keyword">val</span> empty</span> : <code class="type"><a href="A3Bir.html#TYPEt">t</a></code></pre><pre><span id="VALvars"><span class="keyword">val</span> vars</span> : <code class="type"><a href="A3Bir.html#TYPEt">t</a> -> <a href="A3Bir.html#TYPEvar">var</a> array</code></pre><div class="info">
+All variables that appear in the method. <code class="code">vars.(i)</code> is the variable of
+    index <code class="code">i</code>.<br>
+</div>
+<pre><span id="VALparams"><span class="keyword">val</span> params</span> : <code class="type"><a href="A3Bir.html#TYPEt">t</a> -> (<a href="Javalib_pack.JBasics.html#TYPEvalue_type">Javalib_pack.JBasics.value_type</a> * <a href="A3Bir.html#TYPEvar">var</a>) list</code></pre><div class="info">
+<code class="code">params</code> contains the method parameters (including the receiver this for
+     virtual methods).<br>
+</div>
+<pre><span id="VALcode"><span class="keyword">val</span> code</span> : <code class="type"><a href="A3Bir.html#TYPEt">t</a> -> <a href="A3Bir.html#TYPEinstr">instr</a> array</code></pre><div class="info">
+Array of instructions the immediate successor of <code class="code">pc</code> is <code class="code">pc+1</code>.  Jumps
+    are absolute.<br>
+</div>
+<pre><span id="VALexc_tbl"><span class="keyword">val</span> exc_tbl</span> : <code class="type"><a href="A3Bir.html#TYPEt">t</a> -> <a href="A3Bir.html#TYPEexception_handler">exception_handler</a> list</code></pre><div class="info">
+<code class="code">exc_tbl</code> is the exception table of the method code. Jumps are
+    absolute. The list is ordered in the same way as in the bytecode 
+    (See JVM Spec 7 $2.10).<br>
+</div>
+<pre><span id="VALline_number_table"><span class="keyword">val</span> line_number_table</span> : <code class="type"><a href="A3Bir.html#TYPEt">t</a> -> (int * int) list option</code></pre><div class="info">
+<code class="code">line_number_table</code> contains debug information. It is a list of pairs
+    <code class="code">(i,j)</code> where <code class="code">i</code> indicates the index into the bytecode array at which the
+    code for a new line <code class="code">j</code> in the original source file begins.<br>
+</div>
+<pre><span id="VALpc_bc2ir"><span class="keyword">val</span> pc_bc2ir</span> : <code class="type"><a href="A3Bir.html#TYPEt">t</a> -> int Ptmap.t</code></pre><div class="info">
+map from bytecode code line to ir code line. It raises Not_found
+    if pc is not an original bytecode pc or if the corresponding
+    bytecode instruction has no predecessors and has been removed
+    because it is unreachable.<br>
+</div>
+<pre><span id="VALpc_ir2bc"><span class="keyword">val</span> pc_ir2bc</span> : <code class="type"><a href="A3Bir.html#TYPEt">t</a> -> int array</code></pre><div class="info">
+map from ir code line to bytecode code line: the last bytecode
+    instruction corresponding to the given ir instruction is
+    returned (i.e. the last bytecode instruction used for the ir
+    instruction generation).<br>
+</div>
+<pre><span id="VALjump_target"><span class="keyword">val</span> jump_target</span> : <code class="type"><a href="A3Bir.html#TYPEt">t</a> -> bool array</code></pre><div class="info">
+<code class="code">jump_target m</code> indicates whether program points are join points or not in <code class="code">m</code>.<br>
+</div>
+<pre><span id="VALexception_edges"><span class="keyword">val</span> exception_edges</span> : <code class="type"><a href="A3Bir.html#TYPEt">t</a> -> (int * <a href="A3Bir.html#TYPEexception_handler">exception_handler</a>) list</code></pre><div class="info">
+<code class="code">exception_edges m</code> returns a list of edges <code class="code">(i,e);...</code> where
+    <code class="code">i</code> is an instruction index in <code class="code">m</code> and <code class="code">e</code> is a handler whose
+    range contains <code class="code">i</code>.<br>
+</div>
+<pre><span id="VALget_source_line_number"><span class="keyword">val</span> get_source_line_number</span> : <code class="type">int -> <a href="A3Bir.html#TYPEt">t</a> -> int option</code></pre><div class="info">
+<code class="code">get_source_line_number pc m</code> returns the source line number corresponding
+    the program point <code class="code">pp</code> of the method code <code class="code">m</code>.  The line number give a rough
+    idea and may be wrong.  It uses the field <code class="code">t.pc_ir2bc</code> of the code
+    representation and the attribute LineNumberTable (cf. JVMS §4.7.8).<br>
+</div>
+<br>
+<h2 id="2_Printingfunctions">Printing functions</h2><br>
+<pre><span id="VALprint_handler"><span class="keyword">val</span> print_handler</span> : <code class="type"><a href="A3Bir.html#TYPEexception_handler">exception_handler</a> -> string</code></pre><div class="info">
+<code class="code">print_handler exc</code> returns a string representation for exception handler
+    <code class="code">exc</code>.<br>
+</div>
+<pre><span id="VALprint_tvar"><span class="keyword">val</span> print_tvar</span> : <code class="type">?show_type:bool -> <a href="A3Bir.html#TYPEtvar">tvar</a> -> string</code></pre><div class="info">
+<code class="code">print_tvar e</code> returns a string representation for basic expression
+    <code class="code">e</code>.<br>
+</div>
+<pre><span id="VALprint_expr"><span class="keyword">val</span> print_expr</span> : <code class="type">?show_type:bool -> <a href="A3Bir.html#TYPEexpr">expr</a> -> string</code></pre><div class="info">
+<code class="code">print_expr e</code> returns a string representation for expression <code class="code">e</code>.<br>
+</div>
+<pre><span id="VALprint_instr"><span class="keyword">val</span> print_instr</span> : <code class="type">?show_type:bool -> <a href="A3Bir.html#TYPEinstr">instr</a> -> string</code></pre><div class="info">
+<code class="code">print_instr ins</code> returns a string representation for instruction <code class="code">ins</code>.<br>
+</div>
+<pre><span id="VALprint"><span class="keyword">val</span> print</span> : <code class="type"><a href="A3Bir.html#TYPEt">t</a> -> string list</code></pre><div class="info">
+<code class="code">print c</code> returns a list of string representations for instruction of <code class="code">c</code>
+    (one string for each program point of the code <code class="code">c</code>).<br>
+</div>
+<pre><span id="VALprint_program"><span class="keyword">val</span> print_program</span> : <code class="type">?css:string -><br>       ?js:string -><br>       ?info:<a href="JPrintHtml.html#TYPEinfo">JPrintHtml.info</a> -> <a href="A3Bir.html#TYPEt">t</a> <a href="JProgram.html#TYPEprogram">JProgram.program</a> -> string -> unit</code></pre><div class="info">
+<code class="code">print_program ~css ~js ~info program outputdir</code> generates html
+    files representing the program <code class="code">p</code> in the output directory
+    <code class="code">outputdir</code>, given the annotation information <code class="code">info</code>
+    (<code class="code">void_info</code> by default), an optional Cascading Style Sheet
+    (CSS) <code class="code">css</code> and an optional JavaScript file <code class="code">js</code>. If <code class="code">css</code> or
+    <code class="code">js</code> is not provided, a default CSS or JavaScript file is
+    generated.<br>
+<b>Raises</b><ul><li><code>Sys_error</code> if the output directory <code class="code">outputdir</code>
+    does not exist.</li>
+<li><code>Invalid_argument</code> if the name
+    corresponding to <code class="code">outputdir</code> is a file.</li>
+</ul>
+</div>
+<pre><span id="VALprint_class"><span class="keyword">val</span> print_class</span> : <code class="type">?css:string -><br>       ?js:string -><br>       ?info:<a href="JPrintHtml.html#TYPEinfo">JPrintHtml.info</a> -><br>       <a href="A3Bir.html#TYPEt">t</a> <a href="Javalib_pack.Javalib.html#TYPEinterface_or_class">Javalib_pack.Javalib.interface_or_class</a> -> string -> unit</code></pre><div class="info">
+<code class="code">print_class ~css ~js ~info ioc outputdir</code> generates html files
+    representing the interface or class <code class="code">ioc</code> in the output
+    directory <code class="code">outputdir</code>, given the annotation information <code class="code">info</code>
+    (<code class="code">void_info</code> by default), an optional Cascading Style Sheet
+    (CSS) <code class="code">css</code> and an optional JavaScript file <code class="code">js</code>. If <code class="code">css</code> or
+    <code class="code">js</code> is not provided, a default CSS or JavaScript file is
+    generated. No links on types and methods are done when
+    <code class="code">print_class</code> is used, it should only be used when user does not
+    have the program representation.<br>
+<b>Raises</b><ul><li><code>Sys_error</code> if the output
+    directory <code class="code">outputdir</code> does not exist.</li>
+<li><code>Invalid_argument</code> if
+    the name corresponding to <code class="code">outputdir</code> is a file.</li>
+</ul>
+</div>
+<pre><span class="keyword">module</span> <a href="A3Bir.PluginPrinter.html">PluginPrinter</a>: <code class="type"><a href="JPrintPlugin.NewCodePrinter.PluginPrinter.html">PluginPrinter</a></code><code class="type">  
+  with type code = t 
+  and type expr = expr</code></pre><div class="info">
+Printer for the Sawja Eclipse Plugin (see module JPrintPlugin)
+</div>
+<br>
+<h2 id="2_Bytecodetransformation">Bytecode transformation</h2><br>
+<pre><span id="VALtransform"><span class="keyword">val</span> transform</span> : <code class="type">?bcv:bool -><br>       ?ch_link:bool -><br>       ?formula:bool -><br>       ?formula_cmd:<a href="Javalib_pack.JBasics.html#TYPEclass_method_signature">Javalib_pack.JBasics.class_method_signature</a> list -><br>       <a href="Javalib_pack.JCode.html#TYPEjcode">Javalib_pack.JCode.jcode</a> <a href="Javalib_pack.Javalib.html#TYPEconcrete_method">Javalib_pack.Javalib.concrete_method</a> -><br>       <a href="Javalib_pack.JCode.html#TYPEjcode">Javalib_pack.JCode.jcode</a> -> <a href="A3Bir.html#TYPEt">t</a></code></pre><div class="info">
+<code class="code">transform ~bcv ~ch_link ~formula ~formula_cmd cm jcode</code> transforms
+    the code <code class="code">jcode</code> into its A3bir representation. The transformation 
+    is performed in the context of a given concrete method <code class="code">cm</code>.  
+<p>
+<ul>
+<li><code class="code">?bcv</code>: The type checking normally performed by the ByteCode
+    Verifier (BCV) is done if and only if <code class="code">bcv</code> is <code class="code"><span class="keyword">true</span></code>.</li>
+</ul>
+<ul>
+<li><code class="code">?ch_link</code>: Check instructions are generated when a linkage
+    operation is done if and only if <code class="code">ch_link</code> is <code class="code"><span class="keyword">true</span></code>.</li>
+</ul>
+<ul>
+<li><code class="code">?formula</code>: Enables or disables formulae. Every static call to a method in
+    the list <code class="code">formula_cmd</code> generates a <code class="code"><span class="constructor">Formula</span> _</code> statement. Its default value
+    is <code class="code"><span class="keyword">false</span></code>.</li>
+</ul>
+<ul>
+<li><code class="code">?formula_cmd</code>: A list of method for which calls are replaced by
+    formulae in the JBir representation. Those methods must be static,
+    they must return null and only takes a single boolean variable as
+    argument. <a href="A3Bir.html#VALdefault_formula_cmd"><code class="code"><span class="constructor">A3Bir</span>.default_formula_cmd</code></a> methods will be used by default.
+    The argument is only relevant when argument <code class="code">formula</code> equals true.</li>
+</ul>
+
+    <code class="code">transform</code> can raise several exceptions. See exceptions below for details.<br>
+</div>
+<pre><span id="VALresolve_all_fields"><span class="keyword">val</span> resolve_all_fields</span> : <code class="type"><a href="A3Bir.html#TYPEt">t</a> <a href="JProgram.html#TYPEprogram">JProgram.program</a> -> <a href="A3Bir.html#TYPEt">t</a> <a href="JProgram.html#TYPEprogram">JProgram.program</a></code></pre><div class="info">
+<code class="code">resolve_all_fields prog <span class="keywordsign">-&gt;</span> prog</code> : return a new program where every fields
+  has been resolved to the exact class where they have been defined. If there
+  are some ambigous fields (it means that some interfaces fields are present)
+  throw an JControlFlow.AmbigousFieldResolution exception.<br>
+</div>
+<br>
+<h2 id="2_Exceptions">Exceptions</h2><br>
+<pre><span id="EXCEPTIONNonemptyStack_backward_jump"><span class="keyword">exception</span> NonemptyStack_backward_jump</span></pre>
+<div class="info">
+<code class="code"><span class="constructor">NonemptyStack_backward_jump</span></code> is raised when a backward jump on a
+      non-empty stack is encountered. This should not happen if you compiled your
+      Java source program with the javac compiler<br>
+</div>
+<pre><span id="EXCEPTIONSubroutine"><span class="keyword">exception</span> Subroutine</span></pre>
+<div class="info">
+<code class="code"><span class="constructor">Subroutine</span></code> is raised in case the bytecode contains a subroutine.<br>
+</div>
+</body></html>

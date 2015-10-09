@@ -1,0 +1,98 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="JPrintHtml.HTMLPrinter.html">
+<link rel="Up" href="JPrintHtml.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Iter" rel="Chapter" href="Iter.html">
+<link title="Wlist" rel="Chapter" href="Wlist.html">
+<link title="JProgram" rel="Chapter" href="JProgram.html">
+<link title="ClassDomain" rel="Chapter" href="ClassDomain.html">
+<link title="JNativeStubs" rel="Chapter" href="JNativeStubs.html">
+<link title="JsrInline" rel="Chapter" href="JsrInline.html">
+<link title="JControlFlow" rel="Chapter" href="JControlFlow.html">
+<link title="JPrintHtml" rel="Chapter" href="JPrintHtml.html">
+<link title="JPrintPlugin" rel="Chapter" href="JPrintPlugin.html">
+<link title="ArgPlugin" rel="Chapter" href="ArgPlugin.html">
+<link title="JCodePP" rel="Chapter" href="JCodePP.html">
+<link title="JBir" rel="Chapter" href="JBir.html">
+<link title="JBirPP" rel="Chapter" href="JBirPP.html">
+<link title="A3Bir" rel="Chapter" href="A3Bir.html">
+<link title="A3BirPP" rel="Chapter" href="A3BirPP.html">
+<link title="JBirSSA" rel="Chapter" href="JBirSSA.html">
+<link title="JBirSSAPP" rel="Chapter" href="JBirSSAPP.html">
+<link title="A3BirSSA" rel="Chapter" href="A3BirSSA.html">
+<link title="A3BirSSAPP" rel="Chapter" href="A3BirSSAPP.html">
+<link title="Live_bir" rel="Chapter" href="Live_bir.html">
+<link title="Live_a3bir" rel="Chapter" href="Live_a3bir.html">
+<link title="Safe" rel="Chapter" href="Safe.html">
+<link title="ReachableMethods" rel="Chapter" href="ReachableMethods.html">
+<link title="JType" rel="Chapter" href="JType.html">
+<link title="ParserType" rel="Chapter" href="ParserType.html">
+<link title="Parse_heap" rel="Chapter" href="Parse_heap.html">
+<link title="HeapParser" rel="Chapter" href="HeapParser.html">
+<link title="JCRA" rel="Chapter" href="JCRA.html">
+<link title="XTA" rel="Chapter" href="XTA.html">
+<link title="JRTA" rel="Chapter" href="JRTA.html">
+<link title="JRTAWithHeap" rel="Chapter" href="JRTAWithHeap.html">
+<link title="JRRTA" rel="Chapter" href="JRRTA.html">
+<link title="ReachDef" rel="Chapter" href="ReachDef.html">
+<link title="AvailableExpr" rel="Chapter" href="AvailableExpr.html">
+<link title="Javalib_pack.Javalib" rel="Chapter" href="Javalib_pack.Javalib.html">
+<link title="Javalib_pack.JBasics" rel="Chapter" href="Javalib_pack.JBasics.html">
+<link title="Javalib_pack.JCode" rel="Chapter" href="Javalib_pack.JCode.html"><title>Sawja : JPrintHtml.PrintInterface</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="JPrintHtml.HTMLPrinter.html" title="JPrintHtml.HTMLPrinter">Previous</a>
+&nbsp;<a class="up" href="JPrintHtml.html" title="JPrintHtml">Up</a>
+&nbsp;</div>
+<h1>Module type <a href="type_JPrintHtml.PrintInterface.html">JPrintHtml.PrintInterface</a></h1>
+<pre><span class="keyword">module type</span> PrintInterface = <code class="code"><span class="keyword">sig</span></code> <a href="JPrintHtml.PrintInterface.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><hr width="100%">
+<pre><span id="TYPEp_instr"><span class="keyword">type</span> <code class="type"></code>p_instr</span> </pre>
+<div class="info">
+Type of the instructions.<br>
+</div>
+
+<pre><span id="TYPEp_handler"><span class="keyword">type</span> <code class="type"></code>p_handler</span> </pre>
+<div class="info">
+Type of exception handlers.
+<p>
+Type of the code.<br>
+</div>
+
+<pre><span id="TYPEp_code"><span class="keyword">type</span> <code class="type"></code>p_code</span> </pre>
+
+<pre><span id="VALiter_code"><span class="keyword">val</span> iter_code</span> : <code class="type">(int -> <a href="JPrintHtml.PrintInterface.html#TYPEp_instr">p_instr</a> list -> unit) -><br>       <a href="JPrintHtml.PrintInterface.html#TYPEp_code">p_code</a> -> unit</code></pre><div class="info">
+Function to provide in order to iter on the code structure. The
+      function passed to <code class="code">iter_code</code> expects as parameters a program point
+      (in the code representation) and the corresponding list of
+      instructions. In  representation, this list only
+      contains one element.<br>
+</div>
+<pre><span id="VALiter_exc_handler"><span class="keyword">val</span> iter_exc_handler</span> : <code class="type">(<a href="JPrintHtml.PrintInterface.html#TYPEp_handler">p_handler</a> -> unit) -><br>       <a href="JPrintHtml.PrintInterface.html#TYPEp_code">p_code</a> -> unit</code></pre><div class="info">
+Function to provide in order to iter on the exception handlers.<br>
+</div>
+<pre><span id="VALmethod_param_names"><span class="keyword">val</span> method_param_names</span> : <code class="type"><a href="JPrintHtml.PrintInterface.html#TYPEp_code">p_code</a> <a href="Javalib_pack.Javalib.html#TYPEinterface_or_class">Javalib_pack.Javalib.interface_or_class</a> -><br>       <a href="Javalib_pack.JBasics.html#TYPEmethod_signature">Javalib_pack.JBasics.method_signature</a> -> string list option</code></pre><div class="info">
+Function to provide in order to display the source variable
+      names in the method signatures.<br>
+</div>
+<pre><span id="VALinst_html"><span class="keyword">val</span> inst_html</span> : <code class="type"><a href="JPrintHtml.PrintInterface.html#TYPEp_code">p_code</a> <a href="JProgram.html#TYPEprogram">JProgram.program</a> option -><br>       <a href="JPrintHtml.PrintInterface.html#TYPEp_code">p_code</a> <a href="Javalib_pack.Javalib.html#TYPEinterface_or_class">Javalib_pack.Javalib.interface_or_class</a> -><br>       <a href="Javalib_pack.JBasics.html#TYPEmethod_signature">Javalib_pack.JBasics.method_signature</a> -><br>       int -> <a href="JPrintHtml.PrintInterface.html#TYPEp_instr">p_instr</a> -> <a href="JPrintHtml.html#TYPEelem">JPrintHtml.elem</a> list</code></pre><div class="info">
+Function to provide in order to display instructions. Given
+  a context constituted by the program, the current class name, the
+  current method signature, the instruction you want to display and
+  its program point, you must provide a list of <code class="code">elem</code> by using the
+  functions defined in <a href="JPrintHtml.html"><code class="code"><span class="constructor">JPrintHtml</span></code></a> module.<br>
+</div>
+<pre><span id="VALexc_handler_html"><span class="keyword">val</span> exc_handler_html</span> : <code class="type"><a href="JPrintHtml.PrintInterface.html#TYPEp_code">p_code</a> <a href="JProgram.html#TYPEprogram">JProgram.program</a> option -><br>       <a href="JPrintHtml.PrintInterface.html#TYPEp_code">p_code</a> <a href="Javalib_pack.Javalib.html#TYPEinterface_or_class">Javalib_pack.Javalib.interface_or_class</a> -><br>       <a href="Javalib_pack.JBasics.html#TYPEmethod_signature">Javalib_pack.JBasics.method_signature</a> -><br>       <a href="JPrintHtml.PrintInterface.html#TYPEp_handler">p_handler</a> -> <a href="JPrintHtml.html#TYPEelem">JPrintHtml.elem</a></code></pre><div class="info">
+Function to provide in order to display exception handlers. Given the
+    program, a method and an handler, you can provide an html element
+    containing the information you want to display.<br>
+</div>
+</body></html>

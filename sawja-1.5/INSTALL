@@ -1,0 +1,14 @@
+Installation
+
+   The installation procedure is similar to Javalib. Moreover, you must
+   install Javalib before installing Sawja.
+
+   (optional:) The performance of the XTA class analysis can be boosted by
+   using BuDDy (a BDD package). To enable this, you have to download
+   [1]BuDDy, apply the patch buddycaml/patch on the source files and
+   compile/install them. Finally, use ./configure.sh with option -b yes
+   when compiling Sawja.
+
+Références
+
+   1. http://sourceforge.net/projects/buddy/

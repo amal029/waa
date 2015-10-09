@@ -1,0 +1,373 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="Wlist.html">
+<link rel="next" href="ClassDomain.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Iter" rel="Chapter" href="Iter.html">
+<link title="Wlist" rel="Chapter" href="Wlist.html">
+<link title="JProgram" rel="Chapter" href="JProgram.html">
+<link title="ClassDomain" rel="Chapter" href="ClassDomain.html">
+<link title="JNativeStubs" rel="Chapter" href="JNativeStubs.html">
+<link title="JsrInline" rel="Chapter" href="JsrInline.html">
+<link title="JControlFlow" rel="Chapter" href="JControlFlow.html">
+<link title="JPrintHtml" rel="Chapter" href="JPrintHtml.html">
+<link title="JPrintPlugin" rel="Chapter" href="JPrintPlugin.html">
+<link title="ArgPlugin" rel="Chapter" href="ArgPlugin.html">
+<link title="JCodePP" rel="Chapter" href="JCodePP.html">
+<link title="JBir" rel="Chapter" href="JBir.html">
+<link title="JBirPP" rel="Chapter" href="JBirPP.html">
+<link title="A3Bir" rel="Chapter" href="A3Bir.html">
+<link title="A3BirPP" rel="Chapter" href="A3BirPP.html">
+<link title="JBirSSA" rel="Chapter" href="JBirSSA.html">
+<link title="JBirSSAPP" rel="Chapter" href="JBirSSAPP.html">
+<link title="A3BirSSA" rel="Chapter" href="A3BirSSA.html">
+<link title="A3BirSSAPP" rel="Chapter" href="A3BirSSAPP.html">
+<link title="Live_bir" rel="Chapter" href="Live_bir.html">
+<link title="Live_a3bir" rel="Chapter" href="Live_a3bir.html">
+<link title="Safe" rel="Chapter" href="Safe.html">
+<link title="ReachableMethods" rel="Chapter" href="ReachableMethods.html">
+<link title="JType" rel="Chapter" href="JType.html">
+<link title="ParserType" rel="Chapter" href="ParserType.html">
+<link title="Parse_heap" rel="Chapter" href="Parse_heap.html">
+<link title="HeapParser" rel="Chapter" href="HeapParser.html">
+<link title="JCRA" rel="Chapter" href="JCRA.html">
+<link title="XTA" rel="Chapter" href="XTA.html">
+<link title="JRTA" rel="Chapter" href="JRTA.html">
+<link title="JRTAWithHeap" rel="Chapter" href="JRTAWithHeap.html">
+<link title="JRRTA" rel="Chapter" href="JRRTA.html">
+<link title="ReachDef" rel="Chapter" href="ReachDef.html">
+<link title="AvailableExpr" rel="Chapter" href="AvailableExpr.html">
+<link title="Javalib_pack.Javalib" rel="Chapter" href="Javalib_pack.Javalib.html">
+<link title="Javalib_pack.JBasics" rel="Chapter" href="Javalib_pack.JBasics.html">
+<link title="Javalib_pack.JCode" rel="Chapter" href="Javalib_pack.JCode.html"><link title="Navigable hierarchy." rel="Section" href="#2_Navigablehierarchy">
+<link title="The program structure." rel="Section" href="#2_Theprogramstructure">
+<link title="Iterators." rel="Section" href="#2_Iterators">
+<link title="Classes access functions." rel="Section" href="#2_Classesaccessfunctions">
+<link title="Methods access functions." rel="Section" href="#2_Methodsaccessfunctions">
+<link title="Fields access functions." rel="Section" href="#2_Fieldsaccessfunctions">
+<link title="Access to the hierarchy" rel="Section" href="#2_Accesstothehierarchy">
+<link title="Building a hierarchy from simple classes." rel="Section" href="#2_Buildingahierarchyfromsimpleclasses">
+<link title="Transforming code representation in a program." rel="Section" href="#2_Transformingcoderepresentationinaprogram">
+<link title="Callgraph." rel="Section" href="#2_Callgraph">
+<link title="Exceptions." rel="Section" href="#2_Exceptions">
+<link title="Alternative transforming functions" rel="Subsection" href="#3_Alternativetransformingfunctions">
+<title>Sawja : JProgram</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="Wlist.html" title="Wlist">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="ClassDomain.html" title="ClassDomain">Next</a>
+</div>
+<h1>Module <a href="type_JProgram.html">JProgram</a></h1>
+<pre><span class="keyword">module</span> JProgram: <code class="code"><span class="keyword">sig</span></code> <a href="JProgram.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info">
+Defines high level OCaml representation of a Java bytecode program.<br>
+</div>
+<hr width="100%">
+<br>
+<h2 id="2_Navigablehierarchy">Navigable hierarchy.</h2><br>
+<br>
+To be able to navigate more easily in bytecode program, class names are
+    replaced by pointers to class_file structures (for super_class, implemented
+    interfaces and sub-classes or sub-interfaces).<br>
+<pre><code><span id="TYPEclass_node"><span class="keyword">type</span> <code class="type">'a</code> class_node</span> = private {</code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTclass_node.c_info">c_info</span>&nbsp;:<code class="type">'a <a href="Javalib_pack.Javalib.html#TYPEjclass">Javalib_pack.Javalib.jclass</a></code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTclass_node.c_super">c_super</span>&nbsp;:<code class="type">'a <a href="JProgram.html#TYPEclass_node">class_node</a> option</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTclass_node.c_interfaces">c_interfaces</span>&nbsp;:<code class="type">'a <a href="JProgram.html#TYPEinterface_node">interface_node</a> Javalib_pack.JBasics.ClassMap.t</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span class="keyword">mutable&nbsp;</span><span id="TYPEELTclass_node.c_children">c_children</span>&nbsp;:<code class="type">'a <a href="JProgram.html#TYPEclass_node">class_node</a> list</code>;</code></td>
+
+</tr></table>
+}
+
+
+<pre><code><span id="TYPEinterface_node"><span class="keyword">type</span> <code class="type">'a</code> interface_node</span> = private {</code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinterface_node.i_info">i_info</span>&nbsp;:<code class="type">'a <a href="Javalib_pack.Javalib.html#TYPEjinterface">Javalib_pack.Javalib.jinterface</a></code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinterface_node.i_super">i_super</span>&nbsp;:<code class="type">'a <a href="JProgram.html#TYPEclass_node">class_node</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >must be java.lang.Object. But note that interfaces are not
+      considered as children of java.lang.Object.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTinterface_node.i_interfaces">i_interfaces</span>&nbsp;:<code class="type">'a <a href="JProgram.html#TYPEinterface_node">interface_node</a> Javalib_pack.JBasics.ClassMap.t</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span class="keyword">mutable&nbsp;</span><span id="TYPEELTinterface_node.i_children_interfaces">i_children_interfaces</span>&nbsp;:<code class="type">'a <a href="JProgram.html#TYPEinterface_node">interface_node</a> list</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span class="keyword">mutable&nbsp;</span><span id="TYPEELTinterface_node.i_children_classes">i_children_classes</span>&nbsp;:<code class="type">'a <a href="JProgram.html#TYPEclass_node">class_node</a> list</code>;</code></td>
+
+</tr></table>
+}
+
+
+<pre><code><span id="TYPEnode"><span class="keyword">type</span> <code class="type">'a</code> node</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTnode.Interface"><span class="constructor">Interface</span></span> <span class="keyword">of</span> <code class="type">'a <a href="JProgram.html#TYPEinterface_node">interface_node</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTnode.Class"><span class="constructor">Class</span></span> <span class="keyword">of</span> <code class="type">'a <a href="JProgram.html#TYPEclass_node">class_node</a></code></code></td>
+
+</tr></table>
+
+
+<pre><span id="VALmake_class_node"><span class="keyword">val</span> make_class_node</span> : <code class="type">'a <a href="Javalib_pack.Javalib.html#TYPEjclass">Javalib_pack.Javalib.jclass</a> -><br>       'a <a href="JProgram.html#TYPEclass_node">class_node</a> option -><br>       'a <a href="JProgram.html#TYPEinterface_node">interface_node</a> Javalib_pack.JBasics.ClassMap.t -><br>       'a <a href="JProgram.html#TYPEclass_node">class_node</a></code></pre><div class="info">
+<code class="code">make_class_node c super interfaces</code> builds a class node given a jclass
+    <code class="code">c</code>, a super class node <code class="code">super</code> and a map of implemented interfaces
+    <code class="code">interfaces</code>. This function adds the class <code class="code">c</code> to the children of <code class="code">super</code>
+    and to the children classes of each interface in <code class="code">interfaces</code>.<br>
+</div>
+<pre><span id="VALmake_interface_node"><span class="keyword">val</span> make_interface_node</span> : <code class="type">'a <a href="Javalib_pack.Javalib.html#TYPEjinterface">Javalib_pack.Javalib.jinterface</a> -><br>       'a <a href="JProgram.html#TYPEclass_node">class_node</a> -><br>       'a <a href="JProgram.html#TYPEinterface_node">interface_node</a> Javalib_pack.JBasics.ClassMap.t -><br>       'a <a href="JProgram.html#TYPEinterface_node">interface_node</a></code></pre><div class="info">
+<code class="code">make_interface_node i super interfaces</code> builds an interface node given
+    a jinterface <code class="code">i</code>, a super class node <code class="code">c</code> (which is always <code class="code">java.lang.<span class="constructor">Object</span></code>)
+    and a map of super interfaces <code class="code">interfaces</code>. This function adds the interface
+    <code class="code">i</code> to the children interfaces of each interface in <code class="code">interfaces</code>.<br>
+</div>
+<br>
+<h2 id="2_Theprogramstructure">The <code class="code">program</code> structure.</h2><br>
+<pre><span id="TYPEstatic_lookup_method"><span class="keyword">type</span> <code class="type">'a</code> static_lookup_method</span> = <code class="type"><a href="Javalib_pack.JBasics.html#TYPEclass_name">Javalib_pack.JBasics.class_name</a> -><br>       <a href="Javalib_pack.JBasics.html#TYPEmethod_signature">Javalib_pack.JBasics.method_signature</a> -><br>       int -> Javalib_pack.JBasics.ClassMethodSet.t</code> </pre>
+
+<pre><code><span id="TYPEprogram"><span class="keyword">type</span> <code class="type">'a</code> program</span> = {</code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTprogram.classes">classes</span>&nbsp;:<code class="type">'a <a href="JProgram.html#TYPEnode">node</a> Javalib_pack.JBasics.ClassMap.t</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTprogram.parsed_methods">parsed_methods</span>&nbsp;:<code class="type">('a <a href="JProgram.html#TYPEnode">node</a> * 'a <a href="Javalib_pack.Javalib.html#TYPEconcrete_method">Javalib_pack.Javalib.concrete_method</a>)<br>       Javalib_pack.JBasics.ClassMethodMap.t</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTprogram.static_lookup_method">static_lookup_method</span>&nbsp;:<code class="type">'a <a href="JProgram.html#TYPEstatic_lookup_method">static_lookup_method</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code">static_lookup_method cni msi pc</code> returns the set of
+			  methods that may be called from the program point
+			  identified by <code class="code">(cni,msi,pc)</code>.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+}
+
+<div class="info">
+A program is a record containing a map of class files identified by their
+    name, the a super-set of the reachable methods (which have been parsed, but
+    other method may have been parsed and may not be in the set
+    <code class="code">parsed_methods</code>), and a efficient function which allow to compute the
+    methods that may be called for a given program point (the algorithm for this
+    function depends on the algorithm that have been chosen to load the
+    program).<br>
+</div>
+
+<br>
+<h2 id="2_Iterators">Iterators.</h2><br>
+<pre><span id="VALiter"><span class="keyword">val</span> iter</span> : <code class="type">('a <a href="JProgram.html#TYPEnode">node</a> -> unit) -> 'a <a href="JProgram.html#TYPEprogram">program</a> -> unit</code></pre><pre><span id="VALfold"><span class="keyword">val</span> fold</span> : <code class="type">('b -> 'a <a href="JProgram.html#TYPEnode">node</a> -> 'b) -> 'b -> 'a <a href="JProgram.html#TYPEprogram">program</a> -> 'b</code></pre><pre><span id="VALcf_iter"><span class="keyword">val</span> cf_iter</span> : <code class="type">(<a href="Javalib_pack.Javalib.html#TYPEclass_field">Javalib_pack.Javalib.class_field</a> -> unit) -> 'a <a href="JProgram.html#TYPEnode">node</a> -> unit</code></pre><pre><span id="VALif_iter"><span class="keyword">val</span> if_iter</span> : <code class="type">(<a href="Javalib_pack.Javalib.html#TYPEinterface_field">Javalib_pack.Javalib.interface_field</a> -> unit) -> 'a <a href="JProgram.html#TYPEnode">node</a> -> unit</code></pre><pre><span id="VALf_iter"><span class="keyword">val</span> f_iter</span> : <code class="type">(<a href="Javalib_pack.Javalib.html#TYPEany_field">Javalib_pack.Javalib.any_field</a> -> unit) -> 'a <a href="JProgram.html#TYPEnode">node</a> -> unit</code></pre><pre><span id="VALcf_fold"><span class="keyword">val</span> cf_fold</span> : <code class="type">(<a href="Javalib_pack.Javalib.html#TYPEclass_field">Javalib_pack.Javalib.class_field</a> -> 'b -> 'b) -><br>       'a <a href="JProgram.html#TYPEnode">node</a> -> 'b -> 'b</code></pre><pre><span id="VALif_fold"><span class="keyword">val</span> if_fold</span> : <code class="type">(<a href="Javalib_pack.Javalib.html#TYPEinterface_field">Javalib_pack.Javalib.interface_field</a> -> 'b -> 'b) -><br>       'a <a href="JProgram.html#TYPEnode">node</a> -> 'b -> 'b</code></pre><pre><span id="VALf_fold"><span class="keyword">val</span> f_fold</span> : <code class="type">(<a href="Javalib_pack.Javalib.html#TYPEany_field">Javalib_pack.Javalib.any_field</a> -> 'b -> 'b) -> 'a <a href="JProgram.html#TYPEnode">node</a> -> 'b -> 'b</code></pre><pre><span id="VALcm_iter"><span class="keyword">val</span> cm_iter</span> : <code class="type">('a <a href="Javalib_pack.Javalib.html#TYPEconcrete_method">Javalib_pack.Javalib.concrete_method</a> -> unit) -> 'a <a href="JProgram.html#TYPEnode">node</a> -> unit</code></pre><pre><span id="VALam_iter"><span class="keyword">val</span> am_iter</span> : <code class="type">(<a href="Javalib_pack.Javalib.html#TYPEabstract_method">Javalib_pack.Javalib.abstract_method</a> -> unit) -> 'a <a href="JProgram.html#TYPEnode">node</a> -> unit</code></pre><pre><span id="VALm_iter"><span class="keyword">val</span> m_iter</span> : <code class="type">('a <a href="Javalib_pack.Javalib.html#TYPEjmethod">Javalib_pack.Javalib.jmethod</a> -> unit) -> 'a <a href="JProgram.html#TYPEnode">node</a> -> unit</code></pre><pre><span id="VALcm_fold"><span class="keyword">val</span> cm_fold</span> : <code class="type">('a <a href="Javalib_pack.Javalib.html#TYPEconcrete_method">Javalib_pack.Javalib.concrete_method</a> -> 'b -> 'b) -><br>       'a <a href="JProgram.html#TYPEnode">node</a> -> 'b -> 'b</code></pre><pre><span id="VALam_fold"><span class="keyword">val</span> am_fold</span> : <code class="type">(<a href="Javalib_pack.Javalib.html#TYPEabstract_method">Javalib_pack.Javalib.abstract_method</a> -> 'b -> 'b) -><br>       'a <a href="JProgram.html#TYPEnode">node</a> -> 'b -> 'b</code></pre><pre><span id="VALm_fold"><span class="keyword">val</span> m_fold</span> : <code class="type">('a <a href="Javalib_pack.Javalib.html#TYPEjmethod">Javalib_pack.Javalib.jmethod</a> -> 'b -> 'b) -> 'a <a href="JProgram.html#TYPEnode">node</a> -> 'b -> 'b</code></pre><br>
+<h2 id="2_Classesaccessfunctions">Classes access functions.</h2><br>
+<pre><span id="VALget_node"><span class="keyword">val</span> get_node</span> : <code class="type">'a <a href="JProgram.html#TYPEprogram">program</a> -> <a href="Javalib_pack.JBasics.html#TYPEclass_name">Javalib_pack.JBasics.class_name</a> -> 'a <a href="JProgram.html#TYPEnode">node</a></code></pre><div class="info">
+<code class="code">get_node p cn</code> returns the class named <code class="code">cn</code> in
+    program <code class="code">p</code>, if any.<br>
+<b>Raises</b> <code>Not_found</code> if <code class="code">p</code> does not contain a class named <code class="code">cn</code>.<br>
+</div>
+<pre><span id="VALget_name"><span class="keyword">val</span> get_name</span> : <code class="type">'a <a href="JProgram.html#TYPEnode">node</a> -> <a href="Javalib_pack.JBasics.html#TYPEclass_name">Javalib_pack.JBasics.class_name</a></code></pre><pre><span id="VALget_consts"><span class="keyword">val</span> get_consts</span> : <code class="type">'a <a href="JProgram.html#TYPEnode">node</a> -> <a href="Javalib_pack.JBasics.html#TYPEconstant">Javalib_pack.JBasics.constant</a> array</code></pre><pre><span id="VALget_interfaces"><span class="keyword">val</span> get_interfaces</span> : <code class="type">'a <a href="JProgram.html#TYPEnode">node</a> -><br>       'a <a href="JProgram.html#TYPEinterface_node">interface_node</a> Javalib_pack.JBasics.ClassMap.t</code></pre><pre><span id="VALget_all_children_classes"><span class="keyword">val</span> get_all_children_classes</span> : <code class="type">'a <a href="JProgram.html#TYPEclass_node">class_node</a> -> 'a <a href="JProgram.html#TYPEclass_node">class_node</a> list</code></pre><pre><span id="VALi_equal"><span class="keyword">val</span> i_equal</span> : <code class="type">'a <a href="JProgram.html#TYPEinterface_node">interface_node</a> -> 'a <a href="JProgram.html#TYPEinterface_node">interface_node</a> -> bool</code></pre><pre><span id="VALc_equal"><span class="keyword">val</span> c_equal</span> : <code class="type">'a <a href="JProgram.html#TYPEclass_node">class_node</a> -> 'a <a href="JProgram.html#TYPEclass_node">class_node</a> -> bool</code></pre><pre><span id="VALnode_equal"><span class="keyword">val</span> node_equal</span> : <code class="type">'a <a href="JProgram.html#TYPEnode">node</a> -> 'a <a href="JProgram.html#TYPEnode">node</a> -> bool</code></pre><pre><span id="VALto_ioc"><span class="keyword">val</span> to_ioc</span> : <code class="type">'a <a href="JProgram.html#TYPEnode">node</a> -> 'a <a href="Javalib_pack.Javalib.html#TYPEinterface_or_class">Javalib_pack.Javalib.interface_or_class</a></code></pre><br>
+<h2 id="2_Methodsaccessfunctions">Methods access functions.</h2><br>
+<pre><span id="VALmain_signature"><span class="keyword">val</span> main_signature</span> : <code class="type"><a href="Javalib_pack.JBasics.html#TYPEmethod_signature">Javalib_pack.JBasics.method_signature</a></code></pre><pre><span id="VALget_method"><span class="keyword">val</span> get_method</span> : <code class="type">'a <a href="JProgram.html#TYPEnode">node</a> -><br>       <a href="Javalib_pack.JBasics.html#TYPEmethod_signature">Javalib_pack.JBasics.method_signature</a> -> 'a <a href="Javalib_pack.Javalib.html#TYPEjmethod">Javalib_pack.Javalib.jmethod</a></code></pre><div class="info">
+<code class="code">get_method c ms</code> returns the method with signature <code class="code">ms</code> in class
+    <code class="code">c</code>, if any.<br>
+<b>Raises</b> <code>Not_found</code> if <code class="code">c</code> does not contain a method with signature <code class="code">ms</code>.<br>
+</div>
+<pre><span id="VALget_concrete_method"><span class="keyword">val</span> get_concrete_method</span> : <code class="type">'a <a href="JProgram.html#TYPEnode">node</a> -><br>       <a href="Javalib_pack.JBasics.html#TYPEmethod_signature">Javalib_pack.JBasics.method_signature</a> -><br>       'a <a href="Javalib_pack.Javalib.html#TYPEconcrete_method">Javalib_pack.Javalib.concrete_method</a></code></pre><div class="info">
+<code class="code">get_concrete_method c ms</code> returns the method with signature <code class="code">ms</code>
+    in class <code class="code">c</code>, if any.<br>
+<b>Raises</b> <code>Not_found</code> if <code class="code">c</code> does not contain a
+    method with signature <code class="code">ms</code> or if the method is not concrete.<br>
+</div>
+<pre><span id="VALget_methods"><span class="keyword">val</span> get_methods</span> : <code class="type">'a <a href="JProgram.html#TYPEnode">node</a> -><br>       'a <a href="Javalib_pack.Javalib.html#TYPEjmethod">Javalib_pack.Javalib.jmethod</a> Javalib_pack.JBasics.MethodMap.t</code></pre><pre><span id="VALget_concrete_methods"><span class="keyword">val</span> get_concrete_methods</span> : <code class="type">'a <a href="JProgram.html#TYPEnode">node</a> -><br>       'a <a href="Javalib_pack.Javalib.html#TYPEconcrete_method">Javalib_pack.Javalib.concrete_method</a> Javalib_pack.JBasics.MethodMap.t</code></pre><pre><span id="VALdefines_method"><span class="keyword">val</span> defines_method</span> : <code class="type">'a <a href="JProgram.html#TYPEnode">node</a> -> <a href="Javalib_pack.JBasics.html#TYPEmethod_signature">Javalib_pack.JBasics.method_signature</a> -> bool</code></pre><br>
+<h2 id="2_Fieldsaccessfunctions">Fields access functions.</h2><br>
+<pre><span id="VALget_field"><span class="keyword">val</span> get_field</span> : <code class="type">'a <a href="JProgram.html#TYPEnode">node</a> -><br>       <a href="Javalib_pack.JBasics.html#TYPEfield_signature">Javalib_pack.JBasics.field_signature</a> -> <a href="Javalib_pack.Javalib.html#TYPEany_field">Javalib_pack.Javalib.any_field</a></code></pre><div class="info">
+<code class="code">get_field c fs</code> returns the field with signature <code class="code">fs</code> in class
+    <code class="code">c</code>, if any.<br>
+<b>Raises</b> <code>Not_found</code> if <code class="code">c</code> does not contain a field with signature <code class="code">fs</code>.<br>
+</div>
+<pre><span id="VALget_fields"><span class="keyword">val</span> get_fields</span> : <code class="type">'a <a href="JProgram.html#TYPEnode">node</a> -><br>       <a href="Javalib_pack.Javalib.html#TYPEany_field">Javalib_pack.Javalib.any_field</a> Javalib_pack.JBasics.FieldMap.t</code></pre><pre><span id="VALdefines_field"><span class="keyword">val</span> defines_field</span> : <code class="type">'a <a href="JProgram.html#TYPEnode">node</a> -> <a href="Javalib_pack.JBasics.html#TYPEfield_signature">Javalib_pack.JBasics.field_signature</a> -> bool</code></pre><br>
+<h2 id="2_Accesstothehierarchy">Access to the hierarchy</h2><br>
+<pre><span id="VALextends_class"><span class="keyword">val</span> extends_class</span> : <code class="type">'a <a href="JProgram.html#TYPEclass_node">class_node</a> -> 'a <a href="JProgram.html#TYPEclass_node">class_node</a> -> bool</code></pre><div class="info">
+<code class="code">extends_class c1 c2</code> returns <code class="code"><span class="keyword">true</span></code> if <code class="code">c2</code> is a super-class
+    of <code class="code">c1</code>. A class extends itself.<br>
+</div>
+<pre><span id="VALextends_interface"><span class="keyword">val</span> extends_interface</span> : <code class="type">'a <a href="JProgram.html#TYPEinterface_node">interface_node</a> -> 'a <a href="JProgram.html#TYPEinterface_node">interface_node</a> -> bool</code></pre><div class="info">
+<code class="code">extends_interface i1 i2</code> returns true if <code class="code">i2</code> is a
+    super-interface of <code class="code">i1</code>. An interface extends itself.<br>
+</div>
+<pre><span id="VALextends"><span class="keyword">val</span> extends</span> : <code class="type">'a <a href="JProgram.html#TYPEnode">node</a> -> 'a <a href="JProgram.html#TYPEnode">node</a> -> bool</code></pre><div class="info">
+<code class="code">extends ioc1 ioc2</code> returns true if <code class="code">ioc2</code> is a
+    super-class or super-interface of <code class="code">ioc1</code>.
+    This is a combination of <code class="code">extends_class</code> and <code class="code">extends_interface</code>
+    which take into account that <code class="code">java.lang.<span class="constructor">Object</span></code> is a super-class of
+    any interface.<br>
+</div>
+<pre><span id="VALimplements"><span class="keyword">val</span> implements</span> : <code class="type">'a <a href="JProgram.html#TYPEclass_node">class_node</a> -> 'a <a href="JProgram.html#TYPEinterface_node">interface_node</a> -> bool</code></pre><div class="info">
+<code class="code">implements c1 i2</code> returns true if <code class="code">i2</code> is a
+    super-interface of <code class="code">c1</code>.<br>
+</div>
+<pre><span id="VALsuper_class"><span class="keyword">val</span> super_class</span> : <code class="type">'a <a href="JProgram.html#TYPEnode">node</a> -> 'a <a href="JProgram.html#TYPEclass_node">class_node</a> option</code></pre><div class="info">
+<code class="code">super_class cn</code> returns the super class of cn.<br>
+</div>
+<pre><span id="VALimplemented_interfaces"><span class="keyword">val</span> implemented_interfaces</span> : <code class="type">'a <a href="JProgram.html#TYPEclass_node">class_node</a> -> 'a <a href="JProgram.html#TYPEinterface_node">interface_node</a> list</code></pre><div class="info">
+<code class="code">implemented_interfaces cn</code> returns the interfaces implemented
+    by <code class="code">cn</code>, super-classes of <code class="code">cn</code>, or extended by those
+    super-interfaces.<br>
+</div>
+<pre><span id="VALdirectly_implemented_interfaces"><span class="keyword">val</span> directly_implemented_interfaces</span> : <code class="type">'a <a href="JProgram.html#TYPEclass_node">class_node</a> -> 'a <a href="JProgram.html#TYPEinterface_node">interface_node</a> list</code></pre><div class="info">
+<code class="code">directly_implements cn</code> returns the interfaces directly implemented
+    by <code class="code">cn</code>.<br>
+</div>
+<pre><span id="VALsuper_interfaces"><span class="keyword">val</span> super_interfaces</span> : <code class="type">'a <a href="JProgram.html#TYPEinterface_node">interface_node</a> -> 'a <a href="JProgram.html#TYPEinterface_node">interface_node</a> list</code></pre><div class="info">
+<code class="code">super_interfaces iname</code> returns the explicit and implicit
+    super-interfaces of <code class="code">iname</code>.<br>
+</div>
+<pre><span id="VALfirst_common_super_class"><span class="keyword">val</span> first_common_super_class</span> : <code class="type">'a <a href="JProgram.html#TYPEclass_node">class_node</a> -> 'a <a href="JProgram.html#TYPEclass_node">class_node</a> -> 'a <a href="JProgram.html#TYPEclass_node">class_node</a></code></pre><br>
+<h2 id="2_Buildingahierarchyfromsimpleclasses">Building a hierarchy from simple classes.</h2><br>
+<pre><span id="VALbuild_hierarchy"><span class="keyword">val</span> build_hierarchy</span> : <code class="type">'a <a href="Javalib_pack.Javalib.html#TYPEinterface_or_class">Javalib_pack.Javalib.interface_or_class</a> Javalib_pack.JBasics.ClassMap.t -><br>       'a <a href="JProgram.html#TYPEnode">node</a> Javalib_pack.JBasics.ClassMap.t</code></pre><div class="info">
+<code class="code">build_hierarchy cmap</code> builds the hierarchy of classes
+    given the map of .<br>
+<b>Raises</b> <code>Not_found</code> if a needed super class is not in the given
+    ClassMap.<br>
+</div>
+<br>
+<h2 id="2_Transformingcoderepresentationinaprogram">Transforming code representation in a program.</h2><br>
+<pre><span id="VALmap_program"><span class="keyword">val</span> map_program</span> : <code class="type">(<a href="Javalib_pack.JBasics.html#TYPEclass_name">Javalib_pack.JBasics.class_name</a> -><br>        <a href="Javalib_pack.JBasics.html#TYPEmethod_signature">Javalib_pack.JBasics.method_signature</a> -> 'a -> 'b) -><br>       ('b -> int -> int) option -> 'a <a href="JProgram.html#TYPEprogram">program</a> -> 'b <a href="JProgram.html#TYPEprogram">program</a></code></pre><div class="info">
+<code class="code">map_program f fpp p</code> lazily applies <code class="code">f</code> to all non-native
+    implementations (cf. <a href="Javalib_pack.Javalib.html#TYPEimplementation"><code class="code"><span class="constructor">Javalib_pack</span>.<span class="constructor">Javalib</span>.implementation</code></a>) of
+    the program <code class="code">p</code>. <code class="code">map_program</code> passes to <code class="code">f</code> the class name and
+    method signature corresponding to the method being converted. The
+    application is <b>lazy</b>: <code class="code">f</code> is not applied until <code class="code"><span class="constructor">Lazy</span>.force</code> is
+    called on the implementation. <code class="code">fpp</code> is the optional function
+    that, given the transformed code and one of its call sites program
+    points, returns the corresponding call site program point in old
+    code representation. Function <code class="code">fpp</code> is used to transform the
+    <a href="JProgram.html#TYPEstatic_lookup_method"><code class="code"><span class="constructor">JProgram</span>.static_lookup_method</code></a> for the new representation, if no changes
+    are needed just use None value.<br>
+</div>
+<pre><span id="VALmap_program2"><span class="keyword">val</span> map_program2</span> : <code class="type">('a <a href="JProgram.html#TYPEnode">node</a> -> 'a <a href="Javalib_pack.Javalib.html#TYPEconcrete_method">Javalib_pack.Javalib.concrete_method</a> -> 'a -> 'b) -><br>       ('b -> int -> int) option -> 'a <a href="JProgram.html#TYPEprogram">program</a> -> 'b <a href="JProgram.html#TYPEprogram">program</a></code></pre><div class="info">
+<code class="code">map_program2 f fpp p</code> is similar to <code class="code">map_program</code> but instead of
+    the class name and method signature, <code class="code">f</code> receives the actual class
+    node and concrete method being converted. The implementation of
+    <code class="code">map_program</code> is based on <code class="code">map_program2</code>.<br>
+</div>
+<br>
+<h3 id="3_Alternativetransformingfunctions">Alternative transforming functions</h3><br>
+<pre><span id="VALmap_program_with_native"><span class="keyword">val</span> map_program_with_native</span> : <code class="type">(<a href="Javalib_pack.JBasics.html#TYPEclass_name">Javalib_pack.JBasics.class_name</a> -><br>        <a href="Javalib_pack.JBasics.html#TYPEmethod_signature">Javalib_pack.JBasics.method_signature</a> -><br>        'a <a href="Javalib_pack.Javalib.html#TYPEimplementation">Javalib_pack.Javalib.implementation</a> -><br>        'b <a href="Javalib_pack.Javalib.html#TYPEimplementation">Javalib_pack.Javalib.implementation</a>) -><br>       ('b -> int -> int) option -> 'a <a href="JProgram.html#TYPEprogram">program</a> -> 'b <a href="JProgram.html#TYPEprogram">program</a></code></pre><div class="info">
+<code class="code">map_program_with_native f fpp p</code> is equivalent to <a href="JProgram.html#VALmap_program"><code class="code"><span class="constructor">JProgram</span>.map_program</code></a>
+    but allows to transform not only the code representation but also
+    the implementation type. It provides a way to modify the nature of
+    implementation to <code class="code"><span class="constructor">Native</span></code> if the code could not be transformed or
+    conversly to provide a generated code for <code class="code"><span class="constructor">Native</span></code>
+    implementation.<br>
+</div>
+<pre><span id="VALmap_program_with_native2"><span class="keyword">val</span> map_program_with_native2</span> : <code class="type">('a <a href="JProgram.html#TYPEnode">node</a> -><br>        'a <a href="Javalib_pack.Javalib.html#TYPEconcrete_method">Javalib_pack.Javalib.concrete_method</a> -><br>        'a <a href="Javalib_pack.Javalib.html#TYPEimplementation">Javalib_pack.Javalib.implementation</a> -><br>        'b <a href="Javalib_pack.Javalib.html#TYPEimplementation">Javalib_pack.Javalib.implementation</a>) -><br>       ('b -> int -> int) option -> 'a <a href="JProgram.html#TYPEprogram">program</a> -> 'b <a href="JProgram.html#TYPEprogram">program</a></code></pre><div class="info">
+<code class="code">map_program_with_native2 f fpp p</code> is equivalent to
+    <a href="JProgram.html#VALmap_program2"><code class="code"><span class="constructor">JProgram</span>.map_program2</code></a> but allows to transform not only the code
+    representation but also the implementation type. It provides a way
+    to modify the nature of implementation to <code class="code"><span class="constructor">Native</span></code> if the code
+    could not be transformed or conversly to provide a generated code
+    for <code class="code"><span class="constructor">Native</span></code> implementation.<br>
+</div>
+<br>
+<h2 id="2_Callgraph">Callgraph.</h2><br>
+<pre><span id="TYPEcallgraph"><span class="keyword">type</span> <code class="type"></code>callgraph</span> = <code class="type">((<a href="Javalib_pack.JBasics.html#TYPEclass_name">Javalib_pack.JBasics.class_name</a> * <a href="Javalib_pack.JBasics.html#TYPEmethod_signature">Javalib_pack.JBasics.method_signature</a> *<br>         int) *<br>        (<a href="Javalib_pack.JBasics.html#TYPEclass_name">Javalib_pack.JBasics.class_name</a> * <a href="Javalib_pack.JBasics.html#TYPEmethod_signature">Javalib_pack.JBasics.method_signature</a>))<br>       list</code> </pre>
+
+<pre><span id="VALget_callgraph"><span class="keyword">val</span> get_callgraph</span> : <code class="type"><a href="Javalib_pack.JCode.html#TYPEjcode">Javalib_pack.JCode.jcode</a> <a href="JProgram.html#TYPEprogram">program</a> -> <a href="JProgram.html#TYPEcallgraph">callgraph</a></code></pre><div class="info">
+<code class="code">get_callgraph prog</code> : Get a callgraph including every call of every method
+  of every class .<br>
+</div>
+<pre><span id="VALget_callgraph_from_entries"><span class="keyword">val</span> get_callgraph_from_entries</span> : <code class="type"><a href="Javalib_pack.JCode.html#TYPEjcode">Javalib_pack.JCode.jcode</a> <a href="JProgram.html#TYPEprogram">program</a> -><br>       <a href="Javalib_pack.JBasics.html#TYPEclass_method_signature">Javalib_pack.JBasics.class_method_signature</a> list -> <a href="JProgram.html#TYPEcallgraph">callgraph</a></code></pre><div class="info">
+<code class="code">get_callgraph_from_entries prog entries</code> Get a callgraph only considering
+ code reachable from the given entrypoints.<br>
+</div>
+<pre><span id="VALstore_callgraph"><span class="keyword">val</span> store_callgraph</span> : <code class="type"><a href="JProgram.html#TYPEcallgraph">callgraph</a> -> string -> unit</code></pre><br>
+<h2 id="2_Exceptions">Exceptions.</h2><br>
+<pre><span id="EXCEPTIONIncompatibleClassChangeError"><span class="keyword">exception</span> IncompatibleClassChangeError</span></pre>
+<div class="info">
+<b>See also</b> <a href="http://java.sun.com/docs/books/jvms/second_edition/html/VMSpecTOC.doc.html">The JVM Specification</a><br>
+</div>
+<pre><span id="EXCEPTIONNoSuchMethodError"><span class="keyword">exception</span> NoSuchMethodError</span></pre>
+<div class="info">
+<b>See also</b> <a href="http://java.sun.com/docs/books/jvms/second_edition/html/VMSpecTOC.doc.html">The JVM Specification</a><br>
+</div>
+<pre><span id="EXCEPTIONNoSuchFieldError"><span class="keyword">exception</span> NoSuchFieldError</span></pre>
+<div class="info">
+<b>See also</b> <a href="http://java.sun.com/docs/books/jvms/second_edition/html/VMSpecTOC.doc.html">The JVM Specification</a><br>
+</div>
+<pre><span id="EXCEPTIONNoClassDefFoundError"><span class="keyword">exception</span> NoClassDefFoundError</span></pre>
+<div class="info">
+<b>See also</b> <a href="http://java.sun.com/docs/books/jvms/second_edition/html/VMSpecTOC.doc.html">The JVM Specification</a><br>
+</div>
+<pre><span id="EXCEPTIONAbstractMethodError"><span class="keyword">exception</span> AbstractMethodError</span></pre>
+<div class="info">
+<b>See also</b> <a href="http://java.sun.com/docs/books/jvms/second_edition/html/VMSpecTOC.doc.html">The JVM Specification</a><br>
+</div>
+<pre><span id="EXCEPTIONIllegalAccessError"><span class="keyword">exception</span> IllegalAccessError</span></pre>
+<div class="info">
+<b>See also</b> <a href="http://java.sun.com/docs/books/jvms/second_edition/html/VMSpecTOC.doc.html">The JVM Specification</a><br>
+</div>
+</body></html>

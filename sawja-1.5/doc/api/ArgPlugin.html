@@ -1,0 +1,199 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="JPrintPlugin.html">
+<link rel="next" href="JCodePP.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Iter" rel="Chapter" href="Iter.html">
+<link title="Wlist" rel="Chapter" href="Wlist.html">
+<link title="JProgram" rel="Chapter" href="JProgram.html">
+<link title="ClassDomain" rel="Chapter" href="ClassDomain.html">
+<link title="JNativeStubs" rel="Chapter" href="JNativeStubs.html">
+<link title="JsrInline" rel="Chapter" href="JsrInline.html">
+<link title="JControlFlow" rel="Chapter" href="JControlFlow.html">
+<link title="JPrintHtml" rel="Chapter" href="JPrintHtml.html">
+<link title="JPrintPlugin" rel="Chapter" href="JPrintPlugin.html">
+<link title="ArgPlugin" rel="Chapter" href="ArgPlugin.html">
+<link title="JCodePP" rel="Chapter" href="JCodePP.html">
+<link title="JBir" rel="Chapter" href="JBir.html">
+<link title="JBirPP" rel="Chapter" href="JBirPP.html">
+<link title="A3Bir" rel="Chapter" href="A3Bir.html">
+<link title="A3BirPP" rel="Chapter" href="A3BirPP.html">
+<link title="JBirSSA" rel="Chapter" href="JBirSSA.html">
+<link title="JBirSSAPP" rel="Chapter" href="JBirSSAPP.html">
+<link title="A3BirSSA" rel="Chapter" href="A3BirSSA.html">
+<link title="A3BirSSAPP" rel="Chapter" href="A3BirSSAPP.html">
+<link title="Live_bir" rel="Chapter" href="Live_bir.html">
+<link title="Live_a3bir" rel="Chapter" href="Live_a3bir.html">
+<link title="Safe" rel="Chapter" href="Safe.html">
+<link title="ReachableMethods" rel="Chapter" href="ReachableMethods.html">
+<link title="JType" rel="Chapter" href="JType.html">
+<link title="ParserType" rel="Chapter" href="ParserType.html">
+<link title="Parse_heap" rel="Chapter" href="Parse_heap.html">
+<link title="HeapParser" rel="Chapter" href="HeapParser.html">
+<link title="JCRA" rel="Chapter" href="JCRA.html">
+<link title="XTA" rel="Chapter" href="XTA.html">
+<link title="JRTA" rel="Chapter" href="JRTA.html">
+<link title="JRTAWithHeap" rel="Chapter" href="JRTAWithHeap.html">
+<link title="JRRTA" rel="Chapter" href="JRRTA.html">
+<link title="ReachDef" rel="Chapter" href="ReachDef.html">
+<link title="AvailableExpr" rel="Chapter" href="AvailableExpr.html">
+<link title="Javalib_pack.Javalib" rel="Chapter" href="Javalib_pack.Javalib.html">
+<link title="Javalib_pack.JBasics" rel="Chapter" href="Javalib_pack.JBasics.html">
+<link title="Javalib_pack.JCode" rel="Chapter" href="Javalib_pack.JCode.html"><title>Sawja : ArgPlugin</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="JPrintPlugin.html" title="JPrintPlugin">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="JCodePP.html" title="JCodePP">Next</a>
+</div>
+<h1>Module <a href="type_ArgPlugin.html">ArgPlugin</a></h1>
+<pre><span class="keyword">module</span> ArgPlugin: <code class="code"><span class="keyword">sig</span></code> <a href="ArgPlugin.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info">
+ArgPlugin is a wrapper for the module Arg that normalizes arguments for
+    the Sawja Eclipse Plugin.<br>
+</div>
+<hr width="100%">
+<br>
+ArgPlugin is a wrapper for the module Arg that normalizes arguments for
+    the Sawja Eclipse Plugin. The final executable must use
+    ArgPlugin in order to be "installed" and executed by the Sawja
+    Eclipse Plugin.<br>
+<pre><code><span id="TYPEspec"><span class="keyword">type</span> <code class="type"></code>spec</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTspec.ClassPath"><span class="constructor">ClassPath</span></span> <span class="keyword">of</span> <code class="type">(string -> unit)</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">ClassPath</span> f</code> with <code class="code">f</code> the function used to retrieve the classpath
+        argument. In Eclipse, by default, this argument will be automatically
+        set to the complete class path of the Java project.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTspec.Path"><span class="constructor">Path</span></span> <span class="keyword">of</span> <code class="type">(string -> unit)</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">Path</span> f</code> with <code class="code">f</code> the function used to retrieve the path argument. The
+        argument to <code class="code">f</code> should represent a path to a folder or file.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTspec.ClassFiles"><span class="constructor">ClassFiles</span></span> <span class="keyword">of</span> <code class="type">(string list -> unit)</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">ClassFiles</span> f</code> with <code class="code">f</code> the function to used retrieve the class name
+        list argument. In Eclipse, by default, this argument will automatically
+        contain all the class files of the Java project.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTspec.ClassFile"><span class="constructor">ClassFile</span></span> <span class="keyword">of</span> <code class="type">(string -> unit)</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">ClassFile</span> f</code> with <code class="code">f</code> the function used to retrieve the class name
+        argument. In Eclipse this argument must be given by the user as a
+        property of the analysis for each Java project.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTspec.Choice"><span class="constructor">Choice</span></span> <span class="keyword">of</span> <code class="type">(string list * (string -> unit) * string)</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">Choice</span> (list, f, default)</code> provides an exclusive choice on a list of
+        symbols: <code class="code">list</code> is the list of symbols, <code class="code">f</code> the function used to
+        retrieve the chosen symbol, and <code class="code">def</code> the default choice. The character
+        ';' is forbidden in the symbols. Raises Invalid_argument on execution of
+        <a href="ArgPlugin.html#VALparse"><code class="code"><span class="constructor">ArgPlugin</span>.parse</code></a> if <code class="code">def</code> is not a symbol of <code class="code">list</code>.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTspec.String"><span class="constructor">String</span></span> <span class="keyword">of</span> <code class="type">((string -> unit) * string option)</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">String</span> (f, default)</code> with <code class="code">f</code> the function used to retrieve a string
+        argument, and <code class="code">default</code> the optional default string value (default
+        values are only used in Eclipse: for executables this parameter is
+        considered as a description)</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTspec.Boolean"><span class="constructor">Boolean</span></span> <span class="keyword">of</span> <code class="type">((bool -> unit) * bool option)</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">Boolean</span> (f, default)</code> with <code class="code">f</code> the function used to retrieve a
+        boolean argument and <code class="code">default</code> the optional default boolean value
+        (default values are only used in Eclipse: for executables this parameter
+        is considered as a description)</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTspec.NotPlugin"><span class="constructor">NotPlugin</span></span> <span class="keyword">of</span> <code class="type">Arg.spec</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">NotPlugin</span> spec</code> with <code class="code">spec</code> an Arg.spec adds an argument unrelated to
+        the Sawja Eclipse Plugin.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+
+<div class="info">
+The concrete type describing the behavior associated with a keyword<br>
+</div>
+
+<pre><span id="TYPEkey"><span class="keyword">type</span> <code class="type"></code>key</span> = <code class="type">string</code> </pre>
+<div class="info">
+key is the option keyword, it must start with a '-' character<br>
+</div>
+
+<pre><span id="TYPEname"><span class="keyword">type</span> <code class="type"></code>name</span> = <code class="type">string</code> </pre>
+<div class="info">
+name is the short description for this option in Eclipse.<br>
+</div>
+
+<pre><span id="TYPEdoc"><span class="keyword">type</span> <code class="type"></code>doc</span> = <code class="type">string</code> </pre>
+<div class="info">
+doc is a one-line description of the corresponding option.<br>
+</div>
+
+<pre><span id="TYPEusage_msg"><span class="keyword">type</span> <code class="type"></code>usage_msg</span> = <code class="type">string</code> </pre>
+
+<pre><span id="TYPEanalysis"><span class="keyword">type</span> <code class="type"></code>analysis</span> = <code class="type">string * string</code> </pre>
+<div class="info">
+Description of the analysis (name, short description)<br>
+</div>
+
+<pre><code><span id="TYPEplugin_output"><span class="keyword">type</span> <code class="type"></code>plugin_output</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTplugin_output.PluginOutput"><span class="constructor">PluginOutput</span></span> <span class="keyword">of</span> <code class="type">(string * (string -> unit))</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><code class="code"><span class="constructor">PluginOutput</span> (key, f)</code> with key the argument name for this
+	  argument and f the function used to retrieve the string
+	  description of the output path</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+
+<div class="info">
+Output path of the data generated for the Java side of the plugin by
+  <a href="JPrintPlugin.NewCodePrinter.PluginPrinter.html#VALprint_class"><code class="code"><span class="constructor">PluginPrinter</span>.print_class</code></a> or
+  <a href="JPrintPlugin.NewCodePrinter.PluginPrinter.html#VALprint_program"><code class="code"><span class="constructor">PluginPrinter</span>.print_program</code></a><br>
+</div>
+
+<pre><span id="VALparse"><span class="keyword">val</span> parse</span> : <code class="type"><a href="ArgPlugin.html#TYPEanalysis">analysis</a> -><br>       (<a href="ArgPlugin.html#TYPEkey">key</a> * <a href="ArgPlugin.html#TYPEname">name</a> * <a href="ArgPlugin.html#TYPEspec">spec</a> * <a href="ArgPlugin.html#TYPEdoc">doc</a>) list -><br>       <a href="ArgPlugin.html#TYPEplugin_output">plugin_output</a> -> <a href="ArgPlugin.html#TYPEusage_msg">usage_msg</a> -> unit</code></pre><div class="info">
+<code class="code">parse analysis args_list plugin_output usage_msg</code> is an adapted version of
+  Arg.parse; it automatically generates a an additional parameter
+  "--argumentsXMLDesc" that describes the program's arguments in a XML format. 
+  <code class="code">analysis</code> is the analysis description. <code class="code">args_list</code> is a list of triples (key,
+  spec, doc). <code class="code">plugin_output</code> is the folder in which information data for the
+  plugin can be found (cf. the <a href="JPrintPlugin.html"><code class="code"><span class="constructor">JPrintPlugin</span></code></a> module).<br>
+</div>
+<pre><span id="VALtransform2arg"><span class="keyword">val</span> transform2arg</span> : <code class="type"><a href="ArgPlugin.html#TYPEspec">spec</a> -> Arg.spec</code></pre><div class="info">
+<code class="code">transform2arg spec</code> transforms an <a href="ArgPlugin.html#TYPEspec"><code class="code"><span class="constructor">ArgPlugin</span>.spec</code></a> into the corresponding Arg datatype.<br>
+</div>
+</body></html>

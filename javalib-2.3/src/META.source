@@ -1,0 +1,4 @@
+version = "2.3"
+description = "library to parse Java .class files"
+archive(native) = "javalib.cmxa"
+archive(byte) = "javalib.cma"

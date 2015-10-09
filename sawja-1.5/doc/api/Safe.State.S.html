@@ -1,0 +1,94 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="Up" href="Safe.State.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Iter" rel="Chapter" href="Iter.html">
+<link title="Wlist" rel="Chapter" href="Wlist.html">
+<link title="JProgram" rel="Chapter" href="JProgram.html">
+<link title="ClassDomain" rel="Chapter" href="ClassDomain.html">
+<link title="JNativeStubs" rel="Chapter" href="JNativeStubs.html">
+<link title="JsrInline" rel="Chapter" href="JsrInline.html">
+<link title="JControlFlow" rel="Chapter" href="JControlFlow.html">
+<link title="JPrintHtml" rel="Chapter" href="JPrintHtml.html">
+<link title="JPrintPlugin" rel="Chapter" href="JPrintPlugin.html">
+<link title="ArgPlugin" rel="Chapter" href="ArgPlugin.html">
+<link title="JCodePP" rel="Chapter" href="JCodePP.html">
+<link title="JBir" rel="Chapter" href="JBir.html">
+<link title="JBirPP" rel="Chapter" href="JBirPP.html">
+<link title="A3Bir" rel="Chapter" href="A3Bir.html">
+<link title="A3BirPP" rel="Chapter" href="A3BirPP.html">
+<link title="JBirSSA" rel="Chapter" href="JBirSSA.html">
+<link title="JBirSSAPP" rel="Chapter" href="JBirSSAPP.html">
+<link title="A3BirSSA" rel="Chapter" href="A3BirSSA.html">
+<link title="A3BirSSAPP" rel="Chapter" href="A3BirSSAPP.html">
+<link title="Live_bir" rel="Chapter" href="Live_bir.html">
+<link title="Live_a3bir" rel="Chapter" href="Live_a3bir.html">
+<link title="Safe" rel="Chapter" href="Safe.html">
+<link title="ReachableMethods" rel="Chapter" href="ReachableMethods.html">
+<link title="JType" rel="Chapter" href="JType.html">
+<link title="ParserType" rel="Chapter" href="ParserType.html">
+<link title="Parse_heap" rel="Chapter" href="Parse_heap.html">
+<link title="HeapParser" rel="Chapter" href="HeapParser.html">
+<link title="JCRA" rel="Chapter" href="JCRA.html">
+<link title="XTA" rel="Chapter" href="XTA.html">
+<link title="JRTA" rel="Chapter" href="JRTA.html">
+<link title="JRTAWithHeap" rel="Chapter" href="JRTAWithHeap.html">
+<link title="JRRTA" rel="Chapter" href="JRRTA.html">
+<link title="ReachDef" rel="Chapter" href="ReachDef.html">
+<link title="AvailableExpr" rel="Chapter" href="AvailableExpr.html">
+<link title="Javalib_pack.Javalib" rel="Chapter" href="Javalib_pack.Javalib.html">
+<link title="Javalib_pack.JBasics" rel="Chapter" href="Javalib_pack.JBasics.html">
+<link title="Javalib_pack.JCode" rel="Chapter" href="Javalib_pack.JCode.html"><link title="Accessing data content" rel="Section" href="#2_Accessingdatacontent">
+<link title="Modifying final results" rel="Section" href="#2_Modifyingfinalresults">
+<title>Sawja : Safe.State.S</title>
+</head>
+<body>
+<div class="navbar">&nbsp;<a class="up" href="Safe.State.html" title="Safe.State">Up</a>
+&nbsp;</div>
+<h1>Module type <a href="type_Safe.State.S.html">Safe.State.S</a></h1>
+<pre><span class="keyword">module type</span> S = <code class="code"><span class="keyword">sig</span></code> <a href="Safe.State.S.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><hr width="100%">
+<pre><span class="keyword">module</span> <a href="Safe.State.S.Var.html">Var</a>: <code class="type"><a href="Safe.Var.S.html">Safe.Var.S</a></code><code class="type"> </code></pre><div class="info">
+One domain for each kind of variable.
+</div>
+<pre><span class="keyword">module</span> <a href="Safe.State.S.Global.html">Global</a>: <code class="type"><a href="Safe.Domain.S.html">Safe.Domain.S</a></code><code class="type"> </code></pre><pre><span class="keyword">module</span> <a href="Safe.State.S.IOC.html">IOC</a>: <code class="type"><a href="Safe.Domain.S.html">Safe.Domain.S</a></code><code class="type"> </code></pre><pre><span class="keyword">module</span> <a href="Safe.State.S.Field.html">Field</a>: <code class="type"><a href="Safe.Domain.S.html">Safe.Domain.S</a></code><code class="type"> </code></pre><pre><span class="keyword">module</span> <a href="Safe.State.S.Method.html">Method</a>: <code class="type"><a href="Safe.Domain.S.html">Safe.Domain.S</a></code><code class="type"> </code></pre><pre><span class="keyword">module</span> <a href="Safe.State.S.PP.html">PP</a>: <code class="type"><a href="Safe.Domain.S.html">Safe.Domain.S</a></code><code class="type"> </code></pre><pre><span id="TYPEanalysisID"><span class="keyword">type</span> <code class="type"></code>analysisID</span> = <code class="type">[ `FieldAnalysis of Field.analysisID<br>       | `GlobalAnalysis of Global.analysisID<br>       | `IOCAnalysis of IOC.analysisID<br>       | `MethodAnalysis of Method.analysisID<br>       | `PPAnalysis of PP.analysisID ]</code> </pre>
+
+<pre><span id="TYPEanalysisDomain"><span class="keyword">type</span> <code class="type"></code>analysisDomain</span> = <code class="type">[ `FieldDomain of Field.analysisDomain<br>       | `GlobalDomain of Global.analysisDomain<br>       | `IOCDomain of IOC.analysisDomain<br>       | `MethodDomain of Method.analysisDomain<br>       | `PPDomain of PP.analysisDomain ]</code> </pre>
+<div class="info">
+Data (value) for one particular analysis.<br>
+</div>
+
+<pre><span id="TYPEabData"><span class="keyword">type</span> <code class="type"></code>abData</span> = <code class="type">[ `Field of Field.t<br>       | `Global of Global.t<br>       | `IOC of IOC.t<br>       | `Method of Method.t<br>       | `PP of PP.t ]</code> </pre>
+<div class="info">
+Data for all analyses for one particular variable (slot).<br>
+</div>
+
+<pre><span id="TYPEt"><span class="keyword">type</span> <code class="type"></code>t</span> </pre>
+
+<pre><span id="EXCEPTIONDebugSt"><span class="keyword">exception</span> DebugSt</span> <span class="keyword">of</span> <code class="type"><a href="Safe.State.S.html#TYPEt">t</a></code></pre>
+<pre><span id="VALbot"><span class="keyword">val</span> bot</span> : <code class="type">int * int * int * int * int -> <a href="Safe.State.S.html#TYPEt">t</a></code></pre><div class="info">
+<code class="code">bot (g,c,f,m,p)</code> generates an bottom element where <code class="code">g</code>, <code class="code">c</code>, <code class="code">f</code>, <code class="code">m</code>
+        and <code class="code">p</code> are approximations of the number of global, class, field, method
+        and program point variables, respectively. Note that any positive value
+        is correct, but poorly chosen ones may affect performance.<br>
+</div>
+<pre><span id="VALpprint"><span class="keyword">val</span> pprint</span> : <code class="type">Format.formatter -> <a href="Safe.State.S.html#TYPEt">t</a> -> unit</code></pre><pre><span id="VALget_pinfo"><span class="keyword">val</span> get_pinfo</span> : <code class="type">'a <a href="JProgram.html#TYPEprogram">JProgram.program</a> -> <a href="Safe.State.S.html#TYPEt">t</a> -> <a href="JPrintHtml.html#TYPEinfo">JPrintHtml.info</a> -> <a href="JPrintHtml.html#TYPEinfo">JPrintHtml.info</a></code></pre><pre><span id="VALjoin_ad"><span class="keyword">val</span> join_ad</span> : <code class="type">?do_join:bool -><br>       ?modifies:bool Pervasives.ref -><br>       <a href="Safe.State.S.html#TYPEabData">abData</a> -> <a href="Safe.State.S.html#TYPEanalysisDomain">analysisDomain</a> -> <a href="Safe.State.S.html#TYPEabData">abData</a></code></pre><pre><span id="VALjoin"><span class="keyword">val</span> join</span> : <code class="type">?do_join:bool -><br>       ?modifies:bool Pervasives.ref -><br>       <a href="Safe.State.S.html#TYPEt">t</a> -> Var.t -> <a href="Safe.State.S.html#TYPEanalysisDomain">analysisDomain</a> -> unit</code></pre><div class="info">
+<code class="code">join</code> must only be used for initialization of State and not during
+      constraint resolution.<br>
+</div>
+<br>
+<h2 id="2_Accessingdatacontent">Accessing data content</h2><br>
+<pre><span id="VALget"><span class="keyword">val</span> get</span> : <code class="type"><a href="Safe.State.S.html#TYPEt">t</a> -> Var.t -> <a href="Safe.State.S.html#TYPEabData">abData</a></code></pre><pre><span id="VALget_global"><span class="keyword">val</span> get_global</span> : <code class="type"><a href="Safe.State.S.html#TYPEt">t</a> -> Var.var_global -> Global.t</code></pre><pre><span id="VALget_IOC"><span class="keyword">val</span> get_IOC</span> : <code class="type"><a href="Safe.State.S.html#TYPEt">t</a> -> Var.var_ioc -> IOC.t</code></pre><pre><span id="VALget_field"><span class="keyword">val</span> get_field</span> : <code class="type"><a href="Safe.State.S.html#TYPEt">t</a> -> Var.var_field -> Field.t</code></pre><pre><span id="VALget_method"><span class="keyword">val</span> get_method</span> : <code class="type"><a href="Safe.State.S.html#TYPEt">t</a> -> Var.var_method -> Method.t</code></pre><pre><span id="VALget_PP"><span class="keyword">val</span> get_PP</span> : <code class="type"><a href="Safe.State.S.html#TYPEt">t</a> -> Var.var_pp -> PP.t</code></pre><pre><span id="VALget_ab_global"><span class="keyword">val</span> get_ab_global</span> : <code class="type"><a href="Safe.State.S.html#TYPEabData">abData</a> -> Global.t</code></pre><pre><span id="VALget_ab_field"><span class="keyword">val</span> get_ab_field</span> : <code class="type"><a href="Safe.State.S.html#TYPEabData">abData</a> -> Field.t</code></pre><pre><span id="VALget_ab_method"><span class="keyword">val</span> get_ab_method</span> : <code class="type"><a href="Safe.State.S.html#TYPEabData">abData</a> -> Method.t</code></pre><pre><span id="VALget_ab_IOC"><span class="keyword">val</span> get_ab_IOC</span> : <code class="type"><a href="Safe.State.S.html#TYPEabData">abData</a> -> IOC.t</code></pre><pre><span id="VALget_ab_pp"><span class="keyword">val</span> get_ab_pp</span> : <code class="type"><a href="Safe.State.S.html#TYPEabData">abData</a> -> PP.t</code></pre><br>
+<h2 id="2_Modifyingfinalresults">Modifying final results</h2><br>
+<br>
+<b>Warning: State MUST not be modified manually during constraint
+      resolution. The following functions MUST only be used on the final result
+      of State</b>!<br>
+<pre><span id="VALiter_global"><span class="keyword">val</span> iter_global</span> : <code class="type"><a href="Safe.State.S.html#TYPEt">t</a> -><br>       (<a href="Safe.State.S.html#TYPEt">t</a> -> Var.var_global -> <a href="Safe.State.S.html#TYPEabData">abData</a> -> unit) -> unit</code></pre><pre><span id="VALiter_IOC"><span class="keyword">val</span> iter_IOC</span> : <code class="type"><a href="Safe.State.S.html#TYPEt">t</a> -><br>       (<a href="Safe.State.S.html#TYPEt">t</a> -> Var.var_ioc -> <a href="Safe.State.S.html#TYPEabData">abData</a> -> unit) -> unit</code></pre><pre><span id="VALiter_field"><span class="keyword">val</span> iter_field</span> : <code class="type"><a href="Safe.State.S.html#TYPEt">t</a> -><br>       (<a href="Safe.State.S.html#TYPEt">t</a> -> Var.var_field -> <a href="Safe.State.S.html#TYPEabData">abData</a> -> unit) -> unit</code></pre><pre><span id="VALiter_method"><span class="keyword">val</span> iter_method</span> : <code class="type"><a href="Safe.State.S.html#TYPEt">t</a> -><br>       (<a href="Safe.State.S.html#TYPEt">t</a> -> Var.var_method -> <a href="Safe.State.S.html#TYPEabData">abData</a> -> unit) -> unit</code></pre><pre><span id="VALiter_PP"><span class="keyword">val</span> iter_PP</span> : <code class="type"><a href="Safe.State.S.html#TYPEt">t</a> -><br>       (<a href="Safe.State.S.html#TYPEt">t</a> -> Var.var_pp -> <a href="Safe.State.S.html#TYPEabData">abData</a> -> unit) -> unit</code></pre><pre><span id="VALreplace"><span class="keyword">val</span> replace</span> : <code class="type"><a href="Safe.State.S.html#TYPEt">t</a> -> Var.t -> <a href="Safe.State.S.html#TYPEabData">abData</a> -> unit</code></pre><pre><span id="VALremove"><span class="keyword">val</span> remove</span> : <code class="type"><a href="Safe.State.S.html#TYPEt">t</a> -> Var.t -> unit</code></pre></body></html>
