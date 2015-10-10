@@ -996,7 +996,7 @@ let usage_msg = "Usage: wcma [-sourcepath <filename>] [OPTION] class-path class-
 		   (fun (i,m,p) (micro,lc,bd) -> 
 		    let (ii,mm,pp) = Array.fold_left (fun (i,m,p) x -> 
 						      (* FIXME: Currently it is assumeed that each microcode takes 1 mw! *)
-						      if (Array.exists (fun y -> (to_mem_instr x) = y) mem_instr) then 
+						      if (Array.exists (fun y -> x = y) mem_instr) then 
 							(i,m+lc,p+lc) 
 						      else 
 							(i+lc,m,p+lc)) (of_int 0, of_int 0, of_int 0) micro in
@@ -1050,8 +1050,8 @@ let usage_msg = "Usage: wcma [-sourcepath <filename>] [OPTION] class-path class-
     | Stbcrd -> PStbcrd {avgp = 290.0}
     | Stidx -> PStidx {avgp = 290.0}
     | Stps -> PStps {avgp = 290.0}
-    | Cyc -> Cyc
-    | Ldcr -> Ldcr
+    | Cyc -> PCyc {avgp = 0.0}
+    | Ldcr -> PLdcr {avgp = 0.0}
     | St0 -> PSt0 {avgp = 293.0}
     | St1 -> PSt1 {avgp = 299.0}
     | St2 -> PSt2 {avgp = 293.0}
@@ -1093,7 +1093,7 @@ let usage_msg = "Usage: wcma [-sourcepath <filename>] [OPTION] class-path class-
     | Ld_opd_16s -> PLd_opd_16s {avgp = 293.0}
     | Dup -> PDup {avgp = 290.0}
     | Jmp -> PJmp {avgp = 290.0}
-    | Cinval -> Cinval
+    | Cinval -> PCinval {avgp = 0.0}
     | _ as s -> raise Internal
 
 
@@ -1121,7 +1121,7 @@ let usage_msg = "Usage: wcma [-sourcepath <filename>] [OPTION] class-path class-
       let pr = DynArray.map (fun (mn,vals) -> (mn,Array.map(fun(x,y,z) ->
 							   ((Array.map annotate x),y,z))vals)) marray in
       let mm = DynArray.map (fun (mn,vals) -> (JPrint.class_method_signature mn,
-					       calc_exec_time jfk (mn,vals) marray (Hashtbl.create 50)) ) pr in
+					       calc_exec_time jfk (mn,vals) pr (Hashtbl.create 50)) ) pr in
       let () = Sys.chdir ff in
       let fd = open_out (cn^".ini") in
       DynArray.iter (fun (x,(i,m,p)) -> 

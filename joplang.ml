@@ -2,12 +2,14 @@
 (* Each micro-code takes 1 cpu cc to execute. *)
 (* Author: Avinash *)
 (* Date: Fri Sep 12 13:52:29 NZST 2014 *)
+open Sexplib.Std
 
 type annot = {avgp : float}
+with sexp
 
-type jop_microcode = ..
+(* type jop_microcode = .. *)
 
-type jop_microcode +=
+type jop_microcode =
    | Pop
    | And
    | Or
@@ -73,29 +75,9 @@ type jop_microcode +=
    | Dup
    | Jmp
    | Cinval 			(* Cache invalidate instruction, is this mem-instruction?? *)
+with sexp
 
-let mem_instr =
-  [|
-    Ldm;
-    Stps;
-    Stmra;
-    Stmwa;
-    Stmrac;
-    Ldmrd;
-    Ldbcstart;
-    Stmwd;
-    Stald;
-    Stast;
-    Stgf;
-    Stpf;
-    Stcp;
-    Stbcrd;
-    Stgs;
-    Stmraf;
-    Wait
-   |]
-
-type jop_microcode +=
+type jop_pmicrocode =
    | PPop of annot
    | PAnd of annot
    | POr of annot
@@ -161,24 +143,47 @@ type jop_microcode +=
    | PDup of annot
    | PJmp of annot
    | PCinval of annot
+with sexp
 
-let to_mem_instr = function
-  |  PLdm _ -> Ldm
-  |  PStps _ -> Stps
-  |  PStmra _ -> Stmra
-  |  PStmwa _ -> Stmwa
-  |  PStmrac _ -> Stmrac
-  |  PLdmrd _ -> Ldmrd
-  |  PLdbcstart _ -> Ldbcstart
-  |  PStmwd _ -> Stmwd
-  |  PStald _ -> Stald
-  |  PStast _ -> Stast
-  |  PStgf _ -> Stgf
-  |  PStpf _ -> Stpf
-  |  PStcp _ -> Stcp
-  |  PStbcrd _ -> Stbcrd
-  |  PStgs _ -> Stgs
-  |  PStmraf _ -> Stmraf
-  |  PWait _ -> Wait
-  | _ as s -> s
+let mem_instr =
+  [|
+    PLdm {avgp = 292.0};
+    PStps {avgp = 290.0};
+    PStmra {avgp = 290.0};
+    PStmwa {avgp = 290.0};
+    PStmrac {avgp = 290.0};
+    PLdmrd {avgp = 291.0};
+    PLdbcstart {avgp = 290.0};
+    PStmwd {avgp = 290.0};
+    PStald {avgp = 290.0};
+    PStast {avgp = 290.0};
+    PStgf {avgp = 209.0};
+    PStpf {avgp = 290.0};
+    PStcp {avgp = 290.0};
+    PStbcrd {avgp = 290.0};
+    PStgs {avgp = 290.0};
+    PStmraf {avgp = 290.0};
+    PWait {avgp = 290.0}
+   |]
+
+
+(* let to_mem_instr = function *)
+(*   |  PLdm _ -> Ldm *)
+(*   |  PStps _ -> Stps *)
+(*   |  PStmra _ -> Stmra *)
+(*   |  PStmwa _ -> Stmwa *)
+(*   |  PStmrac _ -> Stmrac *)
+(*   |  PLdmrd _ -> Ldmrd *)
+(*   |  PLdbcstart _ -> Ldbcstart *)
+(*   |  PStmwd _ -> Stmwd *)
+(*   |  PStald _ -> Stald *)
+(*   |  PStast _ -> Stast *)
+(*   |  PStgf _ -> Stgf *)
+(*   |  PStpf _ -> Stpf *)
+(*   |  PStcp _ -> Stcp *)
+(*   |  PStbcrd _ -> Stbcrd *)
+(*   |  PStgs _ -> Stgs *)
+(*   |  PStmraf _ -> Stmraf *)
+(*   |  PWait _ -> Wait *)
+(*   | _ as s -> s *)
 
