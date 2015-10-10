@@ -45,10 +45,10 @@ let lastore =
    |]
 
 let monitorexit = [|Pop;Ldm;Ldi;Sub;Dup;Stm;Bnz;Ldi;Stmwa;Ldi;Stmwd;Wait;Wait;Ldi;Stmwa;
-                    Ldi;Stmwd;Wait;Wait;Nop|];;
+		    Ldi;Stmwd;Wait;Wait;Nop|];;
 
 let monitorenter = [|Pop;Ldi;Stmwa;Ldi;Stmwd;Ldm;Ldm;Ldi;Add;Wait;Wait;Cinval;Stm;Ldi;
-                     Stmwa;Ldi;Stmwd;Wait;Wait;Nop|];;
+		     Stmwa;Ldi;Stmwd;Wait;Wait;Nop|];;
 let iaload = [|Stald;Pop;Wait;Wait;Ldmrd|];;
 let iastore = [|Stast;Pop;Pop;Wait;Wait;Nop|];;
 let arraylength = [|Ldi;Add;Stmraf;Wait;Wait;Ldmrd;|];;
@@ -149,12 +149,12 @@ let usage_msg = "Usage: wcma [-sourcepath <filename>] [OPTION] class-path class-
   set_permissive true;;
 
 
-let exists_in_marray marray ms = 
-  List.exists (fun (i,_) -> (i = ms)) (DynArray.to_list  marray)
+  let exists_in_marray marray ms = 
+    List.exists (fun (i,_) -> (i = ms)) (DynArray.to_list  marray)
 
-let exists_in_clzms_array clzms x = 
-  let a = Stack.enum x in
-  Enum.exists (fun x -> x = clzms) a
+  let exists_in_clzms_array clzms x = 
+    let a = Stack.enum x in
+    Enum.exists (fun x -> x = clzms) a
 
   (* Method size in bytes *)
   let get_method_size = function
@@ -361,7 +361,7 @@ let exists_in_clzms_array clzms x =
     in
     List.filter_map (fun x -> x) nxt
 
-  let tttt = ref true
+  (* let tttt = ref true *)
 
 
   (* This is the main function that generates the micro-codes *)
@@ -529,11 +529,11 @@ let exists_in_clzms_array clzms x =
        (match x with
 	| `Double | `Long -> 
 		     [|Stm;Stm;Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;
-                       Ldmrd; Stbcrd;Stm;Nop;Stsp;Pop;Pop;Ldbcstart;Ldm;Add;
-                       Stjpc;Ldm;Ldm;Wait;Wait;Nop|]
+		       Ldmrd; Stbcrd;Stm;Nop;Stsp;Pop;Pop;Ldbcstart;Ldm;Add;
+		       Stjpc;Ldm;Ldm;Wait;Wait;Nop|]
 	| _ ->
 	   [|Stm;Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;Ldmrd;Stbcrd;Stm;Nop;Stsp;
-             Pop;Pop;Ldbcstart;Ldm;Add;Stjpc;Ldm;Wait;Wait;Nop|])
+	     Pop;Pop;Ldbcstart;Ldm;Add;Stjpc;Ldm;Wait;Wait;Nop|])
     | JL.OpAReturn -> 
        [|Stm;Dup;Stmrac;Stm;Stm;Stvp;Wait;Wait;Ldmrd;Stbcrd;Stm;Nop;Stsp;
 	 Pop;Pop;Ldbcstart;Ldm;Add;Stjpc;Ldm;Wait;Wait;Nop|] 
@@ -554,24 +554,24 @@ let exists_in_clzms_array clzms x =
        (match hopcode with
 	| OpGetStatic (_,x) -> 
 	   (match (fs_type x) with
-            | TBasic x -> (match x with
+	    | TBasic x -> (match x with
 			   | `Long -> [|Nop;Nop;Ld_opd_16u;Dup;
 					Stmra;Ldi;Add;Stm;Wait;Wait;
 					Ldmrd;Ldm;Stmra;Wait;Wait;Ldmrd|]
 			   | _ -> [|Stgs;Nop;Wait;Wait;Ldmrd|])
-            | _ -> [|Stgs;Nop;Wait;Wait;Ldmrd|])
+	    | _ -> [|Stgs;Nop;Wait;Wait;Ldmrd|])
 	| OpGetField (_,x) ->
 	   (match (fs_type x) with
-            | TBasic x -> (match x with
+	    | TBasic x -> (match x with
 			   | `Long ->
 			      [|Dup;Nop;Bz;Nop;Nop;Stmraf;Wait;Wait;Ldmrd;Nop;
 				Nop;Ld_opd_16u;Add;Dup;Stmraf;Ldi;Add;Stm;Wait;Wait;Ldmrd;Ldm;Stmraf;Wait;Wait;Ldmrd;
 			       |]
 			   | _ -> [|Stgf;Nop;Wait;Wait;Ldmrd;|])
-            | _ -> [|Stgf;Nop;Wait;Wait;Ldmrd;|])
+	    | _ -> [|Stgf;Nop;Wait;Wait;Ldmrd;|])
 	| OpPutField (_,x) ->
 	   (match (fs_type x) with
-            | TBasic x -> (match x with
+	    | TBasic x -> (match x with
 			   | `Long -> [|Stm;Stm;Dup;Nop;Bz;Nop;Nop;Stmraf;
 					Wait;Wait;Ldmrd;Nop;Nop;Ld_opd_16u;
 					Add;Dup;Stmraf;Ldi;Add;Stm;Wait;Wait;Ldmrd;
@@ -581,30 +581,30 @@ let exists_in_clzms_array clzms x =
 				  Ld_opd_8u; Ldi; And; Dup; Add; Add; Stm; Nop;
 				  Nop; Ld_opd_16u; Ldm; Jmp; Nop; Nop
 				 |])
-            | _ -> [|Ldjpc;
-                     Ldi;Sub;Stjpc;Nop;Nop;Ldm;Nop;Ld_opd_8u;Ldi;And;Dup;Add;Add;Stm;Nop;Nop;Ld_opd_16u;Ldm;Jmp;Nop;Nop
+	    | _ -> [|Ldjpc;
+		     Ldi;Sub;Stjpc;Nop;Nop;Ldm;Nop;Ld_opd_8u;Ldi;And;Dup;Add;Add;Stm;Nop;Nop;Ld_opd_16u;Ldm;Jmp;Nop;Nop
 		    |])
 	| OpPutStatic (_,x) ->
 	   (match (fs_type x) with
-            | TBasic x -> (match x with
+	    | TBasic x -> (match x with
 			   | `Long -> [|Stm;Stm;Ld_opd_16u;Dup;Stmwa;Ldm;Stmwd;Ldi;Add;Wait;Wait;
 					Stmwa;Ldm;Stmwd;Wait;Wait;Nop|]
 			   | _ -> [|
 				  Ldjpc;Ldi;Sub;Stjpc;Nop;Nop;Ldm;Nop;Ld_opd_8u;Ldi;And;Dup;Add;Add;Stm;Nop;Nop;
 				  Ld_opd_16u;Ldm;Jmp;Nop;Nop
 				 |])
-            | _ -> [|Ldjpc;Ldi;Sub;
-                     Stjpc;Nop;Nop;Ldm;Nop;Ld_opd_8u;Ldi;And;Dup;Add;Add;Stm;Nop;Nop;	Ld_opd_16u;Ldm;Jmp;Nop;Nop
+	    | _ -> [|Ldjpc;Ldi;Sub;
+		     Stjpc;Nop;Nop;Ldm;Nop;Ld_opd_8u;Ldi;And;Dup;Add;Add;Stm;Nop;Nop;	Ld_opd_16u;Ldm;Jmp;Nop;Nop
 		    |])
 	| OpInvoke (x,mn) as op ->
 	   (match x with
-            | `Interface cn -> 
-               (* Invoke the method itself!! *)
-               let mstacke = Stack.enum mstack in
-               let (ms, _) = pipi cn cp op mn in
-               let clzms = JClass.get_class_method_signature ms in
-               let exists = Enum.exists (fun x -> x = clzms) mstacke in
-               if (not exists) then
+	    | `Interface cn -> 
+	       (* Invoke the method itself!! *)
+	       let mstacke = Stack.enum mstack in
+	       let (ms, _) = pipi cn cp op mn in
+	       let clzms = JClass.get_class_method_signature ms in
+	       let exists = Enum.exists (fun x -> x = clzms) mstacke in
+	       if (not exists) then
 		 let () = Stack.push clzms mstack in
 		 let () = if not (exists_in_clzms_array clzms ss2) then 
 			    let () = print_string "This is the level: " in
@@ -612,19 +612,19 @@ let exists_in_clzms_array clzms x =
 			    let () = if (!addmethods) && (level > 1) then DynArray.add bd clzms in
 			    invoke_method mstack cn mn const_pool cp marray cms cname op l level ss2 clzms in
 		 ignore(Stack.pop mstack)
-               else ();
-               let iwaits = get_invoke_msize true cp cn op mn in
+	       else ();
+	       let iwaits = get_invoke_msize true cp cn op mn in
 	       let iiwaits = get_invoke_msize false cp cname op cms in
 	       let iwaits = Array.append iwaits iiwaits in
-               Array.append iwaits invokeinterface_mc
-            (* Array.append iwaits invokeinterface_mc *)
-            | `Virtual ot -> 
-               let cn = (match ot with | TClass x -> x | TArray _ -> raise Internal) in
-               let mstacke = Stack.enum mstack in
-               let (ms, _) = pipi cn cp op mn in
-               let clzms = JClass.get_class_method_signature ms in
-               let exists = Enum.exists (fun x -> x = clzms) mstacke in
-               if (not exists) then
+	       Array.append iwaits invokeinterface_mc
+	    (* Array.append iwaits invokeinterface_mc *)
+	    | `Virtual ot -> 
+	       let cn = (match ot with | TClass x -> x | TArray _ -> raise Internal) in
+	       let mstacke = Stack.enum mstack in
+	       let (ms, _) = pipi cn cp op mn in
+	       let clzms = JClass.get_class_method_signature ms in
+	       let exists = Enum.exists (fun x -> x = clzms) mstacke in
+	       if (not exists) then
 		 let () = Stack.push clzms mstack in
 		 let () = if not (exists_in_clzms_array clzms ss2) then 
 			    let () = print_string "This is the level: " in
@@ -632,18 +632,18 @@ let exists_in_clzms_array clzms x =
 			    let () = if (!addmethods) && (level > 1) then DynArray.add bd clzms in
 			    invoke_method mstack cn mn const_pool cp marray cms cname op l level ss2 clzms in
 		 ignore(Stack.pop mstack)
-               else ();
-               let iwaits = get_invoke_msize true cp cn op mn in
+	       else ();
+	       let iwaits = get_invoke_msize true cp cn op mn in
 	       let iiwaits = get_invoke_msize false cp cname op cms in
 	       let iwaits = Array.append iwaits iiwaits in
-               Array.append iwaits invokevirtual_mc
-            (* Array.append waits invokevirtual_mc *)
-            | `Special cn -> 
-               let mstacke = Stack.enum mstack in
-               let (ms, _) = pipi cn cp op mn in
-               let clzms = JClass.get_class_method_signature ms in
-               let exists = Enum.exists (fun x -> x = clzms) mstacke in
-               if (not exists) then
+	       Array.append iwaits invokevirtual_mc
+	    (* Array.append waits invokevirtual_mc *)
+	    | `Special cn -> 
+	       let mstacke = Stack.enum mstack in
+	       let (ms, _) = pipi cn cp op mn in
+	       let clzms = JClass.get_class_method_signature ms in
+	       let exists = Enum.exists (fun x -> x = clzms) mstacke in
+	       if (not exists) then
 		 let () = Stack.push clzms mstack in
 		 let () = print_string "This is the level before: " in
 		 let () = if not (exists_in_clzms_array clzms ss2) then 
@@ -652,20 +652,20 @@ let exists_in_clzms_array clzms x =
 			    let () = if (!addmethods) && (level > 1) then DynArray.add bd clzms in
 			    invoke_method mstack cn mn const_pool cp marray cms cname op l level ss2 clzms in
 		 ignore(Stack.pop mstack)
-               else ();
-               let iwaits = get_invoke_msize true cp cn op mn in
+	       else ();
+	       let iwaits = get_invoke_msize true cp cn op mn in
 	       let iiwaits = get_invoke_msize false cp cname op cms in
 	       let iwaits = Array.append iwaits iiwaits in
-               Array.append iwaits invokestatic_mc
-            (* Array.append waits invokestatic_mc *)
-            | `Static cn ->
-               let cn1 = cn_simple_name cn in
-               let mn1 = ms_name mn in
-               let mstacke = Stack.enum mstack in
-               let (ms, _) = pipi cn cp op mn in
-               let clzms = JClass.get_class_method_signature ms in
-               let exists = Enum.exists (fun x -> x = clzms) mstacke in
-               if cn1 = "Native" then
+	       Array.append iwaits invokestatic_mc
+	    (* Array.append waits invokestatic_mc *)
+	    | `Static cn ->
+	       let cn1 = cn_simple_name cn in
+	       let mn1 = ms_name mn in
+	       let mstacke = Stack.enum mstack in
+	       let (ms, _) = pipi cn cp op mn in
+	       let clzms = JClass.get_class_method_signature ms in
+	       let exists = Enum.exists (fun x -> x = clzms) mstacke in
+	       if cn1 = "Native" then
 		 (match mn1 with
 		  | "rd" -> jopsys_rd
 		  | "wr" -> jopsys_wr
@@ -704,13 +704,13 @@ let exists_in_clzms_array clzms x =
 		  | "hc" -> jopsys_hc
 		  | _ -> 
 		     if (Stack.top mstack <> clzms) then
-                       let () = Stack.push clzms mstack in
-                       let () = if not (exists_in_clzms_array clzms ss2) then 
+		       let () = Stack.push clzms mstack in
+		       let () = if not (exists_in_clzms_array clzms ss2) then 
 				  let () = print_string "This is the level: " in
 				  let () = (print_endline >> string_of_int) level in
 				  let () = if (!addmethods) && (level > 1) then DynArray.add bd clzms in
 				  invoke_method mstack cn mn const_pool cp marray cms cname op l level ss2 clzms in
-                       ignore(Stack.pop mstack)
+		       ignore(Stack.pop mstack)
 		     else ();
 		     let iwaits = get_invoke_msize true cp cn op mn in
 		     let iiwaits = get_invoke_msize false cp cname op cms in
@@ -718,7 +718,7 @@ let exists_in_clzms_array clzms x =
 		     Array.append iwaits invokestatic_mc
 		 (* Array.append waits invokeinterface_mc *)
 		 )
-               else if (not exists) then
+	       else if (not exists) then
 		 let () = Stack.push clzms mstack in
 		 let () = if not (exists_in_clzms_array clzms ss2) then 
 			    let () = print_string "This is the level: " in
@@ -730,12 +730,12 @@ let exists_in_clzms_array clzms x =
 		 let iiwaits = get_invoke_msize false cp cname op cms in
 		 let iwaits = Array.append iwaits iiwaits in
 		 Array.append iwaits invokestatic_mc
-               else
+	       else
 		 let iwaits = get_invoke_msize true cp cn op mn in
 		 let iiwaits = get_invoke_msize false cp cname op cms in
 		 let iwaits = Array.append iwaits iiwaits in
 		 Array.append iwaits invokestatic_mc
-           (* Array.append waits invokeinterface_mc *)
+	   (* Array.append waits invokeinterface_mc *)
 	   )
 	| _ -> raise Internal)
     | JL.OpMonitorExit -> monitorexit
@@ -887,8 +887,8 @@ let exists_in_clzms_array clzms x =
       with
 	Not_found -> 
 	if retorinv then
-          let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
-          search_super op cp cn.JClass.c_super_class ms cnn
+	  let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
+	  search_super op cp cn.JClass.c_super_class ms cnn
 	else raise Not_found in
     let cn = (match cn with | JClass.JClass x -> x | _ -> raise Internal) in
     let cpool = cn.JClass.c_consts in
@@ -941,12 +941,12 @@ let exists_in_clzms_array clzms x =
       let ic = open_in cdir in
       let () =
 	try
-          let ln = ref 1 in
-          let rp = ref "." in
-          let cn_name = ref "" in
-          while true do
-            let line = input_line ic in
-            let () = if Str.string_match wca line 0 then
+	  let ln = ref 1 in
+	  let rp = ref "." in
+	  let cn_name = ref "" in
+	  while true do
+	    let line = input_line ic in
+	    let () = if Str.string_match wca line 0 then
 		       let ss = Str.matched_group 3 line in
 		       DynArray.add wl (!rp, !cn_name, ((string_of_int !ln),ss))
 		     else if Str.string_match pgex line 0 then
@@ -956,11 +956,11 @@ let exists_in_clzms_array clzms x =
 		       | "" -> cn_name := (Str.matched_group 4 line);
 		       | _ -> failwith 
 				("Currently only single (top-most) class per file is supported : " ^ !cn_name)
-            in
-            ln := succ !ln
-          done
+	    in
+	    ln := succ !ln
+	  done
 	with
-          End_of_file -> close_in ic
+	  End_of_file -> close_in ic
       in
       let wl = DynArray.map (fun (x,y,z) -> match x with "." -> (y,z) | _ -> (x^"."^y,z) ) wl in
       let clname = DynArray.fold_left (fun x (b,_) -> match x with "" -> b | _ as s -> if x <> s then failwith "Multiple class defs" else x) "" wl in
@@ -985,43 +985,46 @@ let exists_in_clzms_array clzms x =
     if not (exists_in_clzms_array mn jfk) then
       let jkf = mn in
       let _ = Stack.push mn jfk in
-      let bb = Array.map (fun (_,_,x) -> x) vals in
+      (* let bb = Array.map (fun (_,_,x) -> x) vals in *)
       (* let () = print_endline "^^^^^^^^^^^^^^^^^^^^^^^^" in *)
       (* let () = (print_endline >> JPrint.class_method_signature) mn in *)
       (* let () = Array.iter (fun x -> Array.iter (print_endline >> JPrint.class_method_signature) x) bb in *)
+      (* let () = Hashtbl.iter (fun x y -> (print_endline >> JPrint.class_method_signature) x) tbl in *)
       (* let () = print_endline "^^^^^^^^^^^^^^^^^^^^^^^^" in *)
+      (*XXX: lc --> is the loop count!! *)
       let vals = Array.fold_left 
-		   (fun (i,m) (micro,lc,bd) -> 
-		    let (ii,mm) = Array.fold_left (fun (i,m) x -> 
-						   if (Array.exists (fun y -> x = y) mem_instr) then 
-						     (i,m+lc) 
-						   else 
-						     (i+lc,m)) (of_int 0, of_int 0) micro in
-		    let (ii,mm) = Array.fold_left 
-				    (fun (ii,mm) x -> 
-				     let indx = DynArray.index_of (fun (y,_) -> x = y) marray in
-				     let (mn,vals) = DynArray.get marray indx in 
-				     let n = Hashtbl.find_option tbl mn in
-				     let (ri,rm) = 
-				       match n with 
-				       | Some n -> n 
-				       | None -> calc_exec_time jfk (mn,vals) marray tbl
-				     in
-				     (* print_endline "tutu start"; *)
-				     (* (print_endline >> JPrint.class_method_signature) jkf; *)
-				     (* (print_endline >> JPrint.class_method_signature) mn; *)
-				     (* (print_string >> to_string) ri; *)
-				     (* print_string " "; *)
-				     (* (print_endline >> to_string) rm; *)
-				     (* print_endline "tutu end"; *)
-				     (ii+(ri*lc),mm+(rm*lc))
-				    ) (ii,mm) bd in
-		    (i+ii,mm+m)
-		   ) (of_int 0, of_int 0) vals in
+		   (fun (i,m,p) (micro,lc,bd) -> 
+		    let (ii,mm,pp) = Array.fold_left (fun (i,m,p) x -> 
+						      (* FIXME: Currently it is assumeed that each microcode takes 1 mw! *)
+						      if (Array.exists (fun y -> (to_mem_instr x) = y) mem_instr) then 
+							(i,m+lc,p+lc) 
+						      else 
+							(i+lc,m,p+lc)) (of_int 0, of_int 0, of_int 0) micro in
+		    let (ii,mm,pp) = Array.fold_left 
+				       (fun (ii,mm,pp) x -> 
+					let indx = DynArray.index_of (fun (y,_) -> x = y) marray in
+					let (mn,vals) = DynArray.get marray indx in 
+					let n = Hashtbl.find_option tbl mn in
+					let (ri,rm,rp) = 
+					  match n with 
+					  | Some n -> n 
+					  | None -> calc_exec_time jfk (mn,vals) marray tbl
+					in
+					(* print_endline "tutu start"; *)
+					(* (print_endline >> JPrint.class_method_signature) jkf; *)
+					(* (print_endline >> JPrint.class_method_signature) mn; *)
+					(* (print_string >> to_string) ri; *)
+					(* print_string " "; *)
+					(* (print_endline >> to_string) rm; *)
+					(* print_endline "tutu end"; *)
+					(ii+(ri*lc),mm+(rm*lc),pp+(lc*rp))
+				       ) (ii,mm,pp) bd in
+		    (i+ii,mm+m,p+pp)
+		   ) (of_int 0, of_int 0, of_int 0) vals in
       let _ = Stack.pop jfk in
-      (* let () = Hashtbl.add tbl mn vals in *)
+      let () = Hashtbl.add tbl mn vals in
       vals
-    else (of_int 0, of_int 0)
+    else (of_int 0, of_int 0, of_int 0)
 
   (* Currently only numbers at 60 MHz are given. But it can be easily
   extended to any thing else *)
@@ -1100,9 +1103,9 @@ let exists_in_clzms_array clzms x =
       let ff = Sys.getcwd () in
       let sourcep = ref "" in
       let speclist = [
-	("-sourcepath", Arg.String (fun x -> sourcep := x), "Source path for parsing loop count");
-	("-m", Arg.Set addmethods, "Add execution times of Java implemented bytecodes")
-      ] in
+	  ("-sourcepath", Arg.String (fun x -> sourcep := x), "Source path for parsing loop count");
+	  ("-m", Arg.Set addmethods, "Add execution times of Java implemented bytecodes")
+	] in
       let () = Arg.parse speclist (fun x -> DynArray.add args x) (usage_msg^"\n[OPTION]:") in
       let l = parsewca !sourcep in 
       let (cp, cn) = 
@@ -1115,15 +1118,15 @@ let exists_in_clzms_array clzms x =
       let () = generate_microcode_clazz marray (JFile.class_path cp) (make_cn cn) l in 
       let marray = DynArray.map (fun (mn,vals) -> (mn,Array.map(fun(x,y,z) -> (x,BatNum.of_int y,z))vals)) marray in
       (* Annotating the micro-code array with the average-power numbers uses open types, see joplang.ml *)
-      let _ = DynArray.map (fun (mn,vals) -> (mn,Array.map(fun(x,y,z) ->
-								 ((Array.map annotate x),y,z))vals)) marray in
+      let pr = DynArray.map (fun (mn,vals) -> (mn,Array.map(fun(x,y,z) ->
+							   ((Array.map annotate x),y,z))vals)) marray in
       let mm = DynArray.map (fun (mn,vals) -> (JPrint.class_method_signature mn,
-                                               calc_exec_time jfk (mn,vals) marray (Hashtbl.create 50)) ) marray in
+					       calc_exec_time jfk (mn,vals) marray (Hashtbl.create 50)) ) pr in
       let () = Sys.chdir ff in
       let fd = open_out (cn^".ini") in
-      DynArray.iter (fun (x,(i,m)) -> 
+      DynArray.iter (fun (x,(i,m,p)) -> 
 		     let () = output_string fd (x ^ "\n") in
-		     output_string fd ("[" ^ (BatNum.to_string i) ^","^ (BatNum.to_string m) ^ "]\n")) mm;
+		     output_string fd ("[" ^ (BatNum.to_string i) ^","^ (BatNum.to_string m) ^ "," ^ (BatNum.to_string p) ^ "]\n")) mm;
       print_endline (Sys.getcwd ());
       close_out fd;
     with

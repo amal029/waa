@@ -10,3 +10,6 @@
 *.log
 *.class
 *.s
+*.ini
+wcma
+live_ref
