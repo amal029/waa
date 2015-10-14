@@ -167,23 +167,70 @@ let mem_instr =
    |]
 
 
-(* let to_mem_instr = function *)
-(*   |  PLdm _ -> Ldm *)
-(*   |  PStps _ -> Stps *)
-(*   |  PStmra _ -> Stmra *)
-(*   |  PStmwa _ -> Stmwa *)
-(*   |  PStmrac _ -> Stmrac *)
-(*   |  PLdmrd _ -> Ldmrd *)
-(*   |  PLdbcstart _ -> Ldbcstart *)
-(*   |  PStmwd _ -> Stmwd *)
-(*   |  PStald _ -> Stald *)
-(*   |  PStast _ -> Stast *)
-(*   |  PStgf _ -> Stgf *)
-(*   |  PStpf _ -> Stpf *)
-(*   |  PStcp _ -> Stcp *)
-(*   |  PStbcrd _ -> Stbcrd *)
-(*   |  PStgs _ -> Stgs *)
-(*   |  PStmraf _ -> Stmraf *)
-(*   |  PWait _ -> Wait *)
-(*   | _ as s -> s *)
 
+let get_power = function
+  | PPop x -> x.avgp
+  | PAnd x -> x.avgp
+  | POr x -> x.avgp
+  | PXor x -> x.avgp
+  | PAdd x -> x.avgp
+  | PSub x -> x.avgp
+  | PStmul x -> x.avgp
+  | PStmwa x -> x.avgp
+  | PStmra x -> x.avgp
+  | PStmrac x -> x.avgp
+  | PStmraf x -> x.avgp
+  | PStmwd x -> x.avgp
+  | PStald x -> x.avgp
+  | PStast x -> x.avgp
+  | PStgf x -> x.avgp
+  | PStgs x -> x.avgp
+  | PStpf x -> x.avgp
+  | PStcp x -> x.avgp
+  | PStbcrd x -> x.avgp
+  | PStidx x -> x.avgp
+  | PStps x -> x.avgp
+  | PCyc  x -> x.avgp
+  | PLdcr x -> x.avgp
+  | PSt0 x -> x.avgp
+  | PSt1 x -> x.avgp
+  | PSt2 x -> x.avgp
+  | PSt3 x -> x.avgp
+  | PSt4 x -> x.avgp
+  | PSt x -> x.avgp
+  | PStmi x -> x.avgp
+  | PStvp x -> x.avgp
+  | PStjpc x -> x.avgp
+  | PStar x -> x.avgp
+  | PStsp x -> x.avgp
+  | PUshr x -> x.avgp
+  | PShl x -> x.avgp
+  | PShr x -> x.avgp
+  | PStm x -> x.avgp
+  | PBz x -> x.avgp
+  | PBnz x -> x.avgp
+  | PNop x -> x.avgp
+  | PWait x -> x.avgp
+  | PJbr x -> x.avgp
+  | PLdm x -> x.avgp
+  | PLdi x -> x.avgp
+  | PLdmrd x -> x.avgp
+  | PLdmul x -> x.avgp
+  | PLdbcstart x -> x.avgp
+  | PLd0 x -> x.avgp
+  | PLd1 x -> x.avgp
+  | PLd2 x -> x.avgp
+  | PLd3 x -> x.avgp
+  | PLd4 x -> x.avgp
+  | PLd x -> x.avgp
+  | PLdmi x -> x.avgp
+  | PLdsp x -> x.avgp
+  | PLdvp x -> x.avgp
+  | PLdjpc x -> x.avgp
+  | PLd_opd_8u x -> x.avgp
+  | PLd_opd_8s x -> x.avgp
+  | PLd_opd_16u x -> x.avgp
+  | PLd_opd_16s x -> x.avgp
+  | PDup x -> x.avgp
+  | PJmp x -> x.avgp
+  | PCinval x -> x.avgp

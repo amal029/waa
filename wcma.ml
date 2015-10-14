@@ -981,7 +981,6 @@ let usage_msg = "Usage: wcma [-sourcepath <filename>] [OPTION] class-path class-
     Array.fold_left (fun h x -> getds h x ;h ) (Hashtbl.create 50) x
 
   let rec calc_exec_time jfk (mn,vals) marray tbl =
-    let open BatNum in
     if not (exists_in_clzms_array mn jfk) then
       let jkf = mn in
       let _ = Stack.push mn jfk in
@@ -993,38 +992,38 @@ let usage_msg = "Usage: wcma [-sourcepath <filename>] [OPTION] class-path class-
       (* let () = print_endline "^^^^^^^^^^^^^^^^^^^^^^^^" in *)
       (*XXX: lc --> is the loop count!! *)
       let vals = Array.fold_left 
-		   (fun (i,m,p) (micro,lc,bd) -> 
-		    let (ii,mm,pp) = Array.fold_left (fun (i,m,p) x -> 
-						      (* FIXME: Currently it is assumeed that each microcode takes 1 mw! *)
-						      if (Array.exists (fun y -> x = y) mem_instr) then 
-							(i,m+lc,p+lc) 
-						      else 
-							(i+lc,m,p+lc)) (of_int 0, of_int 0, of_int 0) micro in
-		    let (ii,mm,pp) = Array.fold_left 
-				       (fun (ii,mm,pp) x -> 
-					let indx = DynArray.index_of (fun (y,_) -> x = y) marray in
-					let (mn,vals) = DynArray.get marray indx in 
-					let n = Hashtbl.find_option tbl mn in
-					let (ri,rm,rp) = 
-					  match n with 
-					  | Some n -> n 
-					  | None -> calc_exec_time jfk (mn,vals) marray tbl
-					in
-					(* print_endline "tutu start"; *)
-					(* (print_endline >> JPrint.class_method_signature) jkf; *)
-					(* (print_endline >> JPrint.class_method_signature) mn; *)
-					(* (print_string >> to_string) ri; *)
-					(* print_string " "; *)
-					(* (print_endline >> to_string) rm; *)
-					(* print_endline "tutu end"; *)
-					(ii+(ri*lc),mm+(rm*lc),pp+(lc*rp))
-				       ) (ii,mm,pp) bd in
-		    (i+ii,mm+m,p+pp)
-		   ) (of_int 0, of_int 0, of_int 0) vals in
+	(fun (i,m,p) (micro,lc,bd) -> 
+	  let (ii,mm,pp) = Array.fold_left (fun (i,m,p) x -> 
+	      (* FIXME: Currently it is assumed that each microcode takes 1 mw! *)
+	    if (Array.exists (fun y -> x = y) mem_instr) then 
+	      (* XXX: Get power here from the instruction and multiply
+		 it by lc *)
+	      (i,m+lc,p+(lc*int_of_float (get_power x))) 
+	    else 
+	      (i+lc,m,p+lc)) (0, 0, 0) micro in
+	  let (ii,mm,pp) = Array.fold_left 
+	    (fun (ii,mm,pp) x -> 
+	      let indx = DynArray.index_of (fun (y,_) -> x = y) marray in
+	      let (mn,vals) = DynArray.get marray indx in 
+	      let n = Hashtbl.find_option tbl mn in
+	      let (ri,rm,rp) = 
+		match n with 
+		| Some n -> n 
+		| None -> calc_exec_time jfk (mn,vals) marray tbl
+	      in
+		(* print_endline "tutu start"; *)
+		(* (print_endline >> JPrint.class_method_signature) jkf; *)
+		(* (print_endline >> JPrint.class_method_signature) mn; *)
+		(* (print_string >> to_string) ri; *)
+		(* print_string " "; *)
+		(* (print_endline >> to_string) rm; *)
+		(* print_endline "tutu end"; *)
+	      (ii+(ri*lc),mm+(rm*lc),pp+(lc*rp))) (ii,mm,pp) bd in
+	  (i+ii,mm+m,p+pp)) (0, 0, 0) vals in
       let _ = Stack.pop jfk in
       let () = Hashtbl.add tbl mn vals in
       vals
-    else (of_int 0, of_int 0, of_int 0)
+    else (0, 0, 0)
 
   (* Currently only numbers at 60 MHz are given. But it can be easily
   extended to any thing else *)
@@ -1116,7 +1115,7 @@ let usage_msg = "Usage: wcma [-sourcepath <filename>] [OPTION] class-path class-
       let jfk = Stack.create () in
       bj3 := cn;
       let () = generate_microcode_clazz marray (JFile.class_path cp) (make_cn cn) l in 
-      let marray = DynArray.map (fun (mn,vals) -> (mn,Array.map(fun(x,y,z) -> (x,BatNum.of_int y,z))vals)) marray in
+      let marray = DynArray.map (fun (mn,vals) -> (mn,Array.map(fun(x,y,z) -> (x,y,z))vals)) marray in
       (* Annotating the micro-code array with the average-power numbers uses open types, see joplang.ml *)
       let pr = DynArray.map (fun (mn,vals) -> (mn,Array.map(fun(x,y,z) ->
 							   ((Array.map annotate x),y,z))vals)) marray in
@@ -1126,7 +1125,7 @@ let usage_msg = "Usage: wcma [-sourcepath <filename>] [OPTION] class-path class-
       let fd = open_out (cn^".ini") in
       DynArray.iter (fun (x,(i,m,p)) -> 
 		     let () = output_string fd (x ^ "\n") in
-		     output_string fd ("[" ^ (BatNum.to_string i) ^","^ (BatNum.to_string m) ^ "," ^ (BatNum.to_string p) ^ "]\n")) mm;
+		     output_string fd ("[" ^ (string_of_int i) ^","^ (string_of_int m) ^ "," ^ (string_of_int p) ^ "]\n")) mm;
       print_endline (Sys.getcwd ());
       close_out fd;
     with
