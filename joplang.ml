@@ -3,7 +3,6 @@
 (* Author: Avinash *)
 (* Date: Fri Sep 12 13:52:29 NZST 2014 *)
 
-
 type jop_microcode =
   | Pop
   | And

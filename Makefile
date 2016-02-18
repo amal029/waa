@@ -1,17 +1,25 @@
 CCC ?= ocamlopt -g -S -inline 20 -nodynlink -annot -ccopt -O3 -ccopt -mtune=native -ccopt -flto
 JAVALIBDIR=`ocamlfind query javalib`
 SRCO=myReachDef.ml live_ref.ml
-SRCN=joplang.ml wcma.ml
-all: wcma live_ref wcma.cmxa joplang.cmxa
+SRCN=wcma.ml
+LIBSRC=joplang.ml libWcma.ml
+LIB=libWcma.cmxa
+
+all: live_ref libWcma.cmxa wcma
 
 wcma:
-	ocamlfind $(CCC) -pp "camlp4o pa_macro.cmo -DDEBUG" -package extlib,deriving -package sawja -package batteries -package javalib \
-	-linkpkg $(SRCN) -o $@
+	ocamlfind $(CCC) -pp "camlp4o pa_macro.cmo -DDEBUG" -I "."	\
+	$(LIB) -package extlib,deriving -package sawja -package		\
+	batteries -package javalib -linkpkg $(SRCN) -o $@
 
-wcma.cmxa:
-	$(CCC) -a wcma.cmx -o $@
+libWcma.cmxa:
+	ocamlfind $(CCC) -c -pp "camlp4o pa_macro.cmo -DDEBUG" -package extlib,deriving -package sawja -package batteries -package javalib \
+	-linkpkg $(LIBSRC)
+	$(CCC) -a joplang.cmx libWcma.cmx -o $@
 
 joplang.cmxa:
+	ocamlfind $(CCC) -c -pp "camlp4o pa_macro.cmo -DDEBUG" -package extlib,deriving -package sawja -package batteries -package javalib \
+	-linkpkg -c $(LIBSRC)
 	$(CCC) -a joplang.cmx -o $@
 
 live_ref:
