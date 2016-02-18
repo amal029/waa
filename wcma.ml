@@ -107,7 +107,8 @@ let invokevirtual_mc =
 let invokeinterface_mc = 
   Array.append [|
     Ldm;Nop;Ld_opd_16u;Add;Stmrac;Wait;
-    Wait;Ldmrd;Dup;Ldi;And;Stm;Ldi;Ushr;Stm;Ldsp;Ldi;Add;Ldm;Sub;Star;Nop;Ldmi;Dup;Nop;Bnz;Ldi;Add;Stmraf;Wait;Wait;Ldmrd;Ldi;Sub;Stmrac;Wait;Wait;Ldmrd;Ldm;Add;
+    Wait;Ldmrd;Dup;Ldi;And;Stm;
+    Ldi;Ushr;Stm;Ldsp;Ldi;Add;Ldm;Sub;Star;Nop;Ldmi;Dup;Nop;Bnz;Ldi;Add;Stmraf;Wait;Wait;Ldmrd;Ldi;Sub;Stmrac;Wait;Wait;Ldmrd;Ldm;Add;
     Stmrac;Wait;Wait;Ldmrd;Jmp;Nop;Nop;Ldm;Dup;Ld_opd_16u;Add;Stmrac;Wait;Wait;Ldmrd;Dup;Ldi;And;Stm;Ldi;Ushr;Stm;Ldsp;Ldi;Add;Ldm;
     Sub;Star;Nop;Ldmi;Nop;Nop;Bz;Ldvp;Stm;Ldi;Sub;Stmraf;Wait;Wait;Ldmrd;Ldi;Add;Stmrac;Wait;Wait;Ldmrd;Ldi;Add;Jmp
   |] invoke_ok;;
@@ -159,7 +160,7 @@ let exists_in_clzms_array clzms x =
   Enum.exists (fun x -> x = clzms) a
 
 (* Method size in bytes *)
-let get_method_size = function
+let get_size = function
   | JL.OpNop -> 1
   | JL.OpAConstNull -> 1
   | JL.OpLConst _ -> 1
@@ -901,7 +902,7 @@ and get_invoke_msize retorinv cp cn op ms =
   if bcs <> [] then
     let bcs = match (List.hd bcs) with | JClassLow.AttributeCode x -> x | _ -> raise (Internal "Unexpected type") in
     let bcs = (Lazy.force bcs).JClassLow.c_code in
-    let msize = Array.fold_left (fun v x -> v + (get_method_size x)) 0 bcs in
+    let msize = Array.fold_left (fun v x -> v + (get_size x)) 0 bcs in
     let msize = if msize mod 4 = 0 then msize / 4 else msize / 4 + 1 in
     Array.init msize (fun _ -> Wait)
   else

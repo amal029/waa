@@ -2,11 +2,18 @@ CCC ?= ocamlopt -g -S -inline 20 -nodynlink -annot -ccopt -O3 -ccopt -mtune=nati
 JAVALIBDIR=`ocamlfind query javalib`
 SRCO=myReachDef.ml live_ref.ml
 SRCN=joplang.ml wcma.ml
-all: wcma live_ref
+all: wcma live_ref wcma.cmxa joplang.cmxa
 
 wcma:
 	ocamlfind $(CCC) -pp "camlp4o pa_macro.cmo -DDEBUG" -package extlib,deriving -package sawja -package batteries -package javalib \
 	-linkpkg $(SRCN) -o $@
+
+wcma.cmxa:
+	$(CCC) -a wcma.cmx -o $@
+
+joplang.cmxa:
+	$(CCC) -a joplang.cmx -o $@
+
 live_ref:
 	ocamlfind $(CCC) -pp "camlp4o pa_macro.cmo -DDEBUG" -package extlib,deriving -package sawja -package batteries -package javalib \
 	-linkpkg $(SRCO) -o $@
