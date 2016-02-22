@@ -814,7 +814,9 @@ and generate_microcode_method mstack marray pms cms pcname cname cpool cp m l le
     in
     let res = Array.fold_lefti (fun t i x -> 
         let lc = getloopcount lr i x in
-        (match x with | JClassLow.OpInvalid -> () | _ -> print_endline ((string_of_int i)^" "^(JDumpLow.opcode x)^"\t"^(string_of_int lc)));
+        (match x with
+	| JClassLow.OpInvalid -> ()
+	| _ -> print_endline ((string_of_int i)^" "^(JDumpLow.opcode x)^"\t"^(string_of_int lc)));
         Array.append t 
           (
             let bd = DynArray.make 30 in
@@ -1013,7 +1015,15 @@ let rec calc_exec_time jfk (mn,vals) marray tbl =
            (i+ii,mm+m)
         ) (of_int 0, of_int 0) vals in
     let _ = Stack.pop jfk in
-    (* let () = Hashtbl.add tbl mn vals in *)
+    let () = Hashtbl.add tbl mn vals in
     vals
   else (of_int 0, of_int 0)
 
+
+let internal_main cp cn l addms =
+  addmethods := addms;
+  let marray = DynArray.make 100 in
+  let jfk = Stack.create () in
+  let () = generate_microcode_clazz marray (JFile.class_path cp) (make_cn cn) l in 
+  let marray = DynArray.map (fun (mn,vals) -> (mn,Array.map(fun(x,y,z) -> (x,BatNum.of_int y,z))vals)) marray in
+  DynArray.map (fun (mn,vals) -> (mn, calc_exec_time jfk (mn,vals) marray (Hashtbl.create 50)) ) marray
