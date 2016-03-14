@@ -92,7 +92,7 @@ let rec isCorrectField2 varrs vvt = function
   | Var (vt,v) -> List.exists ((=) v) varrs
   | Field (e,_,_) -> isCorrectField2 varrs vvt e
   | Unop (_,e) -> isCorrectField2 varrs vvt e
-  | _ as s -> false
+  | _ -> false
 
 let isCorrectField varrs tfs le cn fs cnfs = 
   let ifs = FieldMap.value_elements cnfs in
@@ -100,7 +100,7 @@ let isCorrectField varrs tfs le cn fs cnfs =
   let ifs = List.map (function 
 		       | InterfaceField ii -> ii.if_class_signature 
 		       | ClassField ic -> ic.cf_class_signature) ifs in
-  let r1 = List.exists (cfs_equal cnfs) ifs in
+  let _ = List.exists (cfs_equal cnfs) ifs in
   let r2 = isCorrectField2 varrs tfs le in
   r2 
 
@@ -635,13 +635,13 @@ let main =
       else (args.(1),args.(2)) in
     (* Need to build all the other entry points so that other classes are also parsed!! *)
     let (prta,_) = JRTA.parse_program ~instantiated:[] ~other_entrypoints:[make_cms (make_cn "com.jopdesign.sys.Startup")
-										    (make_ms "boot" [] None)]
-				      cp (make_cms (make_cn cn) JProgram.main_signature) in
+									      (make_ms "boot" [] None)]
+      cp (make_cms (make_cn cn) JProgram.main_signature) in
     (* Convert it into JBIR format *)
     let pbir = JProgram.map_program2
-		 (fun _ -> JBir.transform ~bcv:false ~ch_link:false ~formula:false ~formula_cmd:[]) 
-		 (Some (fun code pp -> (JBir.pc_ir2bc code).(pp)))
-		 prta in
+      (fun _ -> JBir.transform ~bcv:false ~ch_link:false ~formula:false ~formula_cmd:[]) 
+      (Some (fun code pp -> (JBir.pc_ir2bc code).(pp)))
+      prta in
 
     let obj = JProgram.get_node pbir (make_cn cn) in
     let mobj = JProgram.get_concrete_method obj JProgram.main_signature in
@@ -663,214 +663,214 @@ let main =
     let global_replace = List.fold_left (fun r x -> ClassMethodMap.merge (@) x r) ClassMethodMap.empty global_replace in
     (* Replace them bytecodes *)
     let prta = ClassMethodMap.fold 
-		 (fun k v prta ->
-		  JProgram.map_program2 
-		    (fun pnode cm javacode -> 
-                     if (cms_equal k cm.cm_class_method_signature) 
-                     then
+      (fun k v prta ->
+	JProgram.map_program2 
+	  (fun pnode cm javacode -> 
+            if (cms_equal k cm.cm_class_method_signature) 
+            then
 		       (* let () = print_endline (JPrint.class_method_signature k) in *)
-		       let ndone = ref [] in
+	      let ndone = ref [] in
                        (* Changing the new instruction here!! *)
-                       List.fold_left
-			 (fun jt rl ->
+              List.fold_left
+		(fun jt rl ->
 			  (* let () = List.iter (fun ((bb,x),_) -> print_int x; print_string " "; print_int bb; print_endline " ") rl in *)
 			  (* let () = print_endline "\n" in *)
-			  let lnt = match jt.JCode.c_line_number_table with 
-                            | Some x -> x 
-                            | None -> failwith  
-					("Could not find the line number table of "^(JPrint.class_method_signature cm.Javalib.cm_class_method_signature))
-			  in
-			  let doonce = ref true in
-			  let (r,lnt) =
-                            List.fold_left
-                              (fun (r,lnt) ((bpp,x),size) ->
-			       if not (List.exists ((=) x) !ndone) then
+		  let lnt = match jt.JCode.c_line_number_table with 
+                    | Some x -> x 
+                    | None -> failwith  
+		       ("Could not find the line number table of "^(JPrint.class_method_signature cm.Javalib.cm_class_method_signature))
+		  in
+		  let doonce = ref true in
+		  let (r,lnt) =
+                    List.fold_left
+                      (fun (r,lnt) ((bpp,x),size) ->
+			if not (List.exists ((=) x) !ndone) then
 				 (* Extend the constant pool!! *)
-				 let pc = (match JProgram.to_ioc pnode with | JClass x -> x | _ -> raise (Internal "")) in
-				 let () = 
-				   if(!doonce) then
-				     let () = hADDRESS := !hADDRESS - (size+handle_size) in
-				     let pool = Array.append pc.c_consts [|ConstValue (ConstInt (Int32.of_int (!hADDRESS+9)))|] in
-				     let pool = Array.append pool [|ConstValue (ConstInt (Int32.of_int !hADDRESS))|] in
-				     pc.c_consts <- pool;
-				     doonce := false; 
-				 in
+			  let pc = (match JProgram.to_ioc pnode with | JClass x -> x | _ -> raise (Internal "")) in
+			  let () = 
+			    if(!doonce) then
+			      let () = hADDRESS := !hADDRESS - (size+handle_size) in
+			      let pool = Array.append pc.c_consts [|ConstValue (ConstInt (Int32.of_int (!hADDRESS+9)))|] in
+			      let pool = Array.append pool [|ConstValue (ConstInt (Int32.of_int !hADDRESS))|] in
+			      pc.c_consts <- pool;
+			      doonce := false; 
+			  in
 
-				 let (cname,mms) = cms_split k in
-				 let birc = (match (JProgram.get_concrete_method (JProgram.get_node pbir cname) mms).cm_implementation with
-					     | Native -> raise (Internal "Native method in NewArray")
-					     | Java x -> Lazy.force x) in
+			  let (cname,mms) = cms_split k in
+			  let birc = (match (JProgram.get_concrete_method (JProgram.get_node pbir cname) mms).cm_implementation with
+			    | Native -> raise (Internal "Native method in NewArray")
+			    | Java x -> Lazy.force x) in
 
-				 let gremove mbir pp = 
-				   match (code mbir).(pp) with
-				   | NewArray (_,(TBasic _),_) -> 2
-				   | NewArray (_,(TObject (TClass _)),_) -> 3
-				   | New _ -> 3
-				   | _ as s -> raise (Internal ("Expected new/(a)newarray got: " ^ (print_instr s))) in
+			  let gremove mbir pp = 
+			    match (code mbir).(pp) with
+			    | NewArray (_,(TBasic _),_) -> 2
+			    | NewArray (_,(TObject (TClass _)),_) -> 3
+			    | New _ -> 3
+			    | _ as s -> raise (Internal ("Expected new/(a)newarray got: " ^ (print_instr s))) in
 
-				 let remove = gremove birc bpp in
+			  let remove = gremove birc bpp in
 
-				 let pipi = 22 in
+			  let pipi = 22 in
 
-				 let ox = x in
-				 let x = List.fold_left (fun x t -> if ox > t then x + pipi else x) x !ndone in
+			  let ox = x in
+			  let x = List.fold_left (fun x t -> if ox > t then x + pipi else x) x !ndone in
 				 (* let () = (print_endline >> string_of_int) x in *)
-				 ndone := ox :: !ndone;
-				 let newinstr = r.(x) in
+			  ndone := ox :: !ndone;
+			  let newinstr = r.(x) in
 
 				 (* Increasing line numbers *)
-				 let lnt = List.map (fun ((bll,sll) as y) -> if bll > x then (bll+pipi,sll) else y ) lnt in
+			  let lnt = List.map (fun ((bll,sll) as y) -> if bll > x then (bll+pipi,sll) else y ) lnt in
 				 (* ------ done *)
 
-				 let fa = Array.filteri (fun i _ -> (i<x)) r in
-				 let fa = Array.mapi 
-					    (fun rr ff ->
-					     (match ff with
-					      | OpIfCmp (xx,target) as s -> if (rr + target) = x then s 
-									    else if (rr+target) > x then OpIfCmp (xx,(target+pipi))
-									    else s
-					      | OpIf (xx,target) as s -> if (rr+target) = x then s 
-									 else if (rr+target) > x then OpIf (xx,(target+pipi))
-									 else s
-					      | OpGoto target as s -> if (rr+target) = x then s 
-								      else if (rr+target) > x then OpGoto (target + pipi)
-								      else s
-					      | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
-					      | _ as s -> s
-					     )) fa in
-				 let sa = Array.filteri (fun i _ -> (i>x+(remove-1))) r in
-				 let sa = Array.mapi 
-					    (fun rr ff ->
-					     let mindex = x + 3 + rr in
-					     (match ff with
-					      | OpIfCmp (xx,target) as s -> if (mindex + target) = x then s 
-									    else if (mindex + target) < x then OpIfCmp (xx,(target-pipi))
-									    else s
-					      | OpIf (xx,target) as s -> if (mindex + target) = x then s 
-									 else if (mindex + target) < x then OpIf (xx,(target-pipi))
-									 else s
-					      | OpGoto target as s -> 
-						 if (mindex + target) = x then s 
-						 else if (mindex + target) < x then OpGoto (target - pipi)
-						 else s
-					      | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
-					      | _ as s -> s
-					     )) sa in
+			  let fa = Array.filteri (fun i _ -> (i<x)) r in
+			  let fa = Array.mapi 
+			    (fun rr ff ->
+			      (match ff with
+			      | OpIfCmp (xx,target) as s -> if (rr + target) = x then s 
+				else if (rr+target) > x then OpIfCmp (xx,(target+pipi))
+				else s
+			      | OpIf (xx,target) as s -> if (rr+target) = x then s 
+				else if (rr+target) > x then OpIf (xx,(target+pipi))
+				else s
+			      | OpGoto target as s -> if (rr+target) = x then s 
+				else if (rr+target) > x then OpGoto (target + pipi)
+				else s
+			      | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
+			      | _ as s -> s
+			      )) fa in
+			  let sa = Array.filteri (fun i _ -> (i>x+(remove-1))) r in
+			  let sa = Array.mapi 
+			    (fun rr ff ->
+			      let mindex = x + 3 + rr in
+			      (match ff with
+			      | OpIfCmp (xx,target) as s -> if (mindex + target) = x then s 
+				else if (mindex + target) < x then OpIfCmp (xx,(target-pipi))
+				else s
+			      | OpIf (xx,target) as s -> if (mindex + target) = x then s 
+				else if (mindex + target) < x then OpIf (xx,(target-pipi))
+				else s
+			      | OpGoto target as s -> 
+				 if (mindex + target) = x then s 
+				 else if (mindex + target) < x then OpGoto (target - pipi)
+				 else s
+			      | OpTableSwitch _ | OpLookupSwitch _ -> raise (Internal "Analysis with switch stmt not supported")
+			      | _ as s -> s
+			      )) sa in
 
 				 (* Change to low level format to get the index in the constant pool *)
 				 (* Should be encoded in 3 bytes max *)
-				 let cpool1 = DynArray.init (Array.length pc.c_consts) (fun i -> pc.c_consts.(i)) in
-				 let newinstrlow = JInstruction.instruction2opcode cpool1 remove newinstr in
-				 match newinstrlow with 
-				 | JClassLow.OpNew nx -> 
-				    let poolindex = nx in
-				    let xx = [|
+			  let cpool1 = DynArray.init (Array.length pc.c_consts) (fun i -> pc.c_consts.(i)) in
+			  let newinstrlow = JInstruction.instruction2opcode cpool1 remove newinstr in
+			  match newinstrlow with 
+			  | JClassLow.OpNew nx -> 
+			     let poolindex = nx in
+			     let xx = [|
 					(* This is the instruction sequence that replaces new after deleting it *)
-					JInstruction.opcode2instruction
-					  pc.c_consts (JClassLow.OpLdc1w ((Array.length pc.c_consts) - 1));
-					OpInvalid; OpInvalid; (* 3 bytes *)
+			       JInstruction.opcode2instruction
+				 pc.c_consts (JClassLow.OpLdc1w ((Array.length pc.c_consts) - 1));
+			       OpInvalid; OpInvalid; (* 3 bytes *)
 
-					OpDup; (* 1 byte *)
+			       OpDup; (* 1 byte *)
 
-					JInstruction.opcode2instruction
-					  pc.c_consts (JClassLow.OpLdc1w ((Array.length pc.c_consts) - 2));
-					OpInvalid; OpInvalid; (* 3 bytes *)
+			       JInstruction.opcode2instruction
+				 pc.c_consts (JClassLow.OpLdc1w ((Array.length pc.c_consts) - 2));
+			       OpInvalid; OpInvalid; (* 3 bytes *)
 
-					OpSwap; (* 1 byte *)
+			       OpSwap; (* 1 byte *)
 
 					(* Write the pointer to start of data *)
-					OpInvoke ((`Static (make_cn "com.jopdesign.sys.Native")),
-						  (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
-					OpInvalid; OpInvalid; (* 3 bytes *)
+			       OpInvoke ((`Static (make_cn "com.jopdesign.sys.Native")),
+					 (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
+			       OpInvalid; OpInvalid; (* 3 bytes *)
 
-					OpDup; (* 1 byte *)
+			       OpDup; (* 1 byte *)
 
-					OpConst (`Byte mtab_off); OpInvalid; (* 2 byte *)
+			       OpConst (`Byte mtab_off); OpInvalid; (* 2 byte *)
 
-					OpAdd `Int2Bool; (* 1 byte *)
+			       OpAdd `Int2Bool; (* 1 byte *)
 
-					JInstruction.opcode2instruction pc.c_consts (JClassLow.OpLdc1w poolindex); 
-					OpInvalid; OpInvalid; (* 3 bytes *)
+			       JInstruction.opcode2instruction pc.c_consts (JClassLow.OpLdc1w poolindex); 
+			       OpInvalid; OpInvalid; (* 3 bytes *)
 
-					OpConst (`Byte class_header); OpInvalid; (* 2 bytes *)
+			       OpConst (`Byte class_header); OpInvalid; (* 2 bytes *)
 
-					OpAdd `Int2Bool; (* 1 byte *)
+			       OpAdd `Int2Bool; (* 1 byte *)
 
-					OpSwap; (* 1 byte *)
+			       OpSwap; (* 1 byte *)
 
 					(* Write the pointer to start of method table structure *)
-					OpInvoke ((`Static (make_cn "com.jopdesign.sys.Native")),
-						  (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
-					OpInvalid; OpInvalid (* 3 bytes *)
+			       OpInvoke ((`Static (make_cn "com.jopdesign.sys.Native")),
+					 (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
+			       OpInvalid; OpInvalid (* 3 bytes *)
 
-				       |] in
-				    (Array.append (Array.append fa xx) sa,lnt)
+				      |] in
+			     (Array.append (Array.append fa xx) sa,lnt)
 
 				 (* Allocating 1-D primitive arrays with const dimensions *)
-				 | JClassLow.OpNewArray _ 
-				 | JClassLow.OpANewArray _ -> 
-				    let dim = (match (code birc).(bpp) with
-					       | NewArray (_,_,els) -> 
-						  if List.length els = 1 then
-						    match (List.hd els) with
-						    | Const (`Int x) -> x
-						    | _ as s -> raise (Not_supported ("Non constant array dimensions" ^ (print_expr s)))
-						  else raise (Not_supported ("Arrays with more than 1-dimension"))
-					       | _ as s -> raise (Internal (print_instr s))) in
-				    let xx = [|
+			  | JClassLow.OpNewArray _ 
+			  | JClassLow.OpANewArray _ -> 
+			     let dim = (match (code birc).(bpp) with
+			       | NewArray (_,_,els) -> 
+				  if List.length els = 1 then
+				    match (List.hd els) with
+				    | Const (`Int x) -> x
+				    | _ as s -> raise (Not_supported ("Non constant array dimensions" ^ (print_expr s)))
+				  else raise (Not_supported ("Arrays with more than 1-dimension"))
+			       | _ as s -> raise (Internal (print_instr s))) in
+			     let xx = [|
 					(* This is the instruction sequence that replaces new after deleting it *)
 					(* OpNop; (\* 1 byte *\) *)
-					OpPop; (* 1 byte *)
+			       OpPop; (* 1 byte *)
 
-					JInstruction.opcode2instruction
-					  pc.c_consts (JClassLow.OpLdc1w ((Array.length pc.c_consts) - 1));
-					OpInvalid; OpInvalid; (* 3 bytes *)
+			       JInstruction.opcode2instruction
+				 pc.c_consts (JClassLow.OpLdc1w ((Array.length pc.c_consts) - 1));
+			       OpInvalid; OpInvalid; (* 3 bytes *)
 
-					OpDup; (* 1 byte *)
+			       OpDup; (* 1 byte *)
 
-					JInstruction.opcode2instruction
-					  pc.c_consts (JClassLow.OpLdc1w ((Array.length pc.c_consts) - 2));
-					OpInvalid; OpInvalid; (* 3 bytes *)
+			       JInstruction.opcode2instruction
+				 pc.c_consts (JClassLow.OpLdc1w ((Array.length pc.c_consts) - 2));
+			       OpInvalid; OpInvalid; (* 3 bytes *)
 
-					OpSwap; (* 1 byte *)
+			       OpSwap; (* 1 byte *)
 
 					(* Write the pointer to start of data *)
-					OpInvoke ((`Static (make_cn "com.jopdesign.sys.Native")),
-						  (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
-					OpInvalid; OpInvalid; (* 3 bytes *)
+			       OpInvoke ((`Static (make_cn "com.jopdesign.sys.Native")),
+					 (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
+			       OpInvalid; OpInvalid; (* 3 bytes *)
 
-					OpDup; (* 1 byte *)
+			       OpDup; (* 1 byte *)
 
-					OpConst (`Byte mtab_off); OpInvalid; (* 2 byte *)
+			       OpConst (`Byte mtab_off); OpInvalid; (* 2 byte *)
 
-					OpAdd `Int2Bool; (* 1 byte *)
+			       OpAdd `Int2Bool; (* 1 byte *)
 
-					OpConst (`Int dim); OpInvalid; (* 2 bytes *)
+			       OpConst (`Int dim); OpInvalid; (* 2 bytes *)
 
-					OpSwap; (* 1 byte *)
+			       OpSwap; (* 1 byte *)
 
 					(* Write the pointer to start of method table structure *)
-					OpInvoke ((`Static (make_cn "com.jopdesign.sys.Native")),
-						  (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
-					OpInvalid; OpInvalid; (* 3 bytes *)
+			       OpInvoke ((`Static (make_cn "com.jopdesign.sys.Native")),
+					 (make_ms "wr" [(TBasic `Int);(TBasic `Int)] None));
+			       OpInvalid; OpInvalid; (* 3 bytes *)
+			       
+				      |] in
+				      let xx = (match newinstrlow with
+					| JClassLow.OpNewArray _ -> Array.append xx [|OpNop;OpNop|]
+					| _ -> Array.append xx [|OpNop;OpNop;OpNop|]) in
+				      (Array.append (Array.append fa xx) sa,lnt)
 					
-				       |] in
-				    let xx = (match newinstrlow with
-					      | JClassLow.OpNewArray _ -> Array.append xx [|OpNop;OpNop|]
-					      | _ -> Array.append xx [|OpNop;OpNop;OpNop|]) in
-				    (Array.append (Array.append fa xx) sa,lnt)
-				      
-				 | _ as op -> 
-				    (print_endline >> JPrint.class_method_signature) k;
-				    print_endline ("Looking for new/newarray opcode, found: " ^ (JDumpLow.opcode op));
-				    raise (Internal ("Encode incorrectly as byte: " ^ (string_of_int x)))
-			       else (r,lnt)
-                              )(jt.c_code,lnt) rl in
-			  {jt with c_code = r; c_line_number_table = Some lnt}
-			 ) javacode v
-                     else javacode) None prta
-		 ) global_replace prta in
+			  | _ as op -> 
+			     (print_endline >> JPrint.class_method_signature) k;
+			    print_endline ("Looking for new/newarray opcode, found: " ^ (JDumpLow.opcode op));
+			    raise (Internal ("Encode incorrectly as byte: " ^ (string_of_int x)))
+			else (r,lnt)
+                       )(jt.c_code,lnt) rl in
+			     {jt with c_code = r; c_line_number_table = Some lnt}
+		      ) javacode v
+                 else javacode) None prta
+	  ) global_replace prta in
     (* JPrint.print_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) JPrint.jcode stdout; *)
-    unparse_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) (open_out_bin (cn^".class"));
+      unparse_class (JProgram.to_ioc (JProgram.get_node prta (make_cn cn))) (open_out_bin (cn^".class"));
   with 
   | NARGS -> ()
